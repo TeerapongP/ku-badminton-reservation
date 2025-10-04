@@ -10,3 +10,20 @@
   --background: #ffffff;
   --foreground: #171717;
 }
+
+body {
+  @apply bg-gradient-to-br from-green-50 to-emerald-50;
+}
+
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
