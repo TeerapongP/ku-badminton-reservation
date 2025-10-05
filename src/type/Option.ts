@@ -1,0 +1,1 @@
+export  type Option = string | Record<string, any>;
