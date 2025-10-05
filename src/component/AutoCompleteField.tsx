@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { AutoComplete } from 'primereact/autocomplete';
 import { AutoCompleteComponentProps } from '@/lib/AutoCompleteFieldProps';
+
 export const AutoCompleteField: React.FC<AutoCompleteComponentProps> = ({
   items = [],
   value = null,
@@ -54,7 +55,16 @@ export const AutoCompleteField: React.FC<AutoCompleteComponentProps> = ({
         </label>
       )}
 
-      <AutoComplete value={value ?? ''} suggestions={suggestions} completeMethod={search} onChange={(e) => onChange?.(e.value || null)} placeholder={placeholder} disabled={disabled} />
+      <AutoComplete 
+        value={value ?? ''} 
+        suggestions={suggestions} 
+        completeMethod={search} 
+        onChange={(e) => onChange?.(e.value || null)} 
+        placeholder={placeholder} 
+        disabled={disabled}
+        inputClassName="w-full h-12 px-4 text-base"
+        className="w-full"
+      />
     </div>
   );
 };

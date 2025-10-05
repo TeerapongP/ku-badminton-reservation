@@ -152,8 +152,8 @@ export default function RegisterContainner() {
                         required
                     />
                 </div>
-                <div className="mt-4 flex gap-4">
-                    <div className="w-1/3">
+                <div className="mt-4 flex flex-col sm:flex-row gap-4">
+                    <div className="w-full sm:w-1/3">
                         <DropdownField
                             placeholder="คำนำหน้า"
                             value={prefix}
@@ -163,7 +163,7 @@ export default function RegisterContainner() {
                             required
                         />
                     </div>
-                    <div className="w-1/3">
+                    <div className="w-full sm:w-1/3">
                         <InputField
                             type="text"
                             placeholder="ชื่อ"
@@ -173,7 +173,7 @@ export default function RegisterContainner() {
                         />
                     </div>
 
-                    <div className="w-1/3">
+                    <div className="w-full sm:w-1/3">
                         <InputField
                             type="text"
                             placeholder="นามสกุล"
@@ -183,8 +183,8 @@ export default function RegisterContainner() {
                         />
                     </div>
                 </div>
-                <div className="mt-4 flex gap-4">
-                    <div className="w-1/2">
+                <div className="mt-4 flex flex-col sm:flex-row gap-4">
+                    <div className="w-full sm:w-1/2">
                         <InputField
                             type="text"
                             placeholder="ชื่อเล่น"
@@ -194,7 +194,7 @@ export default function RegisterContainner() {
                         />
                     </div>
 
-                    <div className="w-1/2">
+                    <div className="w-full sm:w-1/2">
                         <DateField
                             value={dob}
                             onChange={setDob}
@@ -206,8 +206,8 @@ export default function RegisterContainner() {
                         />
                     </div>
                 </div>
-                <div className="mt-4 flex gap-4">
-                    <div className="w-1/2">
+                <div className="mt-4 flex flex-col sm:flex-row gap-4">
+                    <div className="w-full sm:w-1/2">
                         <InputField
                             type="tel"
                             placeholder="กรอกเบอร์โทรศัพท์"
@@ -219,7 +219,7 @@ export default function RegisterContainner() {
 
                     </div>
 
-                    <div className="w-1/2">
+                    <div className="w-full sm:w-1/2">
                         <InputField
                             type="email"
                             placeholder="กรอกอีเมล"
@@ -229,8 +229,8 @@ export default function RegisterContainner() {
                         />
                     </div>
                 </div>
-                <div className="mt-4 mb-4 flex gap-4">
-                    <div className="w-1/2">
+                <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
+                    <div className="w-full sm:w-1/2">
                         <InputField
                             type="text"
                             placeholder="บ้านเลขที่"
@@ -239,7 +239,7 @@ export default function RegisterContainner() {
                             required
                         />
                     </div>
-                    <div className="w-1/2">
+                    <div className="w-full sm:w-1/2">
                         <InputField
                             type="text"
                             placeholder="ถนน"
@@ -249,8 +249,8 @@ export default function RegisterContainner() {
                         />
                     </div>
                 </div>
-                <div className="mt-4 mb-4 flex gap-4">
-                    <div className="w-1/2">
+                <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
+                    <div className="w-full sm:w-1/2">
                         <AutoCompleteField
                             placeholder="พิมพ์ชื่อตำบล"
                             value={tambon}
@@ -259,7 +259,7 @@ export default function RegisterContainner() {
                             required
                         />
                     </div>
-                    <div className="w-1/2">
+                    <div className="w-full sm:w-1/2">
                         <AutoCompleteField
                             placeholder="พิมพ์ชื่ออำเภอ"
                             value={district}
@@ -269,8 +269,8 @@ export default function RegisterContainner() {
                         />
                     </div>
                 </div>
-                <div className="mt-4 mb-4 flex gap-4">
-                    <div className="w-1/2">
+                <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
+                    <div className="w-full sm:w-1/2">
                         <AutoCompleteField
                             placeholder="พิมพ์ชื่อจังหวัด"
                             value={province}
@@ -279,7 +279,7 @@ export default function RegisterContainner() {
                             required
                         />
                     </div>
-                    <div className="w-1/2">
+                    <div className="w-full sm:w-1/2">
                         <AutoCompleteField
                             placeholder="พิมพ์รหัสไปรษณีย์"
                             value={postalCode}
@@ -291,8 +291,8 @@ export default function RegisterContainner() {
                 </div>
 
                 {userType === "student" && (
-                    <div className="mt-4 mb-4 flex gap-4">
-                        <div className="w-1/3">
+                    <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
+                        <div className="w-full sm:w-1/3">
                             <DropdownField
                                 placeholder="คณะ"
                                 value={faculty}
@@ -302,7 +302,7 @@ export default function RegisterContainner() {
                                 required
                             />
                         </div>
-                        <div className="w-1/3">
+                        <div className="w-full sm:w-1/3">
                             <DropdownField
                                 placeholder="สาขา"
                                 value={department}
@@ -312,7 +312,7 @@ export default function RegisterContainner() {
                                 required
                             />
                         </div>
-                        <div className="w-1/3">
+                        <div className="w-full sm:w-1/3">
                             <DropdownField
                                 placeholder="ระดับการศึกษา"
                                 value={levelStudy}
@@ -325,7 +325,7 @@ export default function RegisterContainner() {
                     </div>
                 )}
                 {userType === "staff" && (
-                    <div className="flex flex-wrap gap-4 w-full">
+                    <div className="flex flex-col sm:flex-row gap-4 w-full">
                         {/* หน่วยงาน/สังกัด */}
                         <div className="w-full sm:w-1/3">
                             <DropdownField
