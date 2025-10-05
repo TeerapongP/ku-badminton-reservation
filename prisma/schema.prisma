@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -12,4 +6,542 @@ generator client {
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model addresses {
+  id              BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id         BigInt       @db.UnsignedBigInt
+  house_number    String?      @db.VarChar(50)
+  is_primary      Boolean      @default(true)
+  street          String?      @db.VarChar(255)
+  subdistrict     String?      @db.VarChar(100)
+  district        String?      @db.VarChar(100)
+  province        String?      @db.VarChar(100)
+  postal_code     String?      @db.VarChar(5)
+  country         String       @default("TH") @db.Char(2)
+  created_at      DateTime     @default(now()) @db.DateTime(0)
+  updated_at      DateTime     @default(now()) @db.DateTime(0)
+  is_primary_flag Boolean?
+  users           users        @relation(fields: [user_id], references: [user_id], onDelete: Cascade, map: "fk_addresses_user")
+  facilities      facilities[]
+
+  @@unique([user_id, is_primary_flag], map: "uq_user_primary")
+  @@index([postal_code], map: "idx_addresses_postal")
+  @@index([province], map: "idx_addresses_province")
+  @@index([user_id], map: "idx_addresses_user")
+  @@index([user_id, is_primary], map: "idx_user_primary")
+}
+
+model auth_log {
+  auth_log_id    BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id        BigInt?         @db.UnsignedBigInt
+  username_input String
+  action         auth_log_action
+  ip             String?         @db.VarChar(45)
+  user_agent     String?         @db.VarChar(512)
+  created_at     DateTime        @default(now()) @db.DateTime(0)
+  users          users?          @relation(fields: [user_id], references: [user_id], map: "fk_auth_user")
+
+  @@index([action], map: "idx_auth_action")
+  @@index([created_at], map: "idx_auth_created")
+  @@index([user_id], map: "idx_auth_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model blackouts {
+  blackout_id    BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  facility_id    BigInt     @db.UnsignedBigInt
+  court_id       BigInt?    @db.UnsignedBigInt
+  start_datetime DateTime   @db.DateTime(0)
+  end_datetime   DateTime   @db.DateTime(0)
+  reason         String?    @db.VarChar(255)
+  active         Boolean    @default(true)
+  created_at     DateTime   @default(now()) @db.DateTime(0)
+  updated_at     DateTime   @default(now()) @db.DateTime(0)
+  courts         courts?    @relation(fields: [court_id], references: [court_id], onDelete: Cascade, map: "fk_blackout_court")
+  facilities     facilities @relation(fields: [facility_id], references: [facility_id], onDelete: Cascade, map: "fk_blackout_facility")
+
+  @@index([court_id], map: "idx_blackout_court")
+  @@index([facility_id], map: "idx_blackout_facility")
+  @@index([start_datetime, end_datetime], map: "idx_blackout_range")
+}
+
+model booking_policies {
+  policy_id                  BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  facility_id                BigInt     @db.UnsignedBigInt
+  max_slots_per_user_per_day Int        @default(2) @db.UnsignedSmallInt
+  advance_days_min           Int        @default(0) @db.UnsignedSmallInt
+  advance_days_max           Int        @default(14) @db.UnsignedSmallInt
+  active                     Boolean    @default(true)
+  effective_from             DateTime   @default(dbgenerated("(curdate())")) @db.Date
+  effective_to               DateTime?  @db.Date
+  created_at                 DateTime   @default(now()) @db.DateTime(0)
+  updated_at                 DateTime   @default(now()) @db.DateTime(0)
+  facilities                 facilities @relation(fields: [facility_id], references: [facility_id], onDelete: Cascade, map: "fk_policy_facility")
+
+  @@index([effective_from, effective_to], map: "idx_policy_effective")
+  @@index([facility_id], map: "idx_policy_facility")
+}
+
+model courts {
+  court_id          BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  facility_id       BigInt              @db.UnsignedBigInt
+  court_code        String              @db.VarChar(50)
+  name              String?
+  surface           courts_surface      @default(synthetic)
+  is_active         Boolean             @default(true)
+  notes             String?             @db.VarChar(255)
+  created_at        DateTime            @default(now()) @db.DateTime(0)
+  updated_at        DateTime            @default(now()) @db.DateTime(0)
+  blackouts         blackouts[]
+  facilities        facilities          @relation(fields: [facility_id], references: [facility_id], onDelete: Cascade, map: "fk_court_facility")
+  pricing_rules     pricing_rules[]
+  reservation_items reservation_items[]
+
+  @@unique([facility_id, court_code], map: "uq_court_per_fac")
+  @@index([is_active], map: "idx_court_active")
+  @@index([facility_id], map: "idx_court_facility")
+}
+
+model daily_reset_log {
+  log_id        BigInt                 @id @default(autoincrement()) @db.UnsignedBigInt
+  run_date      DateTime               @db.Date
+  job_name      String                 @db.VarChar(100)
+  started_at    DateTime               @default(now()) @db.DateTime(0)
+  finished_at   DateTime?              @db.DateTime(0)
+  duration_sec  Int?                   @db.UnsignedInt
+  status        daily_reset_log_status @default(SUCCESS)
+  rows_affected Int?                   @db.UnsignedInt
+  retry_count   Int                    @default(0) @db.UnsignedInt
+  server_host   String?                @db.VarChar(100)
+  instance_id   String?                @db.VarChar(64)
+  run_by        BigInt?                @db.UnsignedBigInt
+  details_json  Json?
+  error_message String?                @db.Text
+  created_at    DateTime               @default(now()) @db.DateTime(0)
+  updated_at    DateTime               @default(now()) @db.DateTime(0)
+  users         users?                 @relation(fields: [run_by], references: [user_id], map: "fk_drl_run_by")
+
+  @@unique([run_date, job_name], map: "uq_daily_job_per_day")
+  @@index([run_by], map: "fk_drl_run_by")
+  @@index([finished_at], map: "idx_drl_finished_at")
+  @@index([job_name, status, started_at], map: "idx_drl_job_status_time")
+  @@index([started_at], map: "idx_drl_started_at")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model departments {
+  id                 BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  faculty_id         BigInt            @db.UnsignedBigInt
+  department_name_th String
+  department_name_en String?
+  created_by         String?           @db.VarChar(100)
+  updated_by         String?           @db.VarChar(100)
+  created_at         DateTime          @default(now()) @db.DateTime(0)
+  updated_at         DateTime          @default(now()) @db.DateTime(0)
+  faculties          faculties         @relation(fields: [faculty_id], references: [id], map: "fk_dept_faculty")
+  student_profile    student_profile[]
+
+  @@unique([faculty_id, department_name_th], map: "uq_dept_fac_name_th")
+  @@index([faculty_id], map: "idx_dept_faculty")
+}
+
+model districts {
+  district_id BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  province_id BigInt    @db.UnsignedBigInt
+  name_th     String    @db.VarChar(100)
+  provinces   provinces @relation(fields: [province_id], references: [province_id], onDelete: Cascade, map: "fk_districts_province")
+  tambons     tambons[]
+
+  @@unique([name_th, province_id], map: "uq_district_name_th")
+  @@index([province_id], map: "fk_districts_province")
+}
+
+model facilities {
+  facility_id            BigInt                   @id @default(autoincrement()) @db.UnsignedBigInt
+  facility_code          String                   @unique(map: "uq_facility_code") @db.VarChar(50)
+  name_th                String
+  name_en                String?
+  address_id             BigInt?                  @db.UnsignedBigInt
+  phone                  String?                  @db.VarChar(30)
+  email                  String?
+  active                 Boolean                  @default(true)
+  created_at             DateTime                 @default(now()) @db.DateTime(0)
+  updated_at             DateTime                 @default(now()) @db.DateTime(0)
+  blackouts              blackouts[]
+  booking_policies       booking_policies[]
+  courts                 courts[]
+  addresses              addresses?               @relation(fields: [address_id], references: [id], map: "fk_facility_address")
+  facility_opening_hours facility_opening_hours[]
+  pricing_rules          pricing_rules[]
+  reservations           reservations[]
+  time_slots             time_slots[]
+
+  @@index([active], map: "idx_facility_active")
+  @@index([address_id], map: "idx_facility_address")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model facility_opening_hours {
+  opening_id   BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  facility_id  BigInt     @db.UnsignedBigInt
+  weekday      Int        @db.UnsignedTinyInt
+  open_minute  Int        @db.UnsignedSmallInt
+  close_minute Int        @db.UnsignedSmallInt
+  active       Boolean    @default(true)
+  created_at   DateTime   @default(now()) @db.DateTime(0)
+  updated_at   DateTime   @default(now()) @db.DateTime(0)
+  facilities   facilities @relation(fields: [facility_id], references: [facility_id], onDelete: Cascade, map: "fk_open_facility")
+
+  @@unique([facility_id, weekday], map: "uq_facility_weekday")
+  @@index([facility_id], map: "idx_open_facility")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model faculties {
+  id              BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  faculty_name_th String            @unique(map: "uq_faculty_name_th")
+  faculty_name_en String?
+  short_name      String?           @db.VarChar(50)
+  status          faculties_status  @default(active)
+  created_by      String?           @db.VarChar(100)
+  updated_by      String?           @db.VarChar(100)
+  created_at      DateTime          @default(now()) @db.DateTime(0)
+  updated_at      DateTime          @default(now()) @db.DateTime(0)
+  departments     departments[]
+  student_profile student_profile[]
+}
+
+model payments {
+  payment_id     BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  reservation_id BigInt          @db.UnsignedBigInt
+  amount_cents   Int             @db.UnsignedInt
+  currency       String          @default("THB") @db.Char(3)
+  method         payments_method
+  status         payments_status @default(pending)
+  paid_at        DateTime?       @db.DateTime(0)
+  ref_code       String?         @db.VarChar(100)
+  meta_json      Json?
+  created_at     DateTime        @default(now()) @db.DateTime(0)
+  updated_at     DateTime        @default(now()) @db.DateTime(0)
+  reservations   reservations    @relation(fields: [reservation_id], references: [reservation_id], onDelete: Cascade, map: "fk_payment_reservation")
+
+  @@index([paid_at], map: "idx_pay_paid_at")
+  @@index([reservation_id], map: "idx_pay_reservation")
+  @@index([status], map: "idx_pay_status")
+}
+
+model postcodes {
+  postcode_id BigInt  @id @default(autoincrement()) @db.UnsignedBigInt
+  tambon_id   BigInt  @db.UnsignedBigInt
+  postcode    String  @db.VarChar(10)
+  tambons     tambons @relation(fields: [tambon_id], references: [tambon_id], onDelete: Cascade, map: "fk_postcodes_tambon")
+
+  @@index([tambon_id], map: "fk_postcodes_tambon")
+}
+
+model pricing_rules {
+  pricing_id     BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  facility_id    BigInt      @db.UnsignedBigInt
+  court_id       BigInt?     @db.UnsignedBigInt
+  slot_id        BigInt?     @db.UnsignedBigInt
+  weekday        Int?        @db.UnsignedTinyInt
+  price_cents    Int         @db.UnsignedInt
+  currency       String      @default("THB") @db.Char(3)
+  active         Boolean     @default(true)
+  effective_from DateTime    @default(dbgenerated("(curdate())")) @db.Date
+  effective_to   DateTime?   @db.Date
+  created_at     DateTime    @default(now()) @db.DateTime(0)
+  updated_at     DateTime    @default(now()) @db.DateTime(0)
+  courts         courts?     @relation(fields: [court_id], references: [court_id], onDelete: Cascade, map: "fk_price_court")
+  facilities     facilities  @relation(fields: [facility_id], references: [facility_id], onDelete: Cascade, map: "fk_price_facility")
+  time_slots     time_slots? @relation(fields: [slot_id], references: [slot_id], onDelete: Cascade, map: "fk_price_slot")
+
+  @@index([court_id], map: "idx_price_court")
+  @@index([effective_from, effective_to], map: "idx_price_effective")
+  @@index([facility_id], map: "idx_price_facility")
+  @@index([slot_id], map: "idx_price_slot")
+}
+
+model provinces {
+  province_id BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  name_th     String      @unique(map: "uq_province_name_th") @db.VarChar(100)
+  name_en     String?     @db.VarChar(100)
+  districts   districts[]
+}
+
+model reservation_items {
+  item_id        BigInt                   @id @default(autoincrement()) @db.UnsignedBigInt
+  reservation_id BigInt                   @db.UnsignedBigInt
+  court_id       BigInt                   @db.UnsignedBigInt
+  slot_id        BigInt                   @db.UnsignedBigInt
+  play_date      DateTime                 @db.Date
+  price_cents    Int                      @db.UnsignedInt
+  currency       String                   @default("THB") @db.Char(3)
+  status         reservation_items_status @default(reserved)
+  created_at     DateTime                 @default(now()) @db.DateTime(0)
+  updated_at     DateTime                 @default(now()) @db.DateTime(0)
+  courts         courts                   @relation(fields: [court_id], references: [court_id], map: "fk_item_court")
+  reservations   reservations             @relation(fields: [reservation_id], references: [reservation_id], onDelete: Cascade, map: "fk_item_reservation")
+  time_slots     time_slots               @relation(fields: [slot_id], references: [slot_id], map: "fk_item_slot")
+
+  @@unique([court_id, play_date, slot_id], map: "uq_item_no_overlap")
+  @@index([court_id, play_date], map: "idx_item_court_date")
+  @@index([reservation_id], map: "idx_item_reservation")
+  @@index([slot_id], map: "idx_item_slot")
+}
+
+model reservations {
+  reservation_id    BigInt                      @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id           BigInt                      @db.UnsignedBigInt
+  facility_id       BigInt                      @db.UnsignedBigInt
+  status            reservations_status         @default(pending)
+  payment_status    reservations_payment_status @default(unpaid)
+  reserved_date     DateTime                    @db.Date
+  note              String?                     @db.VarChar(255)
+  subtotal_cents    Int                         @default(0) @db.UnsignedInt
+  discount_cents    Int                         @default(0) @db.UnsignedInt
+  total_cents       Int                         @default(0) @db.UnsignedInt
+  currency          String                      @default("THB") @db.Char(3)
+  created_at        DateTime                    @default(now()) @db.DateTime(0)
+  updated_at        DateTime                    @default(now()) @db.DateTime(0)
+  confirmed_at      DateTime?                   @db.DateTime(0)
+  cancelled_at      DateTime?                   @db.DateTime(0)
+  completed_at      DateTime?                   @db.DateTime(0)
+  payments          payments[]
+  reservation_items reservation_items[]
+  facilities        facilities                  @relation(fields: [facility_id], references: [facility_id], map: "fk_res_facility")
+  users             users                       @relation(fields: [user_id], references: [user_id], map: "fk_res_user")
+
+  @@index([facility_id, reserved_date], map: "idx_res_facility_date")
+  @@index([status], map: "idx_res_status")
+  @@index([user_id], map: "idx_res_user")
+}
+
+model staff_profile {
+  user_id           BigInt                   @id @db.UnsignedBigInt
+  national_id       String                   @unique(map: "uq_staff_national_id") @db.VarChar(20)
+  office_department String?
+  position          String?
+  staff_type        staff_profile_staff_type
+  created_at        DateTime                 @default(now()) @db.DateTime(0)
+  updated_at        DateTime                 @default(now()) @db.DateTime(0)
+  unit_id           BigInt?                  @db.UnsignedBigInt
+  users             users                    @relation(fields: [user_id], references: [user_id], onDelete: Cascade, map: "fk_staff_user")
+  units             units?                   @relation(fields: [unit_id], references: [unit_id], onDelete: NoAction, onUpdate: NoAction, map: "staff_profile_units_FK")
+
+  @@index([office_department], map: "idx_staff_department")
+  @@index([unit_id], map: "staff_profile_units_FK")
+}
+
+model student_profile {
+  user_id        BigInt                         @id @db.UnsignedBigInt
+  student_id     String                         @unique(map: "uq_student_id") @db.VarChar(10)
+  national_id    String?                        @db.VarChar(64)
+  faculty_id     BigInt                         @db.UnsignedBigInt
+  department_id  BigInt                         @db.UnsignedBigInt
+  level_of_study student_profile_level_of_study
+  student_status student_profile_student_status @default(enrolled)
+  updated_at     DateTime                       @default(now()) @db.DateTime(0)
+  created_at     DateTime                       @default(now()) @db.DateTime(0)
+  departments    departments                    @relation(fields: [department_id], references: [id], map: "fk_student_department")
+  faculties      faculties                      @relation(fields: [faculty_id], references: [id], map: "fk_student_faculty")
+  users          users                          @relation(fields: [user_id], references: [user_id], onDelete: Cascade, map: "fk_student_user")
+
+  @@index([department_id], map: "idx_student_department")
+  @@index([faculty_id], map: "idx_student_faculty")
+}
+
+model sub_units {
+  sub_unit_id BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  unit_id     BigInt?  @db.UnsignedBigInt
+  name_th     String
+  name_en     String?
+  short_code  String?  @db.VarChar(50)
+  created_at  DateTime @default(now()) @db.DateTime(0)
+  updated_at  DateTime @default(now()) @db.DateTime(0)
+  units       units?   @relation(fields: [unit_id], references: [unit_id], map: "fk_sub_units_unit")
+
+  @@index([unit_id], map: "idx_sub_units_unit")
+}
+
+model tambons {
+  tambon_id   BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  district_id BigInt      @db.UnsignedBigInt
+  name_th     String      @db.VarChar(100)
+  postcodes   postcodes[]
+  districts   districts   @relation(fields: [district_id], references: [district_id], onDelete: Cascade, map: "fk_tambons_district")
+
+  @@unique([name_th, district_id], map: "uq_tambon_name_th")
+  @@index([district_id], map: "fk_tambons_district")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model time_slots {
+  slot_id           BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  facility_id       BigInt              @db.UnsignedBigInt
+  weekday           Int                 @db.UnsignedTinyInt
+  start_minute      Int                 @db.UnsignedSmallInt
+  end_minute        Int                 @db.UnsignedSmallInt
+  label             String?             @db.VarChar(100)
+  is_active         Boolean             @default(true)
+  created_at        DateTime            @default(now()) @db.DateTime(0)
+  updated_at        DateTime            @default(now()) @db.DateTime(0)
+  pricing_rules     pricing_rules[]
+  reservation_items reservation_items[]
+  facilities        facilities          @relation(fields: [facility_id], references: [facility_id], onDelete: Cascade, map: "fk_slot_facility")
+
+  @@unique([facility_id, weekday, start_minute, end_minute], map: "uq_slot_pattern")
+  @@index([facility_id], map: "idx_slot_facility")
+  @@index([weekday], map: "idx_slot_weekday")
+}
+
+model units {
+  unit_id        BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  name_th        String
+  name_en        String?
+  short_code     String?         @db.VarChar(32)
+  parent_unit_id BigInt?         @db.UnsignedBigInt
+  created_at     DateTime        @default(now()) @db.DateTime(0)
+  updated_at     DateTime        @default(now()) @db.DateTime(0)
+  staff_profile  staff_profile[]
+  sub_units      sub_units[]
+  units          units?          @relation("unitsTounits", fields: [parent_unit_id], references: [unit_id], map: "fk_units_parent")
+  other_units    units[]         @relation("unitsTounits")
+
+  @@index([parent_unit_id], map: "idx_units_parent")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  user_id           BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  role              users_role
+  username          String            @unique(map: "uq_users_username") @db.VarChar(50)
+  password_hash     String            @db.VarChar(255)
+  email             String
+  email_lc          String?           @unique(map: "uq_users_email_lc")
+  phone             String?           @unique(map: "uq_users_phone") @db.VarChar(20)
+  title_th          String?           @db.VarChar(50)
+  title_en          String?           @db.VarChar(50)
+  first_name        String            @db.VarChar(100)
+  last_name         String            @db.VarChar(100)
+  nickname          String?           @db.VarChar(100)
+  gender            users_gender?
+  dob               DateTime?         @db.Date
+  student_id        String?           @unique(map: "student_id") @db.VarChar(10)
+  staff_id          String?           @unique(map: "staff_id") @db.VarChar(50)
+  address           String?           @db.Text
+  profile_photo_url String?           @db.VarChar(255)
+  status            users_status      @default(active)
+  registered_at     DateTime          @default(now()) @db.DateTime(0)
+  updated_at        DateTime          @default(now()) @db.DateTime(0)
+  last_login_at     DateTime?         @db.DateTime(0)
+  last_login_ip     String?           @db.VarChar(45)
+  addresses         addresses[]
+  auth_log          auth_log[]
+  daily_reset_log   daily_reset_log[]
+  reservations      reservations[]
+  staff_profile     staff_profile?
+  student_profile   student_profile?
+
+  @@index([role], map: "idx_users_role")
+}
+
+enum users_role {
+  student
+  staff
+  admin
+}
+
+enum auth_log_action {
+  login_success
+  login_fail
+  logout
+}
+
+enum reservations_status {
+  pending
+  confirmed
+  cancelled
+  completed
+  no_show
+}
+
+enum courts_surface {
+  wood
+  synthetic
+  other
+}
+
+enum faculties_status {
+  active
+  inactive
+}
+
+enum payments_method {
+  cash
+  bank_transfer
+  qr
+  credit_card
+  internal
+}
+
+enum reservations_payment_status {
+  unpaid
+  partial
+  paid
+  refunded
+}
+
+enum staff_profile_staff_type {
+  gov
+  university
+  contractor
+}
+
+enum payments_status {
+  pending
+  succeeded
+  failed
+  refunded
+}
+
+enum student_profile_level_of_study {
+  UG
+  PG
+  PhD
+}
+
+enum daily_reset_log_status {
+  SUCCESS
+  PARTIAL_SUCCESS
+  FAILED
+  SKIPPED
+  CANCELLED
+}
+
+enum student_profile_student_status {
+  enrolled
+  leave
+  graduated
+}
+
+enum reservation_items_status {
+  reserved
+  cancelled
+  played
+}
+
+enum users_gender {
+  M
+  F
+  I
+  Other
+}
+
+enum users_status {
+  active
+  inactive
+  suspended
 }

@@ -1,12 +1,19 @@
 "use client"
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { InputField } from "@/component/InputField";
 import { Button } from "@/component/Button";
 import { DropdownField } from "@/component/DropdownField";
 import { DateField } from "@/component/DateField";
 import AutoCompleteField from "@/component/AutoCompleteField";
+import { DropdownOption } from "@/type/DropdownOption";
+import {
+    userTypeOptions,
+    prefixTitleOptions,
+    levelStudyOptions,
+    staffTypeOptions,
+} from '@/constants/options';
 
 export default function RegisterContainner() {
     const [studentId, setStudentId] = useState('');
@@ -33,6 +40,58 @@ export default function RegisterContainner() {
     const [jobtitle, setJobtitle] = useState<string | null>(null);
     const [staffType, setStaffType] = useState<string | null>(null);
 
+    const [officeOptions, setOfficeOptions] = useState<DropdownOption[]>([]);
+    const [subUnitOption, setSubUnitOptions] = useState<DropdownOption[]>([]);
+    const today = new Date();
+    const hundredYearsAgo = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
+
+    async function fetchUnits(): Promise<DropdownOption[]> {
+        const res = await fetch(`/api/units`, {
+            cache: 'no-store',
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        return (json?.data ?? []).map((x: any) => ({
+            label: x.label ?? x.name_th,
+            value: x.value ?? String(x.id),
+        }));
+    }
+
+    // โหลดหน่วยย่อย (sub-units) ตาม unitId
+    async function fetchSubUnits(
+        unitId: string,
+    ): Promise<DropdownOption[]> {
+        const res = await fetch(
+            `/api/sub-units?unitId=${encodeURIComponent(unitId)}`
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        return (json?.data ?? []).map((x: any) => ({
+            label: x.label ?? x.name_th,
+            value: x.value ?? String(x.id),
+        }));
+    }
+
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchUnits()
+            .then(setOfficeOptions)
+            .catch(() => setOfficeOptions([]));
+        return () => controller.abort();
+    }, []);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        setSubUnitOptions([]);
+        if (!office) return () => controller.abort();
+
+        fetchSubUnits(office)
+            .then(setSubUnitOptions)
+            .catch(() => setSubUnitOptions([]));
+
+        return () => controller.abort();
+    }, [office]);
+
     const searchTambon = async (q: string): Promise<string[]> => {
         // mock data ชุดตัวอย่าง
         const tambonList = [
@@ -51,27 +110,6 @@ export default function RegisterContainner() {
     };
 
 
-    const today = new Date();
-    const hundredYearsAgo = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
-    const userTypes = [
-        { label: "นิสิต มก.", name: "student", value: "student" },
-        { label: "บุคลากร มก.", name: "staff", value: "staff" },
-        { label: "บุคคลธรรมดา", name: "guest", value: "guest" },
-    ];
-    const prefixTitles = [
-        { label: "นาย", value: "mr" },
-        { label: "นางสาว", value: "ms" },
-        { label: "นาง", value: "mrs" },
-        { label: "ดร.", value: "dr" },
-        { label: "ศ.", value: "prof" },
-        { label: "ผศ.", value: "Asst" }
-    ];
-    const levelStudyDropdown = [
-        { label: "ปริญญาตรี", name: "bachelor", value: "bachelor" },
-        { label: "ปริญญาโท", name: "master", value: "master" },
-        { label: "ปริญญาเอก", name: "doctorate", value: "doctorate" },
-    ];
-
     return (
         <>
             <div className="mx-4 my-4">
@@ -85,7 +123,7 @@ export default function RegisterContainner() {
                         placeholder="กรุณาเลือกประเภทสมาชิก"
                         value={userType}
                         onChange={setUserType}
-                        options={userTypes}
+                        options={userTypeOptions}
                         optionLabel="label"
                         required
                     />
@@ -120,7 +158,7 @@ export default function RegisterContainner() {
                             placeholder="คำนำหน้า"
                             value={prefix}
                             onChange={setPrefix}
-                            options={prefixTitles}
+                            options={prefixTitleOptions}
                             optionLabel="label"
                             required
                         />
@@ -259,7 +297,7 @@ export default function RegisterContainner() {
                                 placeholder="คณะ"
                                 value={faculty}
                                 onChange={setFaculty}
-                                options={userTypes}
+                                options={[]}
                                 optionLabel="label"
                                 required
                             />
@@ -269,7 +307,7 @@ export default function RegisterContainner() {
                                 placeholder="สาขา"
                                 value={department}
                                 onChange={setDepartment}
-                                options={userTypes}
+                                options={[]}
                                 optionLabel="label"
                                 required
                             />
@@ -279,7 +317,7 @@ export default function RegisterContainner() {
                                 placeholder="ระดับการศึกษา"
                                 value={levelStudy}
                                 onChange={setLevelStudy}
-                                options={levelStudyDropdown}
+                                options={levelStudyOptions}
                                 optionLabel="label"
                                 required
                             />
@@ -294,7 +332,7 @@ export default function RegisterContainner() {
                                 placeholder="หน่วยงาน/สังกัด"
                                 value={office}
                                 onChange={setOffice}
-                                options={[]}
+                                options={officeOptions}
                                 optionLabel="label"
                                 required
                             />
@@ -306,7 +344,7 @@ export default function RegisterContainner() {
                                 placeholder="ตำแหน่งงาน"
                                 value={jobtitle}
                                 onChange={setJobtitle}
-                                options={[]}
+                                options={subUnitOption}
                                 optionLabel="label"
                                 required
                             />
@@ -318,7 +356,7 @@ export default function RegisterContainner() {
                                 placeholder="ประเภทบุคลากร"
                                 value={staffType}
                                 onChange={setStaffType}
-                                options={[]}
+                                options={staffTypeOptions}
                                 optionLabel="label"
                                 required
                             />
@@ -333,7 +371,7 @@ export default function RegisterContainner() {
                         สมัครสมาชิก
                     </Button>
                 </div>
-                {/* Divider */}
+
                 <div className="relative mt-4 mb-4">
                     <div className="absolute inset-0 flex items-center">
                         <span className="w-full border-t border-gray-200" />
@@ -343,7 +381,7 @@ export default function RegisterContainner() {
                     </div>
                 </div>
 
-                {/* Register */}
+
                 <div className="mb-4 flex justify-center items-center text-sm font-medium text-gray-700">
                     <span className="mr-2">มีบัญชีผู้ใช้?</span>
                     <Link
@@ -359,3 +397,5 @@ export default function RegisterContainner() {
         </>
     );
 }
+
+

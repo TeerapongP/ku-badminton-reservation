@@ -1,5 +1,8 @@
 import "./globals.css";
 import { Inter } from 'next/font/google'
+import { PrimeReactProvider } from 'primereact/api';
+import 'primereact/resources/themes/lara-light-cyan/theme.css';
+import 'primereact/resources/primereact.min.css';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -21,7 +24,9 @@ export default function RootLayout({
       <body
         className={`${inter.variable} antialiased`}
       >
-        {children}
+        <PrimeReactProvider>
+          {children}
+        </PrimeReactProvider>
       </body>
     </html>
   );

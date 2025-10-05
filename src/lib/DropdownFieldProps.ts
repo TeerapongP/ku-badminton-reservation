@@ -6,7 +6,7 @@ export interface DropdownFieldProps {
   id?: string;
   value?: any;
   onChange?: (value: any) => void;
-  options: DropdownOption[];
+  options: readonly DropdownOption[];
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;
