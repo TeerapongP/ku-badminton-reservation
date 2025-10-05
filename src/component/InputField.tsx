@@ -14,6 +14,7 @@ export const InputField = forwardRef<HTMLInputElement, InputFieldProps>(({
     value,
     defaultValue,
     onChange,
+    inputMode,
     disabled = false,
     required = false,
     error,
@@ -53,7 +54,7 @@ export const InputField = forwardRef<HTMLInputElement, InputFieldProps>(({
             )}
 
             {/* TEXT / EMAIL */}
-            {(type === "text" || type === "email") && (
+            {(type === "text" || type === "email" || type === "tel") && (
                 <InputText
                     id={inputId}
                     name={name}
@@ -68,6 +69,8 @@ export const InputField = forwardRef<HTMLInputElement, InputFieldProps>(({
                     disabled={disabled}
                     className={baseInput}
                     invalid={Boolean(error)}
+                    inputMode={type === "tel" ? "numeric" : inputMode}
+                    pattern={type === "tel" ? "[0-9]*" : undefined}
                     ref={ref}
                 />
             )}

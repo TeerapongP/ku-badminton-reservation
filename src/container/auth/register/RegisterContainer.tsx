@@ -6,6 +6,7 @@ import { InputField } from "@/component/InputField";
 import { Button } from "@/component/Button";
 import { DropdownField } from "@/component/DropdownField";
 import { DateField } from "@/component/DateField";
+import AutoCompleteField from "@/component/AutoCompleteField";
 
 export default function RegisterContainner() {
     const [studentId, setStudentId] = useState('');
@@ -17,27 +18,39 @@ export default function RegisterContainner() {
     const [userType, setUserType] = useState<"student" | "staff" | "guest">("student");
     const [prefix, setPrefix] = useState<string>("");
     const [dob, setDob] = useState<Date | null>(null);
-    const [phone, setPhone] = useState<string>("");
-    const [email, setEmail] = useState<string>("");
+    const [phone, setPhone] = useState<string>('');
+    const [email, setEmail] = useState<string | null>();
+    const [houseNumber, setHouseNumber] = useState<string | null>();
+    const [street, setStreet] = useState<string | null>();
+    const [tambon, setTambon] = useState<string | undefined>(undefined);
+    const [district, setDistrict] = useState<string | undefined>(undefined);
+    const [province, setProvince] = useState<string | undefined>(undefined);
+    const [postalCode, setPostalCode] = useState<string | undefined>(undefined);
+    const [faculty, setFaculty] = useState<number | null>();
+    const [department, setDepartment] = useState<number | null>();
+    const [levelStudy, setLevelStudy] = useState<number | null>();
+    const [office, setOffice] = useState<string | null>(null);
+    const [jobtitle, setJobtitle] = useState<string | null>(null);
+    const [staffType, setStaffType] = useState<string | null>(null);
 
-    const [houseNumber, setHouseNumber] = useState<string>("");
-    const [street, setStreet] = useState<string>("");
-    const [tambon, setTambon] = useState<string | null>(null);
-    const [district, setDistrict] = useState<string | null>(null);
-    const [province, setProvince] = useState<string | null>(null);
-    const [postalCode, setPostalCode] = useState<string | null>(null);
-    const [selected, setSelected] = useState<{ label: string; value: string } | null>(null);
-    const [filtered, setFiltered] = useState<{ label: string; value: string }[]>([]);
-    const all = [
-        { label: "นิสิต มก.", value: "student" },
-        { label: "บุคลากร มก.", value: "staff" },
-        { label: "บุคคลธรรมดา", value: "guest" },
-    ];
-
-    const searchItems = async (q: string) => {
+    const searchTambon = async (q: string): Promise<string[]> => {
+        // mock data ชุดตัวอย่าง
+        const tambonList = [
+            "ลาดพร้าว",
+            "จตุจักร",
+            "บางซื่อ",
+            "ห้วยขวาง",
+            "วังทองหลาง",
+            "สะพานพุทธ",
+        ];
         const s = q.trim().toLowerCase();
-        return (s ? all.filter(o => o.label.toLowerCase().includes(s)) : all);
+        await new Promise((r) => setTimeout(r, 300));
+        return s
+            ? tambonList.filter((t) => t.toLowerCase().includes(s))
+            : tambonList;
     };
+
+
     const today = new Date();
     const hundredYearsAgo = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
     const userTypes = [
@@ -51,6 +64,12 @@ export default function RegisterContainner() {
         { label: "นาง", value: "mrs" },
         { label: "ดร.", value: "dr" },
         { label: "ศ.", value: "prof" },
+        { label: "ผศ.", value: "Asst" }
+    ];
+    const levelStudyDropdown = [
+        { label: "ปริญญาตรี", name: "bachelor", value: "bachelor" },
+        { label: "ปริญญาโท", name: "master", value: "master" },
+        { label: "ปริญญาเอก", name: "doctorate", value: "doctorate" },
     ];
 
     return (
@@ -152,13 +171,14 @@ export default function RegisterContainner() {
                 <div className="mt-4 flex gap-4">
                     <div className="w-1/2">
                         <InputField
-                            type="number"
+                            type="tel"
                             placeholder="กรอกเบอร์โทรศัพท์"
                             value={phone}
                             maxLength={10}
                             onChange={(val) => setPhone(val as string)}
                             required
                         />
+
                     </div>
 
                     <div className="w-1/2">
@@ -193,53 +213,148 @@ export default function RegisterContainner() {
                 </div>
                 <div className="mt-4 mb-4 flex gap-4">
                     <div className="w-1/2">
-                        {/* <AutoCompleteField
-                            value={selected}
-                            onChange={setSelected}
-                            onSearch={searchItems}
-                            optionLabel="label"
-                            dropdown
-                        />; */}
-                        {/* <AutoCompleteComponent
-                            items={items}
-                            value={selected}
-                            onChange={setSelected}
-                            placeholder="เลือกประเทศ..."
-                        /> */}
+                        <AutoCompleteField
+                            placeholder="พิมพ์ชื่อตำบล"
+                            value={tambon}
+                            onChange={(value) => setTambon(value ?? undefined)}
+                            onSearch={searchTambon}
+                            required
+                        />
                     </div>
-
                     <div className="w-1/2">
-                        {/* <AutoCompleteField
+                        <AutoCompleteField
+                            placeholder="พิมพ์ชื่ออำเภอ"
                             value={district}
-                            onChange={(value) => setDistrict(value as string | null)}
-                            onSearch={searchDistrict}
-                            placeholder="พิมพ์ชื่ออำเภอ / เขต..."
-                            dropdown
-                        /> */}
+                            onChange={(value) => setDistrict(value ?? undefined)}
+                            onSearch={searchTambon}
+                            required
+                        />
                     </div>
                 </div>
-
                 <div className="mt-4 mb-4 flex gap-4">
                     <div className="w-1/2">
-                        {/* <AutoCompleteField
+                        <AutoCompleteField
+                            placeholder="พิมพ์ชื่อจังหวัด"
                             value={province}
-                            onChange={(value) => setProvince(value as string | null)}
-                            onSearch={searchProvince}
-                            placeholder="พิมพ์ชื่อจังหวัด..."
-                            dropdown
-                        /> */}
+                            onChange={(value) => setProvince(value ?? undefined)}
+                            onSearch={searchTambon}
+                            required
+                        />
                     </div>
-
                     <div className="w-1/2">
-                        {/* <AutoCompleteField
+                        <AutoCompleteField
+                            placeholder="พิมพ์รหัสไปรษณีย์"
                             value={postalCode}
-                            onChange={(value) => setPostalCode(value as string | null)}
-                            onSearch={searchPostcode}
-                            placeholder="พิมพ์รหัสไปรษณีย์..."
-                            dropdown
-                        /> */}
+                            onChange={(value) => setPostalCode(value ?? undefined)}
+                            onSearch={searchTambon}
+                            required
+                        />
                     </div>
                 </div>
+
+                {userType === "student" && (
+                    <div className="mt-4 mb-4 flex gap-4">
+                        <div className="w-1/3">
+                            <DropdownField
+                                placeholder="คณะ"
+                                value={faculty}
+                                onChange={setFaculty}
+                                options={userTypes}
+                                optionLabel="label"
+                                required
+                            />
+                        </div>
+                        <div className="w-1/3">
+                            <DropdownField
+                                placeholder="สาขา"
+                                value={department}
+                                onChange={setDepartment}
+                                options={userTypes}
+                                optionLabel="label"
+                                required
+                            />
+                        </div>
+                        <div className="w-1/3">
+                            <DropdownField
+                                placeholder="ระดับการศึกษา"
+                                value={levelStudy}
+                                onChange={setLevelStudy}
+                                options={levelStudyDropdown}
+                                optionLabel="label"
+                                required
+                            />
+                        </div>
+                    </div>
+                )}
+                {userType === "staff" && (
+                    <div className="flex flex-wrap gap-4 w-full">
+                        {/* หน่วยงาน/สังกัด */}
+                        <div className="w-full sm:w-1/3">
+                            <DropdownField
+                                placeholder="หน่วยงาน/สังกัด"
+                                value={office}
+                                onChange={setOffice}
+                                options={[]}
+                                optionLabel="label"
+                                required
+                            />
+                        </div>
+
+                        {/* ตำแหน่งงาน */}
+                        <div className="w-full sm:w-1/3">
+                            <DropdownField
+                                placeholder="ตำแหน่งงาน"
+                                value={jobtitle}
+                                onChange={setJobtitle}
+                                options={[]}
+                                optionLabel="label"
+                                required
+                            />
+                        </div>
+
+                        {/* ประเภทบุคลากร */}
+                        <div className="w-full sm:w-1/3">
+                            <DropdownField
+                                placeholder="ประเภทบุคลากร"
+                                value={staffType}
+                                onChange={setStaffType}
+                                options={[]}
+                                optionLabel="label"
+                                required
+                            />
+                        </div>
+                    </div>
+                )}
+                <div className="flex justify-center mt-4">
+                    <Button
+                        className="w-full sm:w-1/2 h-12 text-lg font-semibold shadow-md"
+                        colorClass="bg-emerald-600 hover:bg-emerald-700 text-white focus:ring-emerald-500"
+                    >
+                        สมัครสมาชิก
+                    </Button>
+                </div>
+                {/* Divider */}
+                <div className="relative mt-4 mb-4">
+                    <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-gray-200" />
+                    </div>
+                    <div className="relative flex justify-center">
+                        <span className="bg-white px-3 text-sm text-gray-400"></span>
+                    </div>
+                </div>
+
+                {/* Register */}
+                <div className="mb-4 flex justify-center items-center text-sm font-medium text-gray-700">
+                    <span className="mr-2">มีบัญชีผู้ใช้?</span>
+                    <Link
+                        href="/login"
+                        className="text-emerald-600 hover:text-emerald-700 underline underline-offset-2"
+                    >
+                        เข้าสู่ระบบ
+                    </Link>
+                </div>
+
+
             </div>
         </>
     );
