@@ -11,15 +11,17 @@ interface TambonRow {
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
-        const tambon = (searchParams.get('q') || '').trim();
+        const tambon = (searchParams.get('tambon') || '').trim();
         const take = Number(searchParams.get('take') ?? 20);
 
         const rows = await prisma.$queryRaw<TambonRow[]>`
-            SELECT tambon_id, name_th
+          SELECT MIN(tambon_id) AS tambon_id, name_th
             FROM tambons t
             WHERE t.name_th LIKE CONCAT('%', ${tambon}, '%')
+            GROUP BY name_th
             ORDER BY name_th ASC
-            LIMIT ${take}
+            LIMIT ${take};
+
         `;
 
         const data = rows.map((r) => ({

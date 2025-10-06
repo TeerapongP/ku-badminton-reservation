@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const tambonId = searchParams.get('tambonId');
-        
+
         if (!tambonId) {
             return NextResponse.json(
                 { success: false, error: 'tambonId is required' },
@@ -28,7 +28,7 @@ export async function GET(req: Request) {
 
         const data = rows.map((r) => ({
             label: r.postcode,
-            value: r.postcode,
+            value: r.postcode_id.toLocaleString(),
         }));
 
         return NextResponse.json({ success: true, data });

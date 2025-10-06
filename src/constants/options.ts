@@ -2,7 +2,6 @@
 export type Option<V extends string = string> = {
   label: string;
   value: V;
-  // name เป็นทางเลือก เผื่อ component เดิมต้องการ
   name?: V;
 };
 
@@ -16,28 +15,28 @@ export type PrefixTitle =
 
 // ---- options ----
 export const userTypeOptions = [
-  { label: 'นิสิต มก.',   value: 'student',  name: 'student'  },
-  { label: 'บุคลากร มก.', value: 'staff',    name: 'staff'    },
-  { label: 'บุคคลธรรมดา', value: 'guest',    name: 'guest'    },
+  { label: 'นิสิต มก.', value: 'student', name: 'student' },
+  { label: 'บุคลากร มก.', value: 'staff', name: 'staff' },
+  { label: 'บุคคลธรรมดา', value: 'guest', name: 'guest' },
 ] as const satisfies readonly Option<UserType>[];
 
 export const prefixTitleOptions = [
-  { label: 'นาย',   value: 'mr'   },
+  { label: 'นาย', value: 'mr' },
   { label: 'นางสาว', value: 'ms' },
-  { label: 'นาง',   value: 'mrs'  },
-  { label: 'ดร.',   value: 'dr'   },
-  { label: 'ศ.',    value: 'prof' },
-  { label: 'ผศ.',   value: 'asst' },
+  { label: 'นาง', value: 'mrs' },
+  { label: 'ดร.', value: 'dr' },
+  { label: 'ศ.', value: 'prof' },
+  { label: 'ผศ.', value: 'asst' },
 ] as const satisfies readonly Option<PrefixTitle>[];
 
 export const levelStudyOptions = [
-  { label: 'ปริญญาตรี', value: 'bachelor',  name: 'bachelor'  },
-  { label: 'ปริญญาโท', value: 'master',    name: 'master'    },
+  { label: 'ปริญญาตรี', value: 'bachelor', name: 'bachelor' },
+  { label: 'ปริญญาโท', value: 'master', name: 'master' },
   { label: 'ปริญญาเอก', value: 'doctorate', name: 'doctorate' },
 ] as const satisfies readonly Option<LevelOfStudy>[];
 
 export const staffTypeOptions = [
-  { label: 'ข้าราชการ',         value: 'gov'        },
+  { label: 'ข้าราชการ', value: 'gov' },
   { label: 'พนักงานมหาวิทยาลัย', value: 'university' },
-  { label: 'ลูกจ้าง',            value: 'contractor' },
+  { label: 'ลูกจ้าง', value: 'contractor' },
 ] as const satisfies readonly Option<StaffType>[];

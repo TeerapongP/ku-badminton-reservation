@@ -28,6 +28,12 @@ export const AutoCompleteField: React.FC<AutoCompleteComponentProps> = ({
       return;
     }
 
+    // ป้องกันการค้นหาถ้า query ว่าง
+    if (!event.query || event.query.trim().length === 0) {
+      setSuggestions([]);
+      return;
+    }
+
     try {
       const results = await Promise.resolve(onSearch(event.query));
       setSuggestions(results || []);
@@ -37,14 +43,12 @@ export const AutoCompleteField: React.FC<AutoCompleteComponentProps> = ({
     }
   };
 
-  // Load initial data
+  // Load initial data only once
   useEffect(() => {
-    if (onSearch) {
-      search({ query: '' });
-    } else {
+    if (items.length > 0) {
       setSuggestions(items);
     }
-  }, [items, onSearch]);
+  }, []); // Empty dependency array
 
   return (
     <div className={`w-full ${className}`}>
@@ -55,12 +59,12 @@ export const AutoCompleteField: React.FC<AutoCompleteComponentProps> = ({
         </label>
       )}
 
-      <AutoComplete 
-        value={value ?? ''} 
-        suggestions={suggestions} 
-        completeMethod={search} 
-        onChange={(e) => onChange?.(e.value || null)} 
-        placeholder={placeholder} 
+      <AutoComplete
+        value={value ?? ''}
+        suggestions={suggestions}
+        completeMethod={search}
+        onChange={(e) => onChange?.(e.value || null)}
+        placeholder={placeholder}
         disabled={disabled}
         inputClassName="w-full h-12 px-4 text-base"
         className="w-full"

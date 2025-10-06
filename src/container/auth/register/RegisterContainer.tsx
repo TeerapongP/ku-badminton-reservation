@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { InputField } from "@/component/InputField";
 import { Button } from "@/component/Button";
@@ -29,10 +29,10 @@ export default function RegisterContainner() {
     const [email, setEmail] = useState<string | null>();
     const [houseNumber, setHouseNumber] = useState<string | null>();
     const [street, setStreet] = useState<string | null>();
-    const [tambon, setTambon] = useState<string | undefined>(undefined);
-    const [district, setDistrict] = useState<string | undefined>(undefined);
-    const [province, setProvince] = useState<string | undefined>(undefined);
-    const [postalCode, setPostalCode] = useState<string | undefined>(undefined);
+    const [tambon, setTambon] = useState<string>("");
+    const [district, setDistrict] = useState<string>();
+    const [province, setProvince] = useState<string>();
+    const [postalCode, setPostalCode] = useState<string>();
     const [faculty, setFaculty] = useState<number | null>();
     const [department, setDepartment] = useState<number | null>();
     const [levelStudy, setLevelStudy] = useState<number | null>();
@@ -44,6 +44,11 @@ export default function RegisterContainner() {
     const [subUnitOption, setSubUnitOptions] = useState<DropdownOption[]>([]);
     const today = new Date();
     const hundredYearsAgo = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
+    const loadedUnitsRef = useRef(false);
+
+    const [districtOptions, setDistrictOptions] = useState<DropdownOption[]>([]);
+    const [provincesOptions, setProvinceOptions] = useState<DropdownOption[]>([]);
+    const [postCodeOptions, setPostCodeOptions] = useState<DropdownOption[]>([]);
 
     async function fetchUnits(): Promise<DropdownOption[]> {
         const res = await fetch(`/api/units`, {
@@ -57,7 +62,6 @@ export default function RegisterContainner() {
         }));
     }
 
-    // โหลดหน่วยย่อย (sub-units) ตาม unitId
     async function fetchSubUnits(
         unitId: string,
     ): Promise<DropdownOption[]> {
@@ -72,42 +76,155 @@ export default function RegisterContainner() {
         }));
     }
 
-    useEffect(() => {
-        const controller = new AbortController();
-        fetchUnits()
-            .then(setOfficeOptions)
-            .catch(() => setOfficeOptions([]));
-        return () => controller.abort();
-    }, []);
+    async function fetchTambons(tambon: string): Promise<DropdownOption[]> {
+        const res = await fetch(`/api/tambons?tambon=${encodeURIComponent(tambon)}&take=10`, {
+            cache: 'no-store',
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        return (json?.data ?? []).map((x: any) => ({
+            label: x.label ?? x.name_th,
+            value: x.value ?? String(x.id),
+        }));
+    }
+
+    async function fetchDistricts(tambonId: string): Promise<DropdownOption[]> {
+        const res = await fetch(`/api/districts?tambonId=${encodeURIComponent(tambonId)}`, {
+            cache: 'no-store',
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        return (json?.data ?? []).map((x: any) => ({
+            label: x.label ?? x.name_th,
+            value: x.value ?? String(x.id),
+        }));
+    }
+
+    async function fetchProvinces(districtsId: string): Promise<DropdownOption[]> {
+        const res = await fetch(`/api/provinces?districtId=${encodeURIComponent(districtsId)}`, {
+            cache: 'no-store',
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        return (json?.data ?? []).map((x: any) => ({
+            label: x.label ?? x.name_th,
+            value: x.value ?? String(x.id),
+        }));
+    }
+
+    async function fetchPostcode(tambonId: string): Promise<DropdownOption[]> {
+        const res = await fetch(`/api/postcodes?tambonId=${encodeURIComponent(tambonId)}`, {
+            cache: 'no-store',
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        return (json?.data ?? []).map((x: any) => ({
+            label: x.label ?? x.name_th,
+            value: x.value ?? String(x.id),
+        }));
+    }
 
     useEffect(() => {
         const controller = new AbortController();
-        setSubUnitOptions([]);
-        if (!office) return () => controller.abort();
+        let alive = true;
 
-        fetchSubUnits(office)
-            .then(setSubUnitOptions)
-            .catch(() => setSubUnitOptions([]));
+        (async () => {
+            // 1) โหลด Units แค่ครั้งแรก
+            if (!loadedUnitsRef.current) {
+                try {
+                    const units = await fetchUnits();
+                    if (alive) setOfficeOptions(units);
+                } catch {
+                    if (alive) setOfficeOptions([]);
+                } finally {
+                    loadedUnitsRef.current = true;
+                }
+            }
 
-        return () => controller.abort();
+            setSubUnitOptions([]);
+            if (!office) return;
+
+            try {
+                const subs = await fetchSubUnits(office);
+                if (alive) setSubUnitOptions(subs);
+            } catch {
+                if (alive) setSubUnitOptions([]);
+            }
+        })();
+
+        return () => {
+            alive = false;
+            controller.abort();
+        };
     }, [office]);
 
-    const searchTambon = async (q: string): Promise<string[]> => {
-        // mock data ชุดตัวอย่าง
-        const tambonList = [
-            "ลาดพร้าว",
-            "จตุจักร",
-            "บางซื่อ",
-            "ห้วยขวาง",
-            "วังทองหลาง",
-            "สะพานพุทธ",
-        ];
-        const s = q.trim().toLowerCase();
-        await new Promise((r) => setTimeout(r, 300));
-        return s
-            ? tambonList.filter((t) => t.toLowerCase().includes(s))
-            : tambonList;
-    };
+    const searchTambon = useCallback(async (q: string): Promise<string[]> => {
+        try {
+            const tambons = await fetchTambons(q);
+            const tambonId = tambons.find(t => t.value)?.value ?? null;
+            await searchDistricts(tambonId);
+            return tambons.map(t => t.label ?? '').filter(label => label !== '');
+        } catch (error) {
+            return [];
+        }
+    }, []);
+
+    const searchProvinces = useCallback(
+        async (districtId: string | undefined): Promise<void> => {
+            if (!districtId) {
+                setProvinceOptions([]);
+                setProvince("");
+                return;
+            }
+            try {
+                const provinces = await fetchProvinces(districtId);
+                setProvinceOptions(provinces);
+
+                if (provinces.length === 1) {
+                    setProvince(provinces[0].value);
+                }
+            } catch {
+                setProvinceOptions([]);
+                setProvince("");
+            }
+        },
+        []
+    );
+
+    const searchDistricts = useCallback(
+        async (tambonId: string): Promise<void> => {
+            if (!tambonId) {
+                setDistrictOptions([]);
+                setDistrict("");
+                setProvinceOptions([]);
+                setProvince("");
+                return;
+            }
+            try {
+                const districts = await fetchDistricts(tambonId);
+                const postCodes = await fetchPostcode(tambonId);
+                setPostCodeOptions(postCodes);
+                setDistrictOptions(districts);
+
+                if (districts.length === 1) {
+                    const only = districts[0].value;
+                    setDistrict(only);
+                    await searchProvinces(only);
+                }
+                if (postCodes && postCodes.length === 1) {
+                    setPostalCode(postCodes[0].value);
+                } else {
+                    setPostalCode("");
+                }
+            } catch {
+                setDistrictOptions([]);
+                setDistrict("");
+                setProvinceOptions([]);
+                setProvince("");
+            }
+        },
+        [searchProvinces]
+    );
 
 
     return (
@@ -254,37 +371,43 @@ export default function RegisterContainner() {
                         <AutoCompleteField
                             placeholder="พิมพ์ชื่อตำบล"
                             value={tambon}
-                            onChange={(value) => setTambon(value ?? undefined)}
+                            onChange={(value) => setTambon(value ?? "")}
                             onSearch={searchTambon}
                             required
                         />
                     </div>
                     <div className="w-full sm:w-1/2">
-                        <AutoCompleteField
-                            placeholder="พิมพ์ชื่ออำเภอ"
+                        <DropdownField
+                            placeholder="กรุณาเลือกเขตหรืออำเภอ"
                             value={district}
-                            onChange={(value) => setDistrict(value ?? undefined)}
-                            onSearch={searchTambon}
+                            disabled={true}
+                            onChange={setDistrict}
+                            options={districtOptions}
+                            optionLabel="label"
                             required
                         />
                     </div>
                 </div>
                 <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
                     <div className="w-full sm:w-1/2">
-                        <AutoCompleteField
-                            placeholder="พิมพ์ชื่อจังหวัด"
+                        <DropdownField
+                            placeholder="กรุณาเลือกจังหวัด"
                             value={province}
-                            onChange={(value) => setProvince(value ?? undefined)}
-                            onSearch={searchTambon}
+                            onChange={setProvince}
+                            disabled={true}
+                            options={provincesOptions}
+                            optionLabel="label"
                             required
                         />
                     </div>
                     <div className="w-full sm:w-1/2">
-                        <AutoCompleteField
-                            placeholder="พิมพ์รหัสไปรษณีย์"
+                        <DropdownField
+                            placeholder="กรุณาเลือกรหัสไปรษณ์ย์"
                             value={postalCode}
-                            onChange={(value) => setPostalCode(value ?? undefined)}
-                            onSearch={searchTambon}
+                            disabled={true}
+                            onChange={setPostalCode}
+                            options={postCodeOptions}
+                            optionLabel="label"
                             required
                         />
                     </div>
@@ -397,5 +520,7 @@ export default function RegisterContainner() {
         </>
     );
 }
+
+
 
 

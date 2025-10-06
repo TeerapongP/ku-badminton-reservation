@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User } from "lucide-react";
 
 type Item = { id: string; label: string; href: string };
 
@@ -27,16 +27,16 @@ export default function Navbar() {
   );
 
   const isActive = (href: string) => {
-    if (!mounted) return false; // Prevent hydration mismatch
+    if (!mounted) return false;
     if (href === "/") return pathname === "/";
     return pathname?.startsWith(href);
   };
 
   return (
     <nav className="bg-[#212A37] text-white sticky top-0 z-50 shadow-sm">
-      <div className=" mx-auto px-4">
-
+      <div className="mx-auto px-4">
         <div className="flex items-center justify-between h-16">
+          {/* ===== Logo ===== */}
           <Link href="/" className="flex items-center gap-2 group">
             <span className="text-2xl font-extrabold tracking-tight">
               <span className="text-cyan-300">KU</span>
@@ -44,7 +44,8 @@ export default function Navbar() {
             <span className="text-lg text-cyan-100/90">court booking</span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-2 ml-auto">
+          {/* ===== Desktop Menu ===== */}
+          <div className="hidden md:flex items-center gap-3 ml-auto">
             {menuItems.map((item) => {
               const active = isActive(item.href);
               const base =
@@ -63,8 +64,24 @@ export default function Navbar() {
                 </Link>
               );
             })}
+
+            {/* ===== Avatar next to Login ===== */}
+            <Link
+              href="/profile"
+              className="ml-2 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-700/60 transition"
+            >
+              <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center overflow-hidden">
+                {/* ถ้ามีรูปโปรไฟล์จริงใช้ Image แทนได้ */}
+                {/* <Image src="/avatar.jpg" alt="Avatar" width={32} height={32} /> */}
+                <User size={18} className="text-cyan-300" />
+              </div>
+              <span className="hidden lg:inline text-sm text-cyan-100/80">
+                โปรไฟล์
+              </span>
+            </Link>
           </div>
 
+          {/* ===== Mobile Toggle ===== */}
           <button
             className="md:hidden p-2 ml-auto rounded-lg hover:bg-gray-700/60"
             onClick={() => setOpen(!open)}
@@ -75,6 +92,7 @@ export default function Navbar() {
         </div>
       </div>
 
+      {/* ===== Mobile Menu ===== */}
       <div
         className={`md:hidden overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${open ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
           }`}
@@ -97,6 +115,18 @@ export default function Navbar() {
               </Link>
             );
           })}
+
+          {/* Avatar on Mobile */}
+          <Link
+            href="/profile"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-3 px-6 py-3 hover:bg-gray-700/40 border-t border-white/10"
+          >
+            <div className="w-9 h-9 rounded-full bg-gray-600 flex items-center justify-center">
+              <User size={20} className="text-cyan-300" />
+            </div>
+            <span className="text-cyan-100">โปรไฟล์ของฉัน</span>
+          </Link>
         </div>
       </div>
     </nav>
