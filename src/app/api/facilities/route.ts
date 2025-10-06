@@ -10,6 +10,7 @@ export async function GET(req: Request) {
                 name_th: true,
                 name_en: true,
                 active: true,
+                image_path: true,
             },
             orderBy: { facility_code: 'asc' },
         });
@@ -19,10 +20,8 @@ export async function GET(req: Request) {
             name_th: f.name_th,
             name_en: f.name_en,
             active: f.active,
-            label: f.name_th,
-            value: f.facility_id.toString(),
+            image_path: f.image_path
         }));
-
         return NextResponse.json({ success: true, data });
     } catch (error) {
         console.error('Facilities API error:', error);

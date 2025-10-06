@@ -1,16 +1,13 @@
-@import "tailwindcss";
-@import "primereact/resources/themes/lara-light-indigo/theme.css";
-@import "primereact/resources/primereact.min.css";
-@import "primeicons/primeicons.css";
-@import "primeflex/primeflex.css";
-
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --foreground: #171717;
 }
 
-@layer base {
 
+@layer base {
   html,
   body,
   * {
@@ -18,17 +15,17 @@
   }
 
   body {
-    @apply bg-gradient-to-br from-green-50 to-emerald-50 text-gray-800;
+    @apply tw-bg-gradient-to-br tw-from-green-50 tw-to-emerald-50 tw-text-gray-800;
     color: var(--foreground);
   }
 }
 
+/* reset เล็กๆ สำหรับ number input */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-
 input[type=number] {
   -moz-appearance: textfield;
   appearance: textfield;

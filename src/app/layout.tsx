@@ -1,4 +1,8 @@
-// app/layout.tsx
+import "primereact/resources/themes/lara-light-indigo/theme.css";
+import "primereact/resources/primereact.min.css";
+import "primeicons/primeicons.css";
+import "primeflex/primeflex.css";
+
 import "./globals.css";
 import { Inter } from "next/font/google";
 import { PrimeReactProvider } from "primereact/api";
@@ -21,7 +25,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="th">
-      <body className={`${inter.variable} antialiased text-gray-900`}>
+      <body className={`${inter.variable} tw-antialiased tw-text-gray-900`}>
         <PrimeReactProvider>
           <ClientLayout>{children}</ClientLayout>
         </PrimeReactProvider>
