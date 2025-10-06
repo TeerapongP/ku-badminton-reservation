@@ -8,6 +8,7 @@ import { DropdownField } from "@/component/DropdownField";
 import { DateField } from "@/component/DateField";
 import AutoCompleteField from "@/component/AutoCompleteField";
 import { DropdownOption } from "@/type/DropdownOption";
+import { useToast } from "@/component/ToastProvider";
 import {
     userTypeOptions,
     prefixTitleOptions,
@@ -16,6 +17,7 @@ import {
 } from '@/constants/options';
 
 export default function RegisterContainner() {
+    const toast = useToast();
     const [studentId, setStudentId] = useState('');
     const [nationnalId, setNationnalId] = useState('');
 
@@ -44,7 +46,6 @@ export default function RegisterContainner() {
     const [subUnitOption, setSubUnitOptions] = useState<DropdownOption[]>([]);
     const today = new Date();
     const hundredYearsAgo = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
-    const loadedUnitsRef = useRef(false);
 
     const [districtOptions, setDistrictOptions] = useState<DropdownOption[]>([]);
     const [provincesOptions, setProvinceOptions] = useState<DropdownOption[]>([]);
@@ -54,15 +55,20 @@ export default function RegisterContainner() {
 
 
     async function fetchUnits(): Promise<DropdownOption[]> {
-        const res = await fetch(`/api/units`, {
-            cache: 'no-store',
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        return (json?.data ?? []).map((x: any) => ({
-            label: x.label ?? x.name_th,
-            value: x.value ?? String(x.id),
-        }));
+        try {
+            const res = await fetch(`/api/units`, {
+                cache: 'no-store',
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            return (json?.data ?? []).map((x: any) => ({
+                label: x.label ?? x.name_th,
+                value: x.value ?? String(x.id),
+            }));
+        } catch (error) {
+            toast.showError('ไม่สามารถโหลดข้อมูลหน่วยงานได้', 'กรุณาลองใหม่อีกครั้ง');
+            throw error;
+        }
     }
 
     async function fetchSubUnits(
@@ -80,39 +86,54 @@ export default function RegisterContainner() {
     }
 
     async function fetchTambons(tambon: string): Promise<DropdownOption[]> {
-        const res = await fetch(`/api/tambons?tambon=${encodeURIComponent(tambon)}&take=10`, {
-            cache: 'no-store',
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        return (json?.data ?? []).map((x: any) => ({
-            label: x.label ?? x.name_th,
-            value: x.value ?? String(x.id),
-        }));
+        try {
+            const res = await fetch(`/api/tambons?tambon=${encodeURIComponent(tambon)}&take=10`, {
+                cache: 'no-store',
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            return (json?.data ?? []).map((x: any) => ({
+                label: x.label ?? x.name_th,
+                value: x.value ?? String(x.id),
+            }));
+        } catch (error) {
+            toast.showError('ไม่สามารถค้นหาตำบลได้', 'กรุณาลองใหม่อีกครั้ง');
+            throw error;
+        }
     }
 
     async function fetchDistricts(tambonId: string): Promise<DropdownOption[]> {
-        const res = await fetch(`/api/districts?tambonId=${encodeURIComponent(tambonId)}`, {
-            cache: 'no-store',
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        return (json?.data ?? []).map((x: any) => ({
-            label: x.label ?? x.name_th,
-            value: x.value ?? String(x.id),
-        }));
+        try {
+            const res = await fetch(`/api/districts?tambonId=${encodeURIComponent(tambonId)}`, {
+                cache: 'no-store',
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            return (json?.data ?? []).map((x: any) => ({
+                label: x.label ?? x.name_th,
+                value: x.value ?? String(x.id),
+            }));
+        } catch (error) {
+            toast.showError('ไม่สามารถโหลดข้อมูลอำเภอได้', 'กรุณาลองใหม่อีกครั้ง');
+            throw error;
+        }
     }
 
     async function fetchProvinces(districtsId: string): Promise<DropdownOption[]> {
-        const res = await fetch(`/api/provinces?districtId=${encodeURIComponent(districtsId)}`, {
-            cache: 'no-store',
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        return (json?.data ?? []).map((x: any) => ({
-            label: x.label ?? x.name_th,
-            value: x.value ?? String(x.id),
-        }));
+        try {
+            const res = await fetch(`/api/provinces?districtId=${encodeURIComponent(districtsId)}`, {
+                cache: 'no-store',
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            return (json?.data ?? []).map((x: any) => ({
+                label: x.label ?? x.name_th,
+                value: x.value ?? String(x.id),
+            }));
+        } catch (error) {
+            toast.showError('ไม่สามารถโหลดข้อมูลจังหวัดได้', 'กรุณาลองใหม่อีกครั้ง');
+            throw error;
+        }
     }
 
     async function fetchPostcode(tambonId: string): Promise<DropdownOption[]> {
