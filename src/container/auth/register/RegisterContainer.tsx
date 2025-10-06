@@ -33,9 +33,9 @@ export default function RegisterContainner() {
     const [district, setDistrict] = useState<string>();
     const [province, setProvince] = useState<string>();
     const [postalCode, setPostalCode] = useState<string>();
-    const [faculty, setFaculty] = useState<number | null>();
-    const [department, setDepartment] = useState<number | null>();
-    const [levelStudy, setLevelStudy] = useState<number | null>();
+    const [faculty, setFaculty] = useState<string | null>();
+    const [department, setDepartment] = useState<string | null>();
+    const [levelStudy, setLevelStudy] = useState<string | null>();
     const [office, setOffice] = useState<string | null>(null);
     const [jobtitle, setJobtitle] = useState<string | null>(null);
     const [staffType, setStaffType] = useState<string | null>(null);
@@ -49,6 +49,9 @@ export default function RegisterContainner() {
     const [districtOptions, setDistrictOptions] = useState<DropdownOption[]>([]);
     const [provincesOptions, setProvinceOptions] = useState<DropdownOption[]>([]);
     const [postCodeOptions, setPostCodeOptions] = useState<DropdownOption[]>([]);
+    const [facultiesOption, setFacultiesOptions] = useState<DropdownOption[]>([]);
+    const [departmentOption, setDepartmentOptions] = useState<DropdownOption[]>([]);
+
 
     async function fetchUnits(): Promise<DropdownOption[]> {
         const res = await fetch(`/api/units`, {
@@ -124,31 +127,129 @@ export default function RegisterContainner() {
         }));
     }
 
+    async function fetchFaculties(): Promise<DropdownOption[]> {
+        const res = await fetch(`/api/faculties`, {
+            cache: 'no-store',
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        return (json?.data ?? []).map((x: any) => ({
+            label: x.label ?? x.name_th,
+            value: x.value ?? String(x.id),
+        }));
+    }
+
+    async function fetchDepartments(facultyId: string): Promise<DropdownOption[]> {
+        if (!facultyId) return [];
+
+        try {
+            const res = await fetch(`/api/departments?facultyId=${encodeURIComponent(facultyId)}`, {
+                cache: 'no-store',
+            });
+
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const json = await res.json();
+
+            const data = (json?.data ?? []).map((x: any) => ({
+                label: x.label ?? x.name_th ?? "",
+                value: x.value ?? String(x.id ?? ""),
+            }));
+
+            return data.filter((x: { label: any; value: any; }) => x.label && x.value);
+        } catch (err) {
+            console.error("fetchDepartments error:", err);
+            return [];
+        }
+    }
+
+    // state/ref ที่ใช้
+    const loadedInitRef = useRef(false);
+    const reqIdRef = useRef(0);
+
+    // 1) โหลด Units + Faculties แค่ครั้งแรก
     useEffect(() => {
+        if (loadedInitRef.current) return;
+
         const controller = new AbortController();
         let alive = true;
 
         (async () => {
-            // 1) โหลด Units แค่ครั้งแรก
-            if (!loadedUnitsRef.current) {
-                try {
-                    const units = await fetchUnits();
-                    if (alive) setOfficeOptions(units);
-                } catch {
-                    if (alive) setOfficeOptions([]);
-                } finally {
-                    loadedUnitsRef.current = true;
+            try {
+                const [units, faculties] = await Promise.all([
+                    fetchUnits(),
+                    fetchFaculties(),
+                ]);
+                if (!alive) return;
+
+                setOfficeOptions(units ?? []);
+                setFacultiesOptions(faculties ?? []);
+            } catch {
+                if (alive) {
+                    setOfficeOptions([]);
+                    setFacultiesOptions([]);
+                }
+            } finally {
+                loadedInitRef.current = true;
+            }
+        })();
+
+        return () => {
+            alive = false;
+            controller.abort();
+        };
+    }, []);
+
+    // 2) faculty -> departments
+    useEffect(() => {
+        const controller = new AbortController();
+        let alive = true;
+        const rid = ++reqIdRef.current;
+
+        (async () => {
+            // reset ก่อน
+            setDepartmentOptions([]);
+            setDepartment("");
+
+            if (!faculty) return;
+
+            try {
+                const deps = await fetchDepartments(faculty);
+                if (!alive || rid !== reqIdRef.current) return;
+                setDepartmentOptions(deps ?? []);
+                // ถ้าเหลือตัวเดียว auto-select
+                if (deps?.length === 1) setDepartment(deps[0].value);
+            } catch {
+                if (alive && rid === reqIdRef.current) {
+                    setDepartmentOptions([]);
+                    setDepartment("");
                 }
             }
+        })();
 
+        return () => {
+            alive = false;
+            controller.abort();
+        };
+    }, [faculty]);
+
+    // 3) office -> subUnits
+    useEffect(() => {
+        const controller = new AbortController();
+        let alive = true;
+        const rid = ++reqIdRef.current;
+
+        (async () => {
             setSubUnitOptions([]);
+
             if (!office) return;
 
             try {
                 const subs = await fetchSubUnits(office);
-                if (alive) setSubUnitOptions(subs);
+                if (!alive || rid !== reqIdRef.current) return;
+                setSubUnitOptions(subs ?? []);
             } catch {
-                if (alive) setSubUnitOptions([]);
+                if (alive && rid === reqIdRef.current) setSubUnitOptions([]);
             }
         })();
 
@@ -414,39 +515,49 @@ export default function RegisterContainner() {
                 </div>
 
                 {userType === "student" && (
-                    <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
-                        <div className="w-full sm:w-1/3">
-                            <DropdownField
-                                placeholder="คณะ"
-                                value={faculty}
-                                onChange={setFaculty}
-                                options={[]}
-                                optionLabel="label"
-                                required
-                            />
+                    <>
+                        <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
+                            <div className="w-full">
+                                <DropdownField
+                                    placeholder="คณะ"
+                                    value={faculty}
+                                    onChange={setFaculty}
+                                    options={facultiesOption}
+                                    optionLabel="label"
+                                    required
+                                />
+                            </div>
                         </div>
-                        <div className="w-full sm:w-1/3">
-                            <DropdownField
-                                placeholder="สาขา"
-                                value={department}
-                                onChange={setDepartment}
-                                options={[]}
-                                optionLabel="label"
-                                required
-                            />
+
+                        <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
+                            <div className="w-full">
+                                <DropdownField
+                                    placeholder="สาขา"
+                                    value={department}
+                                    onChange={setDepartment}
+                                    options={departmentOption}
+                                    optionLabel="label"
+                                    required
+                                    disabled={!faculty}
+                                />
+                            </div>
                         </div>
-                        <div className="w-full sm:w-1/3">
-                            <DropdownField
-                                placeholder="ระดับการศึกษา"
-                                value={levelStudy}
-                                onChange={setLevelStudy}
-                                options={levelStudyOptions}
-                                optionLabel="label"
-                                required
-                            />
+
+                        <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
+                            <div className="w-full">
+                                <DropdownField
+                                    placeholder="ระดับการศึกษา"
+                                    value={levelStudy}
+                                    onChange={setLevelStudy}
+                                    options={levelStudyOptions}
+                                    optionLabel="label"
+                                    required
+                                />
+                            </div>
                         </div>
-                    </div>
+                    </>
                 )}
+
                 {userType === "staff" && (
                     <div className="flex flex-col sm:flex-row gap-4 w-full">
                         {/* หน่วยงาน/สังกัด */}

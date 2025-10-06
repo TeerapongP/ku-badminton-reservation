@@ -21,7 +21,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
                         />
                     </div>
 
-                    <div className="w-full lg:w-1/2">
+                    <div className="basis-1/2 flex-shrink-0 flex-grow-0">
                         {children}
                     </div>
                 </div>
