@@ -33,7 +33,7 @@ export const DropdownField: React.FC<DropdownFieldProps> = ({
         name={name}
         value={value}
         onChange={(e: DropdownChangeEvent) => onChange?.(e.value)}
-        options={options}
+        options={options as any}
         optionLabel={optionLabel}
         placeholder={placeholder}
         disabled={disabled}
