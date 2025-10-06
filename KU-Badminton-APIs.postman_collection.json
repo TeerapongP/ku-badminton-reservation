@@ -1,0 +1,257 @@
+{
+	"info": {
+		"_postman_id": "ku-badminton-apis",
+		"name": "KU Badminton APIs",
+		"description": "API collection for KU Badminton Reservation System",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Address APIs",
+			"item": [
+				{
+					"name": "Get Tambons",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/tambons?q=ลาดพร้าว&take=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"tambons"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "ลาดพร้าว",
+									"description": "Search term for tambon name"
+								},
+								{
+									"key": "take",
+									"value": "10",
+									"description": "Number of results to return (default: 100)"
+								}
+							]
+						},
+						"description": "Search for tambons by name"
+					}
+				},
+				{
+					"name": "Get Districts by Tambon ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/districts?tambonId=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"districts"
+							],
+							"query": [
+								{
+									"key": "tambonId",
+									"value": "1",
+									"description": "Tambon ID to get district for"
+								}
+							]
+						},
+						"description": "Get district information by tambon ID"
+					}
+				},
+				{
+					"name": "Search Districts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/districts?q=บางเขน&take=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"districts"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "บางเขน",
+									"description": "Search term for district name"
+								},
+								{
+									"key": "take",
+									"value": "10",
+									"description": "Number of results to return"
+								}
+							]
+						},
+						"description": "Search for districts by name"
+					}
+				},
+				{
+					"name": "Get Provinces by District ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/provinces?districtId=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"provinces"
+							],
+							"query": [
+								{
+									"key": "districtId",
+									"value": "1",
+									"description": "District ID to get province for"
+								}
+							]
+						},
+						"description": "Get province information by district ID"
+					}
+				},
+				{
+					"name": "Search Provinces",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/provinces?q=กรุงเทพ&take=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"provinces"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "กรุงเทพ",
+									"description": "Search term for province name"
+								},
+								{
+									"key": "take",
+									"value": "10",
+									"description": "Number of results to return"
+								}
+							]
+						},
+						"description": "Search for provinces by name"
+					}
+				},
+				{
+					"name": "Get Postcodes by Tambon ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/postcodes?tambonId=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"postcodes"
+							],
+							"query": [
+								{
+									"key": "tambonId",
+									"value": "1",
+									"description": "Tambon ID to get postcodes for"
+								}
+							]
+						},
+						"description": "Get all postcodes for a specific tambon"
+					}
+				}
+			]
+		},
+		{
+			"name": "Organization APIs",
+			"item": [
+				{
+					"name": "Get Units",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/units?q=วิศวกรรม&take=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"units"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "วิศวกรรม",
+									"description": "Search term for unit name"
+								},
+								{
+									"key": "take",
+									"value": "10",
+									"description": "Number of results to return (default: 100)"
+								}
+							]
+						},
+						"description": "Search for organizational units"
+					}
+				},
+				{
+					"name": "Get Sub-Units",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/sub-units?unitId=1&q=คอมพิวเตอร์&take=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"sub-units"
+							],
+							"query": [
+								{
+									"key": "unitId",
+									"value": "1",
+									"description": "Parent unit ID (required)"
+								},
+								{
+									"key": "q",
+									"value": "คอมพิวเตอร์",
+									"description": "Search term for sub-unit name"
+								},
+								{
+									"key": "take",
+									"value": "10",
+									"description": "Number of results to return (default: 100)"
+								}
+							]
+						},
+						"description": "Get sub-units under a specific unit"
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		}
+	]
+}
