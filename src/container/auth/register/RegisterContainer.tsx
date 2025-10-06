@@ -437,7 +437,7 @@ export default function RegisterContainner() {
                         <DateField
                             value={dob}
                             onChange={setDob}
-                            showIcon={false}
+                            showIcon={true}
                             maxDate={today}
                             minDate={hundredYearsAgo}
                             placeholder="เลือกวันเกิด"
@@ -620,28 +620,20 @@ export default function RegisterContainner() {
                 )}
                 <div className="flex justify-center mt-4">
                     <Button
-                        className="w-full sm:w-1/2 h-12 text-lg font-semibold shadow-md"
-                        colorClass="bg-emerald-600 hover:bg-emerald-700 text-white focus:ring-emerald-500"
+                        className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none"
+                        colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
                     >
-                        สมัครสมาชิก
+                        <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
+                            สมัครสมาชิก
+                        </span>
                     </Button>
                 </div>
 
-                <div className="relative mt-4 mb-4">
-                    <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-gray-200" />
-                    </div>
-                    <div className="relative flex justify-center">
-                        <span className="bg-white px-3 text-sm text-gray-400"></span>
-                    </div>
-                </div>
-
-
-                <div className="mb-4 flex justify-center items-center text-sm font-medium text-gray-700">
-                    <span className="mr-2">มีบัญชีผู้ใช้?</span>
+                <div className="tw-flex tw-justify-center tw-items-center tw-text-sm tw-font-medium tw-text-gray-700 tw-my-6">
+                    <span className="tw-mr-2">ยังไม่มีบัญชีผู้ใช้?</span>
                     <Link
                         href="/login"
-                        className="text-emerald-600 hover:text-emerald-700 underline underline-offset-2"
+                        className="tw-text-emerald-600 hover:tw-text-emerald-700 tw-underline tw-underline-offset-2"
                     >
                         เข้าสู่ระบบ
                     </Link>

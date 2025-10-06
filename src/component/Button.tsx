@@ -1,7 +1,7 @@
 import { ButtonProps } from "@/lib/ButtonProps";
 
 interface ExtendedButtonProps extends ButtonProps {
-  colorClass?: string; // class สำหรับกำหนดสีเอง
+  colorClass?: string; 
 }
 
 export const Button: React.FC<ExtendedButtonProps> = ({
@@ -11,21 +11,21 @@ export const Button: React.FC<ExtendedButtonProps> = ({
   variant = "primary",
   className = "",
   type = "button",
-  colorClass
+  colorClass,
 }) => {
   const baseStyles =
-    "px-6 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2";
+    "tw-px-6 tw-py-2 tw-rounded-lg tw-font-medium tw-transition-all tw-duration-200 focus:tw-outline-none focus:tw-ring-2";
 
   const variants: Record<"primary" | "secondary" | "danger", string> = {
     primary: disabled
-      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-      : "bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500",
+      ? "tw-bg-gray-300 tw-text-gray-500 tw-cursor-not-allowed"
+      : "tw-bg-blue-600 hover:tw-bg-blue-700 tw-text-white focus:tw-ring-blue-500",
     secondary: disabled
-      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-      : "bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-500",
+      ? "tw-bg-gray-300 tw-text-gray-500 tw-cursor-not-allowed"
+      : "tw-bg-gray-200 hover:tw-bg-gray-300 tw-text-gray-800 focus:tw-ring-gray-500",
     danger: disabled
-      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-      : "bg-red-600 hover:bg-red-700 text-white focus:ring-red-500",
+      ? "tw-bg-gray-300 tw-text-gray-500 tw-cursor-not-allowed"
+      : "tw-bg-red-600 hover:tw-bg-red-700 tw-text-white focus:tw-ring-red-500",
   };
 
   const styleClass = colorClass

@@ -18,14 +18,14 @@ export const DropdownField: React.FC<DropdownFieldProps> = ({
   optionLabel = "label",
 }) => {
   return (
-    <div className={`w-full ${className}`}>
+    <div className={`tw-w-full ${className}`}>
       {label && (
         <label
           htmlFor={id}
-          className="block text-sm font-medium text-gray-700 mb-2"
+          className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2"
         >
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="tw-text-red-500 tw-ml-1">*</span>}
         </label>
       )}
 
@@ -40,12 +40,12 @@ export const DropdownField: React.FC<DropdownFieldProps> = ({
         disabled={disabled}
         className={`w-full ${dropdownClassName}`}
         pt={{
-          root: { className: "w-full" },
-          input: { className: "w-full text-sm sm:text-base" },
+          root: { className: "tw-w-full" },
+          input: { className: "tw-w-full tw-text-sm sm:tw-text-base" },
         }}
       />
 
-      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+      {error && <p className="tw-mt-1 tw-text-sm tw-text-red-500">{error}</p>}
     </div>
   );
 };

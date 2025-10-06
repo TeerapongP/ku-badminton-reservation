@@ -51,11 +51,11 @@ export const AutoCompleteField: React.FC<AutoCompleteComponentProps> = ({
   }, []); // Empty dependency array
 
   return (
-    <div className={`w-full ${className}`}>
+    <div className={`tw-w-full ${className}`}>
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-1">
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="tw-text-red-500 tw-ml-1">*</span>}
         </label>
       )}
 
@@ -66,11 +66,12 @@ export const AutoCompleteField: React.FC<AutoCompleteComponentProps> = ({
         onChange={(e) => onChange?.(e.value || null)}
         placeholder={placeholder}
         disabled={disabled}
-        inputClassName="w-full h-12 px-4 text-base"
-        className="w-full"
+        inputClassName="tw-w-full tw-h-12 tw-px-4 tw-text-base"
+        className="tw-w-full"
       />
     </div>
   );
+
 };
 
 export default AutoCompleteField;

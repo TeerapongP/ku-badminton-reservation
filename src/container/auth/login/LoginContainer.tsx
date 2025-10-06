@@ -47,22 +47,27 @@ export default function LoginContainner() {
         </div>
 
         <div className="tw-flex tw-justify-center">
-          {/* <Button
-            className="tw-w-full sm:tw-w-1/2 tw-h-12 tw-text-lg tw-font-semibold tw-shadow-md"
-            colorClass="tw-bg-emerald-600 hover:tw-bg-emerald-700 tw-text-white focus:tw-ring-emerald-500"
+          <Button
+            className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none"
+            colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
           >
-            เข้าสู่ระบบ
-          </Button> */}
-        </div>
-
-        {/* Divider */}
-        <div className="tw-relative tw-mt-8">
-          <div className="tw-absolute tw-inset-0 tw-flex tw-items-center">
-            <span className="tw-w-full tw-border-t tw-border-gray-200" />
-          </div>
-          <div className="tw-relative tw-flex tw-justify-center">
-            <span className="tw-bg-white tw-px-3 tw-text-sm tw-text-gray-400"></span>
-          </div>
+            <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
+              เข้าสู่ระบบ
+              <svg
+                className="tw-w-5 tw-h-5 tw-transition-transform tw-duration-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 7l5 5m0 0l-5 5m5-5H6"
+                />
+              </svg>
+            </span>
+          </Button>
         </div>
 
         {/* Register */}

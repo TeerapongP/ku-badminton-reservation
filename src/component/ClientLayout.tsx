@@ -13,12 +13,13 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   return (
     <div className="tw-min-h-screen tw-flex tw-flex-col">
       {!shouldHideNavbar && (
-        <header className="sticky top-0 z-50 shadow-sm">
-          {/* <Navbar /> */}
+        <header className="tw-sticky tw-top-0 tw-z-50 tw-shadow-sm">
+          <Navbar />
         </header>
       )}
+
       <ToastProvider>
-        <main className="flex-1">{children}</main>
+        <main className="tw-flex-1">{children}</main>
       </ToastProvider>
     </div>
   );

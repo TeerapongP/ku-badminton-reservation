@@ -33,26 +33,26 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-[#212A37] text-white sticky top-0 z-50 shadow-sm">
-      <div className="mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+    <nav className="tw-bg-[#212A37] tw-text-white tw-sticky tw-top-0 tw-z-50 tw-shadow-sm">
+      <div className="tw-mx-auto tw-px-4">
+        <div className="tw-flex tw-items-center tw-justify-between tw-h-16">
           {/* ===== Logo ===== */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <span className="text-2xl font-extrabold tracking-tight">
-              <span className="text-cyan-300">KU</span>
+          <Link href="/" className="tw-flex tw-items-center tw-gap-2 tw-group">
+            <span className="tw-text-2xl tw-font-extrabold tw-tracking-tight">
+              <span className="tw-text-cyan-300">KU</span>
             </span>
-            <span className="text-lg text-cyan-100/90">court booking</span>
+            <span className="tw-text-lg tw-text-cyan-100/90">court booking</span>
           </Link>
 
           {/* ===== Desktop Menu ===== */}
-          <div className="hidden md:flex items-center gap-3 ml-auto">
+          <div className="tw-hidden md:tw-flex tw-items-center tw-gap-3 tw-ml-auto">
             {menuItems.map((item) => {
               const active = isActive(item.href);
               const base =
-                "px-4 py-2 rounded-lg transition-all duration-200 focus:outline-none";
+                "tw-px-4 tw-py-2 tw-rounded-lg tw-transition-all tw-duration-200 focus:tw-outline-none";
               const state = active
-                ? "bg-gray-700/60 text-white"
-                : "hover:bg-gray-700/60";
+                ? "tw-bg-gray-700/60 tw-text-white"
+                : "hover:tw-bg-gray-700/60";
               return (
                 <Link
                   key={item.id}
@@ -68,14 +68,14 @@ export default function Navbar() {
             {/* ===== Avatar next to Login ===== */}
             <Link
               href="/profile"
-              className="ml-2 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-700/60 transition"
+              className="tw-ml-2 tw-flex tw-items-center tw-gap-2 tw-px-3 tw-py-2 tw-rounded-lg hover:tw-bg-gray-700/60 tw-transition"
             >
-              <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center overflow-hidden">
+              <div className="tw-w-8 tw-h-8 tw-rounded-full tw-bg-gray-600 tw-flex tw-items-center tw-justify-center tw-overflow-hidden">
                 {/* ถ้ามีรูปโปรไฟล์จริงใช้ Image แทนได้ */}
                 {/* <Image src="/avatar.jpg" alt="Avatar" width={32} height={32} /> */}
-                <User size={18} className="text-cyan-300" />
+                <User size={18} className="tw-text-cyan-300" />
               </div>
-              <span className="hidden lg:inline text-sm text-cyan-100/80">
+              <span className="tw-hidden lg:tw-inline tw-text-sm tw-text-cyan-100/80">
                 โปรไฟล์
               </span>
             </Link>
@@ -83,7 +83,7 @@ export default function Navbar() {
 
           {/* ===== Mobile Toggle ===== */}
           <button
-            className="md:hidden p-2 ml-auto rounded-lg hover:bg-gray-700/60"
+            className="md:tw-hidden tw-p-2 tw-ml-auto tw-rounded-lg hover:tw-bg-gray-700/60"
             onClick={() => setOpen(!open)}
             aria-label="Toggle navigation"
           >
@@ -94,20 +94,22 @@ export default function Navbar() {
 
       {/* ===== Mobile Menu ===== */}
       <div
-        className={`md:hidden overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${open ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
-          }`}
+        className={`md:tw-hidden tw-overflow-hidden tw-transition-[max-height,opacity] tw-duration-300 tw-ease-in-out ${
+          open ? "tw-max-h-96 tw-opacity-100" : "tw-max-h-0 tw-opacity-0"
+        }`}
       >
-        <div className="bg-[#1a2332] border-t border-white/10">
+        <div className="tw-bg-[#1a2332] tw-border-t tw-border-white/10">
           {menuItems.map((item) => {
             const active = isActive(item.href);
             return (
               <Link
                 key={item.id}
                 href={item.href}
-                className={`block px-6 py-3 border-l-4 transition-all duration-200 ${active
-                  ? "bg-gray-700/60 border-cyan-400 text-cyan-200 font-medium"
-                  : "border-transparent hover:bg-gray-700/40"
-                  }`}
+                className={`tw-block tw-px-6 tw-py-3 tw-border-l-4 tw-transition-all tw-duration-200 ${
+                  active
+                    ? "tw-bg-gray-700/60 tw-border-cyan-400 tw-text-cyan-200 tw-font-medium"
+                    : "tw-border-transparent hover:tw-bg-gray-700/40"
+                }`}
                 onClick={() => setOpen(false)}
                 suppressHydrationWarning
               >
@@ -120,12 +122,12 @@ export default function Navbar() {
           <Link
             href="/profile"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-3 px-6 py-3 hover:bg-gray-700/40 border-t border-white/10"
+            className="tw-flex tw-items-center tw-gap-3 tw-px-6 tw-py-3 hover:tw-bg-gray-700/40 tw-border-t tw-border-white/10"
           >
-            <div className="w-9 h-9 rounded-full bg-gray-600 flex items-center justify-center">
-              <User size={20} className="text-cyan-300" />
+            <div className="tw-w-9 tw-h-9 tw-rounded-full tw-bg-gray-600 tw-flex tw-items-center tw-justify-center">
+              <User size={20} className="tw-text-cyan-300" />
             </div>
-            <span className="text-cyan-100">โปรไฟล์ของฉัน</span>
+            <span className="tw-text-cyan-100">โปรไฟล์ของฉัน</span>
           </Link>
         </div>
       </div>
