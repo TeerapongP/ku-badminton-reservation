@@ -11,7 +11,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   const shouldHideNavbar = hideNavbarPaths.some((p) => pathname.startsWith(p));
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="tw-min-h-screen tw-flex tw-flex-col">
       {!shouldHideNavbar && (
         <header className="sticky top-0 z-50 shadow-sm">
           {/* <Navbar /> */}
