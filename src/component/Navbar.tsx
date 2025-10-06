@@ -19,7 +19,7 @@ export default function Navbar() {
   const menuItems: Item[] = useMemo(
     () => [
       { id: "home", label: "หน้าแรก", href: "/" },
-      { id: "booking", label: "จองสนาม", href: "/booking" },
+      { id: "booking", label: "จองสนาม", href: "/badminton-court" },
       { id: "register", label: "สมัครสมาชิก", href: "/register" },
       { id: "login", label: "เข้าสู่ระบบ", href: "/login" },
     ],
