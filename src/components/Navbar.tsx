@@ -54,10 +54,6 @@ export default function Navbar() {
     <nav className="tw-bg-[#212A37] tw-text-white tw-sticky tw-top-0 tw-z-50 tw-shadow-sm">
       <div className="tw-mx-auto tw-px-4">
         <div className="tw-flex tw-items-center tw-justify-between tw-h-16">
-<<<<<<< HEAD
-=======
-          {/* Logo */}
->>>>>>> de6413e (feat(courts): Add court booking functionality and court details page)
           <Link
             href="/"
             prefetch
@@ -69,10 +65,6 @@ export default function Navbar() {
             <span className="tw-text-lg tw-text-cyan-100/90">court booking</span>
           </Link>
 
-<<<<<<< HEAD
-=======
-          {/* Desktop Menu */}
->>>>>>> de6413e (feat(courts): Add court booking functionality and court details page)
           <div className="tw-hidden md:tw-flex tw-items-center tw-gap-3 tw-ml-auto">
             {menuItems.map((item) => {
               const active = isActive(item.href);
@@ -95,10 +87,6 @@ export default function Navbar() {
               );
             })}
 
-<<<<<<< HEAD
-=======
-            {/* Avatar */}
->>>>>>> de6413e (feat(courts): Add court booking functionality and court details page)
             <Link
               href="/profile"
               prefetch
@@ -113,10 +101,6 @@ export default function Navbar() {
             </Link>
           </div>
 
-<<<<<<< HEAD
-=======
-          {/* Mobile Toggle */}
->>>>>>> de6413e (feat(courts): Add court booking functionality and court details page)
           <button
             onClick={() => setOpen((v) => !v)}
             aria-label="Toggle navigation"
@@ -150,10 +134,6 @@ export default function Navbar() {
         </div>
       </div>
 
-<<<<<<< HEAD
-=======
-      {/* Mobile Menu */}
->>>>>>> de6413e (feat(courts): Add court booking functionality and court details page)
       <div
         id="mobile-menu"
         className={`md:tw-hidden tw-overflow-hidden tw-transition-[max-height,opacity] tw-duration-300 tw-ease-in-out ${open ? "tw-max-h-96 tw-opacity-100" : "tw-max-h-0 tw-opacity-0"
