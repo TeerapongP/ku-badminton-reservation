@@ -16,8 +16,9 @@ export async function GET(req: NextRequest) {
                 court_code: true,
                 name: true,
                 is_active: true,
+                image_path: true,
             },
-            orderBy: [{ court_code: 'asc' }, { court_id: 'asc' }],
+            orderBy: [{ court_id: 'asc' }],
         });
 
         const data = courts.map((c) => ({
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
             court_code: c.court_code,
             name: c.name,
             is_active: c.is_active,
+            image_path: c.image_path
         }));
 
         return NextResponse.json({ success: true, data });

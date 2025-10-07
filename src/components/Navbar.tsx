@@ -12,14 +12,17 @@ export default function Navbar() {
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
 
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (open) setOpen(false);
+  }, [pathname]);
 
   const menuItems: Item[] = useMemo(
     () => [
       { id: "home", label: "หน้าแรก", href: "/" },
       { id: "booking", label: "จองสนาม", href: "/badminton-court" },
+      { id: "courts", label: "สนามแบต", href: "/courts" },
       { id: "register", label: "สมัครสมาชิก", href: "/register" },
       { id: "login", label: "เข้าสู่ระบบ", href: "/login" },
     ],
@@ -28,16 +31,36 @@ export default function Navbar() {
 
   const isActive = (href: string) => {
     if (!mounted) return false;
-    if (href === "/") return pathname === "/";
-    return pathname?.startsWith(href);
+
+    const current = (pathname ?? "").replace(/\/+$/, "");
+    const target = href.replace(/\/+$/, "");
+
+    if (target === "/") return current === "/";
+
+    if (current === target) return true;
+    if (current.startsWith(`${target}/`)) {
+      const remainingPath = current.substring(target.length + 1);
+      if (target === "/courts" && current.startsWith("/courts/")) return true;
+      if (target === "/badminton-court" && current.startsWith("/badminton-court/")) return true;
+      return remainingPath.length > 0 && !remainingPath.includes("/");
+    }
+
+    return false;
   };
+
+
 
   return (
     <nav className="tw-bg-[#212A37] tw-text-white tw-sticky tw-top-0 tw-z-50 tw-shadow-sm">
       <div className="tw-mx-auto tw-px-4">
         <div className="tw-flex tw-items-center tw-justify-between tw-h-16">
+<<<<<<< HEAD
+=======
+          {/* Logo */}
+>>>>>>> de6413e (feat(courts): Add court booking functionality and court details page)
           <Link
             href="/"
+            prefetch
             className="tw-flex tw-items-center tw-gap-2 tw-group tw-no-underline tw-text-white visited:tw-text-white"
           >
             <span className="tw-text-2xl tw-font-extrabold tw-tracking-tight">
@@ -46,6 +69,10 @@ export default function Navbar() {
             <span className="tw-text-lg tw-text-cyan-100/90">court booking</span>
           </Link>
 
+<<<<<<< HEAD
+=======
+          {/* Desktop Menu */}
+>>>>>>> de6413e (feat(courts): Add court booking functionality and court details page)
           <div className="tw-hidden md:tw-flex tw-items-center tw-gap-3 tw-ml-auto">
             {menuItems.map((item) => {
               const active = isActive(item.href);
@@ -58,7 +85,9 @@ export default function Navbar() {
                 <Link
                   key={item.id}
                   href={item.href}
+                  prefetch
                   className={`${base} ${state}`}
+                  aria-current={active ? "page" : undefined}
                   suppressHydrationWarning
                 >
                   {item.label}
@@ -66,8 +95,13 @@ export default function Navbar() {
               );
             })}
 
+<<<<<<< HEAD
+=======
+            {/* Avatar */}
+>>>>>>> de6413e (feat(courts): Add court booking functionality and court details page)
             <Link
               href="/profile"
+              prefetch
               className="tw-ml-2 tw-flex tw-items-center tw-gap-2 tw-px-3 tw-py-2 tw-rounded-lg tw-transition hover:tw-bg-gray-700/60 tw-no-underline tw-text-white visited:tw-text-white focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-cyan-500/40"
             >
               <div className="tw-w-8 tw-h-8 tw-rounded-full tw-bg-gray-600 tw-flex tw-items-center tw-justify-center tw-overflow-hidden">
@@ -79,37 +113,36 @@ export default function Navbar() {
             </Link>
           </div>
 
+<<<<<<< HEAD
+=======
+          {/* Mobile Toggle */}
+>>>>>>> de6413e (feat(courts): Add court booking functionality and court details page)
           <button
-            onClick={() => setOpen(!open)}
+            onClick={() => setOpen((v) => !v)}
             aria-label="Toggle navigation"
+            aria-expanded={open}
+            aria-controls="mobile-menu"
             className="
-    md:tw-hidden tw-relative tw-ml-auto tw-flex tw-items-center tw-justify-center
-    tw-w-11 tw-h-11 tw-rounded-2xl
-    tw-bg-gradient-to-br tw-from-gray-700/50 tw-to-gray-800/50
-    hover:tw-from-cyan-600/30 hover:tw-to-blue-600/30
-    tw-backdrop-blur-sm
-    tw-transition-all tw-duration-500 tw-ease-out
-    tw-shadow-[0_0_20px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.1)]
-    hover:tw-shadow-[0_0_30px_rgba(56,189,248,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]
-    tw-border tw-border-cyan-400/20 hover:tw-border-cyan-400/40
-    tw-text-cyan-300 hover:tw-text-cyan-100
-    focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-cyan-500/60 focus:tw-ring-offset-2 focus:tw-ring-offset-gray-900
-    active:tw-scale-95
-    tw-group
-  "
+              md:tw-hidden tw-relative tw-ml-auto tw-flex tw-items-center tw-justify-center
+              tw-w-11 tw-h-11 tw-rounded-2xl
+              tw-bg-gradient-to-br tw-from-gray-700/50 tw-to-gray-800/50
+              hover:tw-from-cyan-600/30 hover:tw-to-blue-600/30
+              tw-backdrop-blur-sm tw-transition-all tw-duration-500 tw-ease-out
+              tw-shadow-[0_0_20px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.1)]
+              hover:tw-shadow-[0_0_30px_rgba(56,189,248,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]
+              tw-border tw-border-cyan-400/20 hover:tw-border-cyan-400/40
+              tw-text-cyan-300 hover:tw-text-cyan-100 focus:tw-outline-none
+              focus:tw-ring-2 focus:tw-ring-cyan-500/60 focus:tw-ring-offset-2 focus:tw-ring-offset-gray-900
+              active:tw-scale-95 tw-group
+            "
           >
             <span className="tw-absolute tw-inset-0 tw-rounded-2xl tw-bg-gradient-to-br tw-from-cyan-400/0 tw-to-blue-400/0 group-hover:tw-from-cyan-400/10 group-hover:tw-to-blue-400/10 tw-transition-all tw-duration-500" />
-
             <span
               className={`
-      tw-relative tw-z-10
-      tw-transition-all tw-duration-500 tw-ease-out
-      ${open
-                  ? "tw-rotate-180 tw-scale-110"
-                  : "tw-rotate-0 tw-scale-100"
-                }
-      group-hover:tw-scale-110
-    `}
+                tw-relative tw-z-10 tw-transition-all tw-duration-500 tw-ease-out
+                ${open ? "tw-rotate-180 tw-scale-110" : "tw-rotate-0 tw-scale-100"}
+                group-hover:tw-scale-110
+              `}
             >
               {open ? <X size={22} strokeWidth={2.5} /> : <Menu size={22} strokeWidth={2.5} />}
             </span>
@@ -117,7 +150,12 @@ export default function Navbar() {
         </div>
       </div>
 
+<<<<<<< HEAD
+=======
+      {/* Mobile Menu */}
+>>>>>>> de6413e (feat(courts): Add court booking functionality and court details page)
       <div
+        id="mobile-menu"
         className={`md:tw-hidden tw-overflow-hidden tw-transition-[max-height,opacity] tw-duration-300 tw-ease-in-out ${open ? "tw-max-h-96 tw-opacity-100" : "tw-max-h-0 tw-opacity-0"
           }`}
       >
@@ -128,11 +166,12 @@ export default function Navbar() {
               <Link
                 key={item.id}
                 href={item.href}
+                prefetch
                 className={`tw-block tw-px-6 tw-py-3 tw-border-l-4 tw-transition-all tw-duration-200 tw-no-underline ${active
                   ? "tw-bg-gray-700/60 tw-border-cyan-400 tw-text-cyan-200 tw-font-medium visited:tw-text-cyan-200"
                   : "tw-border-transparent hover:tw-bg-gray-700/40 tw-text-white visited:tw-text-white"
                   }`}
-                onClick={() => setOpen(false)}
+                aria-current={active ? "page" : undefined}
                 suppressHydrationWarning
               >
                 {item.label}
@@ -140,10 +179,9 @@ export default function Navbar() {
             );
           })}
 
-          {/* Avatar on Mobile */}
           <Link
             href="/profile"
-            onClick={() => setOpen(false)}
+            prefetch
             className="tw-flex tw-items-center tw-gap-3 tw-px-6 tw-py-3 hover:tw-bg-gray-700/40 tw-border-t tw-border-white/10 tw-no-underline tw-text-white visited:tw-text-white"
           >
             <div className="tw-w-9 tw-h-9 tw-rounded-full tw-bg-gray-600 tw-flex tw-items-center tw-justify-center">

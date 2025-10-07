@@ -26,7 +26,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       )}
 
       <ToastProvider>
-        <main className="tw-flex-1 tw-pt-16">{children}</main>
+        <main className="tw-flex-1 tw-pt-12">{children}</main>
       </ToastProvider>
     </div>
   );
