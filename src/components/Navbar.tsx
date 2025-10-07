@@ -22,34 +22,36 @@ export default function Navbar() {
     () => [
       { id: "home", label: "หน้าแรก", href: "/" },
       { id: "booking", label: "จองสนาม", href: "/badminton-court" },
-      { id: "courts", label: "สนามแบต", href: "/courts" },
       { id: "register", label: "สมัครสมาชิก", href: "/register" },
       { id: "login", label: "เข้าสู่ระบบ", href: "/login" },
     ],
     []
   );
 
-  const isActive = (href: string) => {
-    if (!mounted) return false;
+  // แทนที่ isActive() ด้วยฟังก์ชันนี้
+  const getActiveId = () => {
+    if (!mounted) return null;
 
-    const current = (pathname ?? "").replace(/\/+$/, "");
-    const target = href.replace(/\/+$/, "");
+    const current = (pathname ?? "").replace(/\/+$/, "") || "/";
 
-    if (target === "/") return current === "/";
+    // จัดลำดับความสำคัญให้แมตช์ได้เพียงหนึ่งเดียว
+    if (current === "/") return "home";
 
-    if (current === target) return true;
-    if (current.startsWith(`${target}/`)) {
-      const remainingPath = current.substring(target.length + 1);
-      if (target === "/courts" && current.startsWith("/courts/")) return true;
-      if (target === "/badminton-court" && current.startsWith("/badminton-court/")) return true;
-      return remainingPath.length > 0 && !remainingPath.includes("/");
+    // กลุ่มเส้นทางที่ถือว่าเป็น "จองสนาม"
+    if (
+      current.startsWith("/badminton-court") ||
+      current.startsWith("/courts") ||
+      current.startsWith("/courts-booking")
+    ) {
+      return "booking";
     }
 
-    return false;
+    if (current.startsWith("/register")) return "register";
+    if (current.startsWith("/login")) return "login";
+
+    return null;
   };
-
-
-
+  const activeId = getActiveId();
   return (
     <nav className="tw-bg-[#212A37] tw-text-white tw-sticky tw-top-0 tw-z-50 tw-shadow-sm">
       <div className="tw-mx-auto tw-px-4">
@@ -67,7 +69,7 @@ export default function Navbar() {
 
           <div className="tw-hidden md:tw-flex tw-items-center tw-gap-3 tw-ml-auto">
             {menuItems.map((item) => {
-              const active = isActive(item.href);
+              const active = item.id === activeId;
               const base =
                 "tw-px-4 tw-py-2 tw-rounded-lg tw-transition-all tw-duration-200 tw-no-underline tw-text-white visited:tw-text-white focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-cyan-500/40";
               const state = active
@@ -141,7 +143,7 @@ export default function Navbar() {
       >
         <div className="tw-bg-[#1a2332] tw-border-t tw-border-white/10">
           {menuItems.map((item) => {
-            const active = isActive(item.href);
+           const active = item.id === activeId;
             return (
               <Link
                 key={item.id}
