@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { InputField } from "@/component/InputField";
-import { Button } from "@/component/Button";
+import { InputField } from "@/components/InputField";
+import { Button } from "@/components/Button";
 
 export default function LoginContainner() {
   const [username, setuserName] = useState('');

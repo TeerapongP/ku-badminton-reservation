@@ -14,7 +14,8 @@ export const AutoCompleteField: React.FC<AutoCompleteComponentProps> = ({
   required = false,
   disabled = false,
   className = '',
-  debounceMs = 300
+  debounceMs = 300,
+  dropdown = false,
 }) => {
   const [suggestions, setSuggestions] = useState<string[]>(items);
 
@@ -66,6 +67,7 @@ export const AutoCompleteField: React.FC<AutoCompleteComponentProps> = ({
         onChange={(e) => onChange?.(e.value || null)}
         placeholder={placeholder}
         disabled={disabled}
+        dropdown={dropdown}
         inputClassName="tw-w-full tw-h-12 tw-px-4 tw-text-base"
         className="tw-w-full"
       />

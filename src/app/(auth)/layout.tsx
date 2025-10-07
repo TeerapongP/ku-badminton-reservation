@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { ToastProvider } from "@/component/ToastProvider";
+import { ToastProvider } from "@/components/ToastProvider";
 
 export const metadata: Metadata = {
     title: "เข้าสู่ระบบ | KU Badminton",

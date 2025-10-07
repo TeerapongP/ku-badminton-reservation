@@ -3,17 +3,10 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/component/ToastProvider";
-
-// ถ้ามีในโปรเจกต์อยู่แล้ว ให้ลบท่อนนี้ออก
-export interface Facility {
-  facility_id: string;        // BIGINT -> ส่งเป็น string จาก API
-  facility_code: string;
-  name_th: string;
-  name_en?: string | null;
-  active: boolean;
-  image_path?: string | null; // ตัวใหม่ที่เรา ALTER มา
-}
+import { useToast } from "@/components/ToastProvider";
+import { Facility } from "@/lib/Facility";
+import { Button } from "@/components/Button";
+import Loading, { ButtonLoading } from "@/components/Loading";
 
 export default function BadmintonContainer() {
   const router = useRouter();
@@ -21,6 +14,7 @@ export default function BadmintonContainer() {
 
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bookingLoading, setBookingLoading] = useState<string | null>(null);
 
   async function fetchFacility(): Promise<Facility[]> {
     try {
@@ -42,99 +36,112 @@ export default function BadmintonContainer() {
       });
   }, []);
 
-  const goToCourts = (f: Facility) => {
-    toast.showSuccess("เลือกสนามแล้ว", f.name_th);
-    router.push(`/courts?facilityId=${encodeURIComponent(f.facility_id)}`);
+  const goToCourts = async (f: Facility) => {
+    if (!f.active) return;
+
+    setBookingLoading(f.facility_id);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      router.push(`/courts/${encodeURIComponent(f.facility_id)}`);
+    } finally {
+      setBookingLoading(null);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 py-16 px-6">
-      <div className="text-center mb-14">
-        <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent mb-3">
+    <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-green-50 tw-via-emerald-50 tw-to-teal-50 tw-px-6">
+      <div className="tw-text-center">
+        <h1 className="tw-text-4xl md:tw-text-6xl tw-font-bold tw-bg-gradient-to-r tw-from-green-600 tw-via-emerald-600 tw-to-teal-600 tw-bg-clip-text tw-text-transparent tw-mb-3">
           สนามแบดมินตัน
         </h1>
-        <p className="text-base md:text-lg text-gray-700 font-medium">
+        <p className="tw-text-base md:tw-text-lg tw-text-gray-700 tw-font-medium">
           มหาวิทยาลัยเกษตรศาสตร์
         </p>
-        <p className="text-gray-500 text-sm mt-1">เลือกสนามที่คุณต้องการจอง</p>
-        <div className="mt-5 h-1.5 w-28 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 mx-auto rounded-full" />
+        <p className="tw-text-gray-500 tw-text-sm tw-mt-1">เลือกสนามที่คุณต้องการจอง</p>
+        <div className="tw-mt-5 tw-mb-5 tw-h-1.5 tw-w-28 tw-bg-gradient-to-r tw-from-green-500 tw-via-emerald-500 tw-to-teal-500 tw-mx-auto tw-rounded-full" />
       </div>
 
       {loading ? (
-        <div className="text-center mt-20">
-          <div className="inline-block">
-            <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-600 font-medium">กำลังโหลดข้อมูล...</p>
-          </div>
-        </div>
+        <Loading
+          size="lg"
+          text="กำลังโหลดข้อมูลสนาม..."
+          color="emerald"
+          fullScreen={false}
+        />
       ) : facilities.length === 0 ? (
-        <div className="text-center mt-20">
-          <div className="inline-block p-8 bg-white rounded-2xl shadow-lg">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="tw-text-center tw-mt-20">
+          <div className="tw-inline-block tw-p-8 tw-bg-white tw-rounded-2xl tw-shadow-lg">
+            <div className="tw-w-20 tw-h-20 tw-bg-gray-100 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mx-auto tw-mb-4">
+              <svg className="tw-w-10 tw-h-10 tw-text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
               </svg>
             </div>
-            <p className="text-gray-600 font-medium text-lg">ไม่มีข้อมูลสนาม</p>
-            <p className="text-gray-400 text-sm mt-1">กรุณาลองใหม่อีกครั้งภายหลัง</p>
+            <p className="tw-text-gray-600 tw-font-medium tw-text-lg">ไม่มีข้อมูลสนาม</p>
+            <p className="tw-text-gray-400 tw-text-sm tw-mt-1">กรุณาลองใหม่อีกครั้งภายหลัง</p>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-7xl mx-auto">
+        <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-8 tw-max-w-7xl tw-mx-auto">
           {facilities.map((f) => (
-            <div key={f.facility_id} className="group">
-              <div className="relative bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
-                <div className="absolute top-4 right-4 z-20">
+            <div key={f.facility_id} className="tw-group">
+              <div className="tw-relative tw-bg-white tw-rounded-3xl tw-shadow-lg hover:tw-shadow-2xl tw-transition-all tw-duration-300 tw-overflow-hidden">
+                <div className="tw-absolute tw-top-4 tw-right-4 tw-z-20">
                   <span
-                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold shadow backdrop-blur-sm ${
-                      f.active ? "bg-green-500/90 text-white" : "bg-gray-500/90 text-white"
-                    }`}
+                    className={`tw-inline-flex tw-items-center tw-px-3 tw-py-1.5 tw-rounded-full tw-text-xs tw-font-bold tw-shadow tw-backdrop-blur-sm ${f.active ? "tw-bg-green-500/90 tw-text-white" : "tw-bg-gray-500/90 tw-text-white"
+                      }`}
                   >
                     {f.active ? "เปิดใช้งาน" : "ปิดใช้งาน"}
                   </span>
                 </div>
 
-                <div className="relative h-56 overflow-hidden">
+                <div className="tw-relative tw-h-56 tw-overflow-hidden">
                   <Image
                     src={f.image_path || "/images/default-facility.jpg"}
                     alt={f.name_th}
                     fill
                     sizes="(min-width: 1024px) 50vw, 100vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="tw-object-cover tw-transition-transform tw-duration-500 group-hover:tw-scale-105"
                     priority={false}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  <div className="tw-absolute tw-inset-0 tw-bg-gradient-to-t tw-from-black/30 tw-to-transparent" />
                 </div>
 
-                <div className="p-8">
-                  <h3 className="text-2xl font-bold text-gray-800 mb-1 group-hover:text-green-600 transition-colors">
+                <div className="tw-p-8">
+                  <h3 className="tw-text-2xl tw-font-bold tw-text-gray-800 tw-mb-1 group-hover:tw-text-green-600 tw-transition-colors">
                     {f.name_th}
                   </h3>
-                  {f.name_en && <p className="text-gray-600 font-medium mb-3">{f.name_en}</p>}
-                  <span className="inline-block px-3 py-1 bg-green-50 text-green-700 rounded-full font-medium border border-green-200 text-sm">
-                    รหัส: {f.facility_code}
-                  </span>
+                  {f.name_en && <p className="tw-text-gray-600 tw-font-medium tw-mb-3">{f.name_en}</p>}
 
-                  {/* ปุ่ม */}
-                  <button
-                    disabled={!f.active}
-                    onClick={() => f.active && goToCourts(f)}
-                    className={`mt-6 w-full py-3.5 rounded-xl font-semibold text-base transition-all ${
-                      f.active
-                        ? "bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 shadow-md hover:shadow-lg active:scale-95"
-                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    }`}
-                  >
-                    {f.active ? "จองสนามเลย" : "ยังไม่เปิดใช้งาน"}
-                  </button>
+                  <div className="tw-mt-4">
+                    <Button
+                      onClick={() => goToCourts(f)}
+                      disabled={!f.active || bookingLoading === f.facility_id}
+                      className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-60 disabled:hover:tw-scale-100"
+                      colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
+                      aria-disabled={!f.active || bookingLoading === f.facility_id}
+                    >
+                      <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
+                        {bookingLoading === f.facility_id ? (
+                          <>
+                            <ButtonLoading size="sm" />
+                            กำลังเข้าสู่หน้าจอง...
+                          </>
+                        ) : f.active ? (
+                          "จองสนามเลย"
+                        ) : (
+                          "ยังไม่เปิดใช้งาน"
+                        )}
+                      </span>
+                    </Button>
+                  </div>
                 </div>
-                <div className="pointer-events-none absolute bottom-0 right-0 w-28 h-28 bg-gradient-to-tl from-green-50 to-transparent rounded-tl-full opacity-60" />
+
+                <div className="tw-pointer-events-none tw-absolute tw-bottom-0 tw-right-0 tw-w-28 tw-h-28 tw-bg-gradient-to-tl tw-from-green-50 tw-to-transparent tw-rounded-tl-full tw-opacity-60" />
               </div>
             </div>
           ))}
         </div>
       )}
     </div>
- 
   );
 }

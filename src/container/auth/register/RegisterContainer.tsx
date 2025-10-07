@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import { InputField } from "@/component/InputField";
-import { Button } from "@/component/Button";
-import { DropdownField } from "@/component/DropdownField";
-import { DateField } from "@/component/DateField";
-import AutoCompleteField from "@/component/AutoCompleteField";
+import { InputField } from "@/components/InputField";
+import { Button } from "@/components/Button";
+import { DropdownField } from "@/components/DropdownField";
+import { DateField } from "@/components/DateField";
+import AutoCompleteField from "@/components/AutoCompleteField";
 import { DropdownOption } from "@/type/DropdownOption";
-import { useToast } from "@/component/ToastProvider";
+import { useToast } from "@/components/ToastProvider";
 import {
     userTypeOptions,
     prefixTitleOptions,

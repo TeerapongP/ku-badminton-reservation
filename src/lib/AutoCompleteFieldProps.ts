@@ -10,4 +10,5 @@ export interface AutoCompleteComponentProps {
   disabled?: boolean;
   className?: string;
   debounceMs?: number;
+  dropdown?: boolean;
 }

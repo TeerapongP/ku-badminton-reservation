@@ -8,6 +8,7 @@
 
 
 @layer base {
+
   html,
   body,
   * {
@@ -20,12 +21,21 @@
   }
 }
 
+a {
+  @apply tw-no-underline tw-text-inherit;
+}
+
+a:visited {
+  @apply tw-text-inherit;
+}
+
 /* reset เล็กๆ สำหรับ number input */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
 input[type=number] {
   -moz-appearance: textfield;
   appearance: textfield;
