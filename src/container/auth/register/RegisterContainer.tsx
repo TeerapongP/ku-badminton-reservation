@@ -351,13 +351,15 @@ export default function RegisterContainner() {
 
     return (
         <>
-            <div className="mx-4 my-4">
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 mb-4 sm:mb-6 lg:mb-4 mt-[60px]">
+            <div className="tw-mx-4 tw-my-4">
+                <h2 className="tw-text-2xl sm:tw-text-3xl lg:tw-text-4xl tw-font-bold tw-text-gray-800 tw-mb-4 sm:tw-mb-6 lg:tw-mb-4 tw-mt-[60px]">
                     สมัครสมาชิก
                 </h2>
             </div>
-            <div className="mx-4">
-                <div className="space-y-4 sm:space-y-5 lg:space-y-6">
+
+
+            <div className="tw-grid tw-grid-cols-4 md:tw-grid-cols-12 tw-gap-4 tw-px-4 tw-py-4">
+                <div className="tw-col-span-4 sm:tw-col-span-12">
                     <DropdownField
                         placeholder="กรุณาเลือกประเภทสมาชิก"
                         value={userType}
@@ -369,10 +371,10 @@ export default function RegisterContainner() {
                 </div>
 
                 {userType === "student" && (
-                    <div className="mt-4">
+                    <div className="tw-col-span-4 md:tw-col-span-12 sm:tw-col-span-12">
                         <InputField
                             type="text"
-                            placeholder="กรอกรหัสนิสิต"
+                            placeholder="กรอกเลขบัตรนิสิต"
                             value={studentId}
                             maxLength={10}
                             onChange={(val) => setStudentId(val as string)}
@@ -380,8 +382,7 @@ export default function RegisterContainner() {
                         />
                     </div>
                 )}
-
-                <div className="mt-4">
+                <div className="tw-col-span-4 md:tw-col-span-12">
                     <InputField
                         type="text"
                         placeholder="กรอกรหัสบัตรประชาชน"
@@ -391,198 +392,174 @@ export default function RegisterContainner() {
                         required
                     />
                 </div>
-                <div className="mt-4 flex flex-col sm:flex-row gap-4">
-                    <div className="w-full sm:w-1/3">
-                        <DropdownField
-                            placeholder="คำนำหน้า"
-                            value={prefix}
-                            onChange={setPrefix}
-                            options={prefixTitleOptions}
-                            optionLabel="label"
-                            required
-                        />
-                    </div>
-                    <div className="w-full sm:w-1/3">
-                        <InputField
-                            type="text"
-                            placeholder="ชื่อ"
-                            value={firstName}
-                            onChange={(val) => setFirstName(val as string)}
-                            required
-                        />
-                    </div>
 
-                    <div className="w-full sm:w-1/3">
-                        <InputField
-                            type="text"
-                            placeholder="นามสกุล"
-                            value={lastName}
-                            onChange={(val) => setLastName(val as string)}
-                            required
-                        />
-                    </div>
-                </div>
-                <div className="mt-4 flex flex-col sm:flex-row gap-4">
-                    <div className="w-full sm:w-1/2">
-                        <InputField
-                            type="text"
-                            placeholder="ชื่อเล่น"
-                            value={nickname}
-                            onChange={(val) => setNickName(val as string)}
-                            required
-                        />
-                    </div>
-
-                    <div className="w-full sm:w-1/2">
-                        <DateField
-                            value={dob}
-                            onChange={setDob}
-                            showIcon={true}
-                            maxDate={today}
-                            minDate={hundredYearsAgo}
-                            placeholder="เลือกวันเกิด"
-                            required
-                        />
-                    </div>
-                </div>
-                <div className="mt-4 flex flex-col sm:flex-row gap-4">
-                    <div className="w-full sm:w-1/2">
-                        <InputField
-                            type="tel"
-                            placeholder="กรอกเบอร์โทรศัพท์"
-                            value={phone}
-                            maxLength={10}
-                            onChange={(val) => setPhone(val as string)}
-                            required
-                        />
-
-                    </div>
-
-                    <div className="w-full sm:w-1/2">
-                        <InputField
-                            type="email"
-                            placeholder="กรอกอีเมล"
-                            value={email}
-                            onChange={(val) => setEmail(val as string)}
-                            required
-                        />
-                    </div>
-                </div>
-                <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
-                    <div className="w-full sm:w-1/2">
-                        <InputField
-                            type="text"
-                            placeholder="บ้านเลขที่"
-                            value={houseNumber}
-                            onChange={(val) => setHouseNumber(val as string)}
-                            required
-                        />
-                    </div>
-                    <div className="w-full sm:w-1/2">
-                        <InputField
-                            type="text"
-                            placeholder="ถนน"
-                            value={street}
-                            onChange={(val) => setStreet(val as string)}
-                            required
-                        />
-                    </div>
-                </div>
-                <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
-                    <div className="w-full sm:w-1/2">
-                        <AutoCompleteField
-                            placeholder="พิมพ์ชื่อตำบล"
-                            value={tambon}
-                            onChange={(value) => setTambon(value ?? "")}
-                            onSearch={searchTambon}
-                            required
-                        />
-                    </div>
-                    <div className="w-full sm:w-1/2">
-                        <DropdownField
-                            placeholder="กรุณาเลือกเขตหรืออำเภอ"
-                            value={district}
-                            disabled={true}
-                            onChange={setDistrict}
-                            options={districtOptions}
-                            optionLabel="label"
-                            required
-                        />
-                    </div>
-                </div>
-                <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
-                    <div className="w-full sm:w-1/2">
-                        <DropdownField
-                            placeholder="กรุณาเลือกจังหวัด"
-                            value={province}
-                            onChange={setProvince}
-                            disabled={true}
-                            options={provincesOptions}
-                            optionLabel="label"
-                            required
-                        />
-                    </div>
-                    <div className="w-full sm:w-1/2">
-                        <DropdownField
-                            placeholder="กรุณาเลือกรหัสไปรษณ์ย์"
-                            value={postalCode}
-                            disabled={true}
-                            onChange={setPostalCode}
-                            options={postCodeOptions}
-                            optionLabel="label"
-                            required
-                        />
-                    </div>
+                <div className="tw-col-span-4 md:tw-col-span-3">
+                    <DropdownField
+                        placeholder="คำนำหน้า"
+                        value={prefix}
+                        onChange={setPrefix}
+                        options={prefixTitleOptions}
+                        optionLabel="label"
+                        required
+                    />
                 </div>
 
+                <div className="tw-col-span-4 md:tw-col-span-5">
+                    <InputField
+                        type="text"
+                        placeholder="ชื่อ"
+                        value={firstName}
+                        onChange={(val) => setFirstName(val as string)}
+                        required
+                    />
+                </div>
+
+                <div className="tw-col-span-4 md:tw-col-span-4">
+                    <InputField
+                        type="text"
+                        placeholder="นามสกุล"
+                        value={lastName}
+                        onChange={(val) => setLastName(val as string)}
+                        required
+                    />
+                </div>
+                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
+                    <InputField
+                        type="text"
+                        placeholder="ชื่อเล่น"
+                        value={nickname}
+                        onChange={(val) => setNickName(val as string)}
+                        required
+                    />
+                </div>
+                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
+                    <DateField
+                        value={dob}
+                        onChange={setDob}
+                        showIcon={true}
+                        maxDate={today}
+                        minDate={hundredYearsAgo}
+                        placeholder="เลือกวันเกิด"
+                        required
+                    />
+                </div>
+                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
+                    <InputField
+                        type="tel"
+                        placeholder="กรอกเบอร์โทรศัพท์"
+                        value={phone}
+                        maxLength={10}
+                        onChange={(val) => setPhone(val as string)}
+                        required
+                    />
+                </div>
+                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
+                    <InputField
+                        type="email"
+                        placeholder="กรอกอีเมล"
+                        value={email}
+                        onChange={(val) => setEmail(val as string)}
+                        required
+                    />
+                </div>
+                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
+                    <InputField
+                        type="text"
+                        placeholder="บ้านเลขที่"
+                        value={houseNumber}
+                        onChange={(val) => setHouseNumber(val as string)}
+                        required
+                    />
+                </div>
+                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
+                    <InputField
+                        type="text"
+                        placeholder="ถนน"
+                        value={street}
+                        onChange={(val) => setStreet(val as string)}
+                        required
+                    />
+                </div>
+                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
+                    <AutoCompleteField
+                        placeholder="พิมพ์ชื่อตำบล"
+                        value={tambon}
+                        onChange={(value) => setTambon(value ?? "")}
+                        onSearch={searchTambon}
+                        required
+                    />
+                </div>
+                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
+                    <DropdownField
+                        placeholder="กรุณาเลือกเขตหรืออำเภอ"
+                        value={district}
+                        disabled={true}
+                        onChange={setDistrict}
+                        options={districtOptions}
+                        optionLabel="label"
+                        required
+                    />
+                </div>
+                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
+                    <DropdownField
+                        placeholder="กรุณาเลือกจังหวัด"
+                        value={province}
+                        onChange={setProvince}
+                        disabled={true}
+                        options={provincesOptions}
+                        optionLabel="label"
+                        required
+                    />
+                </div>
+                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
+                    <DropdownField
+                        placeholder="กรุณาเลือกรหัสไปรษณ์ย์"
+                        value={postalCode}
+                        disabled={true}
+                        onChange={setPostalCode}
+                        options={postCodeOptions}
+                        optionLabel="label"
+                        required
+                    />
+                </div>
                 {userType === "student" && (
                     <>
-                        <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
-                            <div className="w-full">
-                                <DropdownField
-                                    placeholder="คณะ"
-                                    value={faculty}
-                                    onChange={setFaculty}
-                                    options={facultiesOption}
-                                    optionLabel="label"
-                                    required
-                                />
-                            </div>
+                        <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-12">
+                            <DropdownField
+                                placeholder="คณะ"
+                                value={faculty}
+                                onChange={setFaculty}
+                                options={facultiesOption}
+                                optionLabel="label"
+                                required
+                            />
                         </div>
-
-                        <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
-                            <div className="w-full">
-                                <DropdownField
-                                    placeholder="สาขา"
-                                    value={department}
-                                    onChange={setDepartment}
-                                    options={departmentOption}
-                                    optionLabel="label"
-                                    required
-                                    disabled={!faculty}
-                                />
-                            </div>
+                        <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
+                            <DropdownField
+                                placeholder="สาขา"
+                                value={department}
+                                onChange={setDepartment}
+                                options={departmentOption}
+                                optionLabel="label"
+                                required
+                                disabled={!faculty}
+                            />
                         </div>
-
-                        <div className="mt-4 mb-4 flex flex-col sm:flex-row gap-4">
-                            <div className="w-full">
-                                <DropdownField
-                                    placeholder="ระดับการศึกษา"
-                                    value={levelStudy}
-                                    onChange={setLevelStudy}
-                                    options={levelStudyOptions}
-                                    optionLabel="label"
-                                    required
-                                />
-                            </div>
+                        <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
+                            <DropdownField
+                                placeholder="ระดับการศึกษา"
+                                value={levelStudy}
+                                onChange={setLevelStudy}
+                                options={levelStudyOptions}
+                                optionLabel="label"
+                                required
+                            />
                         </div>
                     </>
                 )}
-
                 {userType === "staff" && (
-                    <div className="flex flex-col sm:flex-row gap-4 w-full">
-                        {/* หน่วยงาน/สังกัด */}
-                        <div className="w-full sm:w-1/3">
+                    <>
+                        <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-12">
                             <DropdownField
                                 placeholder="หน่วยงาน/สังกัด"
                                 value={office}
@@ -592,9 +569,7 @@ export default function RegisterContainner() {
                                 required
                             />
                         </div>
-
-                        {/* ตำแหน่งงาน */}
-                        <div className="w-full sm:w-1/3">
+                        <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
                             <DropdownField
                                 placeholder="ตำแหน่งงาน"
                                 value={jobtitle}
@@ -604,9 +579,7 @@ export default function RegisterContainner() {
                                 required
                             />
                         </div>
-
-                        {/* ประเภทบุคลากร */}
-                        <div className="w-full sm:w-1/3">
+                        <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
                             <DropdownField
                                 placeholder="ประเภทบุคลากร"
                                 value={staffType}
@@ -616,30 +589,29 @@ export default function RegisterContainner() {
                                 required
                             />
                         </div>
-                    </div>
+                    </>
                 )}
-                <div className="flex justify-center mt-4">
-                    <Button
-                        className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none"
-                        colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
-                    >
-                        <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
-                            สมัครสมาชิก
-                        </span>
-                    </Button>
-                </div>
 
-                <div className="tw-flex tw-justify-center tw-items-center tw-text-sm tw-font-medium tw-text-gray-700 tw-my-6">
-                    <span className="tw-mr-2">ยังไม่มีบัญชีผู้ใช้?</span>
-                    <Link
-                        href="/login"
-                        className="tw-text-emerald-600 hover:tw-text-emerald-700 tw-underline tw-underline-offset-2"
-                    >
-                        เข้าสู่ระบบ
-                    </Link>
-                </div>
+            </div>
+            <div className="tw-flex tw-justify-center tw-mt-4 tw-mx-4">
+                <Button
+                    className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none"
+                    colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
+                >
+                    <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
+                        สมัครสมาชิก
+                    </span>
+                </Button>
+            </div>
 
-
+            <div className="tw-flex tw-justify-center tw-items-center tw-text-sm tw-font-medium tw-text-gray-700 tw-my-4 ">
+                <span className="tw-mr-2">ยังไม่มีบัญชีผู้ใช้?</span>
+                <Link
+                    href="/login"
+                    className="tw-text-emerald-600 hover:tw-text-emerald-700 tw-underline tw-underline-offset-2"
+                >
+                    เข้าสู่ระบบ
+                </Link>
             </div>
         </>
     );

@@ -100,7 +100,7 @@ export default function ForgotPasswordContainer() {
                 </div>
 
                 <div className="tw-text-center tw-mt-4">
-                    <Link href="/login" className="tw-text-emerald-600 tw-underline">
+                    <Link href="/login" className="tw-underline">
                         กลับไปหน้าเข้าสู่ระบบ
                     </Link>
                 </div>
