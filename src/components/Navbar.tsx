@@ -36,7 +36,6 @@ export default function Navbar() {
     <nav className="tw-bg-[#212A37] tw-text-white tw-sticky tw-top-0 tw-z-50 tw-shadow-sm">
       <div className="tw-mx-auto tw-px-4">
         <div className="tw-flex tw-items-center tw-justify-between tw-h-16">
-          {/* ===== Logo ===== */}
           <Link
             href="/"
             className="tw-flex tw-items-center tw-gap-2 tw-group tw-no-underline tw-text-white visited:tw-text-white"
@@ -47,7 +46,6 @@ export default function Navbar() {
             <span className="tw-text-lg tw-text-cyan-100/90">court booking</span>
           </Link>
 
-          {/* ===== Desktop Menu ===== */}
           <div className="tw-hidden md:tw-flex tw-items-center tw-gap-3 tw-ml-auto">
             {menuItems.map((item) => {
               const active = isActive(item.href);
@@ -68,7 +66,6 @@ export default function Navbar() {
               );
             })}
 
-            {/* ===== Avatar next to Login ===== */}
             <Link
               href="/profile"
               className="tw-ml-2 tw-flex tw-items-center tw-gap-2 tw-px-3 tw-py-2 tw-rounded-lg tw-transition hover:tw-bg-gray-700/60 tw-no-underline tw-text-white visited:tw-text-white focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-cyan-500/40"
@@ -82,7 +79,6 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* ===== Mobile Toggle ===== */}
           <button
             onClick={() => setOpen(!open)}
             aria-label="Toggle navigation"
@@ -102,7 +98,6 @@ export default function Navbar() {
     tw-group
   "
           >
-            {/* Glow effect overlay */}
             <span className="tw-absolute tw-inset-0 tw-rounded-2xl tw-bg-gradient-to-br tw-from-cyan-400/0 tw-to-blue-400/0 group-hover:tw-from-cyan-400/10 group-hover:tw-to-blue-400/10 tw-transition-all tw-duration-500" />
 
             <span
@@ -122,7 +117,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* ===== Mobile Menu ===== */}
       <div
         className={`md:tw-hidden tw-overflow-hidden tw-transition-[max-height,opacity] tw-duration-300 tw-ease-in-out ${open ? "tw-max-h-96 tw-opacity-100" : "tw-max-h-0 tw-opacity-0"
           }`}
