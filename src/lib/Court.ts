@@ -4,4 +4,5 @@ export interface Court {
     name: string;
     is_active: boolean;
     image_path: string;
+    building: string;
 }
