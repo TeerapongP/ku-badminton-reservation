@@ -24,6 +24,7 @@ export default function Navbar() {
       { id: "booking", label: "จองสนาม", href: "/badminton-court" },
       { id: "register", label: "สมัครสมาชิก", href: "/register" },
       { id: "login", label: "เข้าสู่ระบบ", href: "/login" },
+      { id: "contract", label: "ติดต่อสอบถาม", href: "/contract" },
     ],
     []
   );
@@ -143,7 +144,7 @@ export default function Navbar() {
       >
         <div className="tw-bg-[#1a2332] tw-border-t tw-border-white/10">
           {menuItems.map((item) => {
-           const active = item.id === activeId;
+            const active = item.id === activeId;
             return (
               <Link
                 key={item.id}
