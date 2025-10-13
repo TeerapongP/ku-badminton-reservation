@@ -249,7 +249,7 @@ export default function RegisterContainner() {
 
             try {
                 const deps = await fetchDepartments(faculty);
-                if (!alive ?? rid !== reqIdRef.current) return;
+                if (!alive || rid !== reqIdRef.current) return;
                 setDepartmentOptions(deps ?? []);
                 // ถ้าเหลือตัวเดียว auto-select
                 if (deps?.length === 1) setDepartment(deps[0].value);
@@ -280,7 +280,7 @@ export default function RegisterContainner() {
 
             try {
                 const subs = await fetchSubUnits(office);
-                if (!alive ?? rid !== reqIdRef.current) return;
+                if (!alive || rid !== reqIdRef.current) return;
                 setSubUnitOptions(subs ?? []);
             } catch {
                 if (alive && rid === reqIdRef.current) setSubUnitOptions([]);
@@ -347,7 +347,7 @@ export default function RegisterContainner() {
                     await searchProvinces(only);
                 }
                 if (postCodes && postCodes.length === 1) {
-                    setPostalCode(postCodes[0].value ?? '');
+                    setPostalCode(postCodes[0].value || '');
                 } else {
                     setPostalCode('');
                 }
@@ -416,8 +416,8 @@ export default function RegisterContainner() {
                 password: hashedPassword,
                 email: email.trim(),
                 phone: phone.trim(),
-                title_th: prefix?.th ?? null,
-                 title_en: prefix?.en ?? null,
+                title_th: prefix?.th || null,
+                 title_en: prefix?.en || null,
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
                 nickname: nickname.trim(),
@@ -446,9 +446,9 @@ export default function RegisterContainner() {
                 }),
 
                 // Address
-                house_number: houseNumber.trim() ?? null,
-                street: street.trim() ?? null,
-                subdistrict: tambon.trim() ?? null,
+                house_number: houseNumber.trim() || null,
+                street: street.trim() || null,
+                subdistrict: tambon.trim() || null,
                 district: district ? districtOptions.find(d => d.value === district)?.label : null,
                 province: province ? provincesOptions.find(p => p.value === province)?.label : null,
                 postal_code: postalCode && /^\d{5}$/.test(postalCode) ? postalCode : null,
@@ -467,7 +467,7 @@ export default function RegisterContainner() {
                     router.push("/login");
                 }, 2000);
             } else {
-                toast.showError("สมัครสมาชิกไม่สำเร็จ", result.error ?? "เกิดข้อผิดพลาด");
+                toast.showError("สมัครสมาชิกไม่สำเร็จ", result.error || "เกิดข้อผิดพลาด");
             }
         } catch (error) {
             console.error("Registration error:", error);
@@ -643,7 +643,7 @@ export default function RegisterContainner() {
                     <AutoCompleteField
                         placeholder="พิมพ์ชื่อตำบล"
                         value={tambon}
-                        onChange={(value) => setTambon(value ?? "")}
+                        onChange={(value) => setTambon(value || "")}
                         onSearch={searchTambon}
                         required
                     />

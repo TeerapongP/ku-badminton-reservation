@@ -1,30 +1,32 @@
 "use client";
 
 import { useSession, signIn, signOut } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export function useAuth() {
   const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState(false);
 
-  const login = async (username: string, password: string) => {
+  const login = async (loginData: any) => {
     setIsLoading(true);
     try {
       const result = await signIn("credentials", {
-        username,
-        password,
+        identifier: loginData.identifier,
+        password: loginData.password,
+        type: loginData.type,
+        originalIdentifier: loginData.originalIdentifier,
         redirect: false,
       });
 
       if (result?.error) {
-        throw new Error("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+        throw new Error(result.error);
       }
 
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : "เกิดข้อผิดพลาด" 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "เกิดข้อผิดพลาด"
       };
     } finally {
       setIsLoading(false);
@@ -32,7 +34,19 @@ export function useAuth() {
   };
 
   const logout = async () => {
-    await signOut({ redirect: true, callbackUrl: "/" });
+    try {
+      // เรียก custom logout API เพื่อบันทึก log
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+    } catch (error) {
+      console.error("Logout API error:", error);
+      // ถ้า API error ก็ยัง logout ได้
+    }
+    
+    // ใช้ NextAuth signOut
+    await signOut({ redirect: true, callbackUrl: "/login" });
   };
 
   const register = async (userData: any) => {
@@ -54,26 +68,16 @@ export function useAuth() {
 
       return { success: true, data };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : "เกิดข้อผิดพลาด" 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "เกิดข้อผิดพลาด"
       };
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Check for timeout in URL
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const reason = urlParams.get('reason');
-    
-    if (reason === 'timeout') {
-      // แสดงข้อความแจ้งเตือนว่าถูก logout เพราะ timeout
-      console.log("Session expired due to inactivity");
-      // สามารถเพิ่ม toast notification ได้ที่นี่
-    }
-  }, []);
+
 
   return {
     user: session?.user,

@@ -19,7 +19,7 @@ export async function POST(req: Request) {
         title_th = title_th ?? th ?? undefined;
       } else if (prefix && typeof prefix === "object") {
         title_en = title_en ?? prefix.en ?? undefined;
-        title_th = title_th ?? prefix.th ?? undefined;
+        title_th = title_th ?? prefix.th ?? undefine
       }
     }
 
