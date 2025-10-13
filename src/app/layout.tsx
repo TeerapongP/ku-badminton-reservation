@@ -10,7 +10,6 @@ import "primereact/resources/themes/lara-light-cyan/theme.css";
 import "primereact/resources/primereact.min.css";
 import ClientLayout from "@/components/ClientLayout";
 import AuthProvider from "@/providers/AuthProvider";
-import SessionTimeoutProvider from "@/providers/SessionTimeoutProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 
 
@@ -31,11 +30,9 @@ export default function RootLayout({
       <body className={`${inter.variable} tw-antialiased tw-text-gray-900`}>
         <ToastProvider>
           <AuthProvider>
-            <SessionTimeoutProvider timeoutMinutes={30} warningMinutes={5}>
-              <PrimeReactProvider>
-                <ClientLayout>{children}</ClientLayout>
-              </PrimeReactProvider>
-            </SessionTimeoutProvider>
+            <PrimeReactProvider>
+              <ClientLayout>{children}</ClientLayout>
+            </PrimeReactProvider>
           </AuthProvider>
         </ToastProvider>
       </body>
