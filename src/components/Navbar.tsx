@@ -5,21 +5,79 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X, User, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useSession } from "next-auth/react";
 import { Button } from "./Button";
+import { UserProfile } from "@/types/profile/types";
 
 type Item = { id: string; label: string; href: string };
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [decryptedImageUrl, setDecryptedImageUrl] = useState<string | null>(null);
   const pathname = usePathname();
   const { isAuthenticated, logout } = useAuth();
+  const { data: session } = useSession();
 
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (open) setOpen(false);
   }, [pathname]);
+
+  // Fetch user profile when authenticated
+  useEffect(() => {
+    if (isAuthenticated && session?.user?.id && !userProfile) {
+      fetchUserProfile();
+    }
+  }, [isAuthenticated, session?.user?.id, userProfile]);
+
+  // Decrypt profile image URL when userProfile changes
+  useEffect(() => {
+    if (userProfile?.profile_photo_url && !decryptedImageUrl) {
+      decryptImageUrl(userProfile.profile_photo_url);
+    }
+  }, [userProfile?.profile_photo_url, decryptedImageUrl]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await fetch(`/api/profile/${session?.user?.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setUserProfile(data.user);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user profile:", error);
+    }
+  };
+
+  const decryptImageUrl = async (encryptedUrl: string) => {
+    // Check if URL is already decrypted (starts with http or /)
+    if (encryptedUrl.startsWith('http') || encryptedUrl.startsWith('/')) {
+      setDecryptedImageUrl(encryptedUrl);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/decrypt/image-path', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ encryptedPath: encryptedUrl }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDecryptedImageUrl(data.imagePath);
+      } else {
+        setDecryptedImageUrl('https://via.placeholder.com/150');
+      }
+    } catch (error) {
+      setDecryptedImageUrl('https://via.placeholder.com/150');
+    }
+  };
 
   const menuItems: Item[] = useMemo(() => {
     const baseItems = [
@@ -121,10 +179,18 @@ export default function Navbar() {
                   className="tw-ml-2 tw-flex tw-items-center tw-gap-2 tw-px-3 tw-py-2 tw-rounded-lg tw-transition hover:tw-bg-slate-700/50 tw-no-underline tw-text-white visited:tw-text-white focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-emerald-500/40 hover:tw-shadow-md"
                 >
                   <div className="tw-w-8 tw-h-8 tw-rounded-full tw-bg-gradient-to-br tw-from-emerald-500 tw-to-teal-600 tw-flex tw-items-center tw-justify-center tw-overflow-hidden tw-shadow-md">
-                    <User size={18} className="tw-text-white" />
+                    {decryptedImageUrl ? (
+                      <img
+                        src={decryptedImageUrl}
+                        alt="Profile"
+                        className="tw-w-full tw-h-full tw-object-cover"
+                      />
+                    ) : (
+                      <User size={18} className="tw-text-white" />
+                    )}
                   </div>
                   <span className="tw-hidden lg:tw-inline tw-text-sm tw-text-emerald-100/90">
-                    โปรไฟล์
+                    {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : 'โปรไฟล์'}
                   </span>
                 </Link>
                 <Button onClick={handleLogout} className="tw-w-auto tw-px-4 tw-h-10 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100" colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl" >
@@ -200,10 +266,27 @@ export default function Navbar() {
                 prefetch
                 className="tw-flex tw-items-center tw-gap-3 tw-px-6 tw-py-3 hover:tw-bg-slate-700/40 tw-border-t tw-border-slate-600/20 tw-no-underline tw-text-white visited:tw-text-white tw-transition-all tw-duration-200"
               >
-                <div className="tw-w-9 tw-h-9 tw-rounded-full tw-bg-gradient-to-br tw-from-emerald-500 tw-to-teal-600 tw-flex tw-items-center tw-justify-center tw-shadow-md">
-                  <User size={20} className="tw-text-white" />
+                <div className="tw-w-9 tw-h-9 tw-rounded-full tw-bg-gradient-to-br tw-from-emerald-500 tw-to-teal-600 tw-flex tw-items-center tw-justify-center tw-overflow-hidden tw-shadow-md">
+                  {decryptedImageUrl ? (
+                    <img
+                      src={decryptedImageUrl}
+                      alt="Profile"
+                      className="tw-w-full tw-h-full tw-object-cover"
+                    />
+                  ) : (
+                    <User size={20} className="tw-text-white" />
+                  )}
                 </div>
-                <span className="tw-text-emerald-100">โปรไฟล์ของฉัน</span>
+                <div className="tw-flex tw-flex-col">
+                  <span className="tw-text-emerald-100 tw-font-medium">
+                    {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : 'โปรไฟล์ของฉัน'}
+                  </span>
+                  {userProfile?.nickname && (
+                    <span className="tw-text-emerald-200/70 tw-text-xs">
+                      ({userProfile.nickname})
+                    </span>
+                  )}
+                </div>
               </Link>
 
               <div className="tw-sticky tw-bottom-0 tw-left-0 tw-right-0 tw-bg-inherit tw-pt-2">
