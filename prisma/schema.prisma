@@ -10,20 +10,21 @@ datasource db {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model addresses {
-  id              BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
-  user_id         BigInt   @db.UnsignedBigInt
-  house_number    String?  @db.VarChar(50)
-  is_primary      Boolean  @default(true)
-  street          String?  @db.VarChar(255)
-  subdistrict     String?  @db.VarChar(100)
-  district        String?  @db.VarChar(100)
-  province        String?  @db.VarChar(100)
-  postal_code     String?  @db.VarChar(5)
-  country         String   @default("TH") @db.Char(2)
-  created_at      DateTime @default(now()) @db.DateTime(0)
-  updated_at      DateTime @default(now()) @db.DateTime(0)
-  is_primary_flag Boolean?
-  users           users    @relation(fields: [user_id], references: [user_id], onDelete: Cascade, map: "fk_addresses_user")
+  id                                BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id                           BigInt   @db.UnsignedBigInt
+  house_number                      String?  @db.VarChar(50)
+  is_primary                        Boolean  @default(true)
+  street                            String?  @db.VarChar(255)
+  subdistrict                       String?  @db.VarChar(100)
+  district                          String?  @db.VarChar(100)
+  province                          String?  @db.VarChar(100)
+  postal_code                       String?  @db.VarChar(5)
+  country                           String   @default("TH") @db.Char(2)
+  created_at                        DateTime @default(now()) @db.DateTime(0)
+  updated_at                        DateTime @default(now()) @db.DateTime(0)
+  is_primary_flag                   Boolean?
+  users                             users    @relation(fields: [user_id], references: [user_id], onDelete: Cascade, map: "fk_addresses_user")
+  users_users_address_idToaddresses users[]  @relation("users_address_idToaddresses")
 
   @@unique([user_id, is_primary_flag], map: "uq_user_primary")
   @@index([postal_code], map: "idx_addresses_postal")
@@ -240,26 +241,32 @@ model postcodes {
 }
 
 model pricing_rules {
-  pricing_id     BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
-  facility_id    BigInt      @db.UnsignedBigInt
-  court_id       BigInt?     @db.UnsignedBigInt
-  slot_id        BigInt?     @db.UnsignedBigInt
-  weekday        Int?        @db.UnsignedTinyInt
-  price_cents    Int         @db.UnsignedInt
-  currency       String      @default("THB") @db.Char(3)
-  active         Boolean     @default(true)
-  effective_from DateTime    @default(dbgenerated("(curdate())")) @db.Date
-  effective_to   DateTime?   @db.Date
-  created_at     DateTime    @default(now()) @db.DateTime(0)
-  updated_at     DateTime    @default(now()) @db.DateTime(0)
-  courts         courts?     @relation(fields: [court_id], references: [court_id], onDelete: Cascade, map: "fk_price_court")
-  facilities     facilities  @relation(fields: [facility_id], references: [facility_id], onDelete: Cascade, map: "fk_price_facility")
-  time_slots     time_slots? @relation(fields: [slot_id], references: [slot_id], onDelete: Cascade, map: "fk_price_slot")
+  pricing_id     BigInt                    @id @default(autoincrement()) @db.UnsignedBigInt
+  facility_id    BigInt                    @db.UnsignedBigInt
+  court_id       BigInt?                   @db.UnsignedBigInt
+  slot_id        BigInt?                   @db.UnsignedBigInt
+  weekday        Int?                      @db.UnsignedTinyInt
+  user_role      pricing_rules_user_role?
+  membership     pricing_rules_membership?
+  price_cents    Int                       @db.UnsignedInt
+  currency       String                    @default("THB") @db.Char(3)
+  active         Boolean                   @default(true)
+  effective_from DateTime                  @default(dbgenerated("(curdate())")) @db.Date
+  effective_to   DateTime?                 @db.Date
+  created_at     DateTime                  @default(now()) @db.DateTime(0)
+  updated_at     DateTime                  @default(now()) @db.DateTime(0)
+  courts         courts?                   @relation(fields: [court_id], references: [court_id], onDelete: Cascade, map: "fk_price_court")
+  facilities     facilities                @relation(fields: [facility_id], references: [facility_id], onDelete: Cascade, map: "fk_price_facility")
+  time_slots     time_slots?               @relation(fields: [slot_id], references: [slot_id], onDelete: Cascade, map: "fk_price_slot")
 
   @@index([court_id], map: "idx_price_court")
   @@index([effective_from, effective_to], map: "idx_price_effective")
   @@index([facility_id], map: "idx_price_facility")
   @@index([slot_id], map: "idx_price_slot")
+  @@index([court_id, user_role, membership, active, effective_from, effective_to], map: "idx_pr_court_role_mem_eff")
+  @@index([facility_id, user_role, membership, active, effective_from, effective_to], map: "idx_pr_fac_role_mem_eff")
+  @@index([slot_id, user_role, membership, active, effective_from, effective_to], map: "idx_pr_slot_role_mem_eff")
+  @@index([facility_id, court_id, slot_id, user_role, active, effective_from, effective_to], map: "idx_price_role")
 }
 
 model provinces {
@@ -413,43 +420,41 @@ model units {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model users {
-  user_id           BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
-  role              users_role
-  username          String            @unique(map: "uq_users_username") @db.VarChar(50)
-  password_hash     String            @db.VarChar(255)
-  email             String
-  email_lc          String?           @unique(map: "uq_users_email_lc")
-  phone             String?           @unique(map: "uq_users_phone") @db.VarChar(20)
-  title_th          String?           @db.VarChar(50)
-  title_en          String?           @db.VarChar(50)
-  first_name        String            @db.VarChar(100)
-  last_name         String            @db.VarChar(100)
-  nickname          String?           @db.VarChar(100)
-  gender            users_gender?
-  dob               DateTime?         @db.Date
-  student_id        String?           @unique(map: "student_id") @db.VarChar(10)
-  staff_id          String?           @unique(map: "staff_id") @db.VarChar(50)
-  address           String?           @db.Text
-  profile_photo_url String?           @db.VarChar(255)
-  status            users_status      @default(active)
-  registered_at     DateTime          @default(now()) @db.DateTime(0)
-  updated_at        DateTime          @default(now()) @db.DateTime(0)
-  last_login_at     DateTime?         @db.DateTime(0)
-  last_login_ip     String?           @db.VarChar(45)
-  addresses         addresses[]
-  auth_log          auth_log[]
-  daily_reset_log   daily_reset_log[]
-  reservations      reservations[]
-  staff_profile     staff_profile?
-  student_profile   student_profile?
+  user_id                               BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  role                                  users_role
+  username                              String            @unique(map: "uq_users_username") @db.VarChar(50)
+  password_hash                         String            @db.VarChar(255)
+  email                                 String
+  email_lc                              String?           @unique(map: "uq_users_email_lc")
+  phone                                 String?           @unique(map: "uq_users_phone") @db.VarChar(20)
+  title_th                              String?           @db.VarChar(50)
+  title_en                              String?           @db.VarChar(50)
+  first_name                            String            @db.VarChar(100)
+  last_name                             String            @db.VarChar(100)
+  nickname                              String?           @db.VarChar(100)
+  gender                                users_gender?
+  dob                                   DateTime?         @db.Date
+  student_id                            String?           @unique(map: "student_id") @db.VarChar(10)
+  staff_id                              String?           @unique(map: "staff_id") @db.VarChar(50)
+  national_id                           String?           @db.VarChar(255)
+  address_id                            BigInt?           @db.UnsignedBigInt
+  profile_photo_url                     String?           @db.VarChar(255)
+  status                                users_status      @default(active)
+  membership                            users_membership? @default(non_member)
+  registered_at                         DateTime          @default(now()) @db.DateTime(0)
+  updated_at                            DateTime          @default(now()) @db.DateTime(0)
+  last_login_at                         DateTime?         @db.DateTime(0)
+  last_login_ip                         String?           @db.VarChar(45)
+  addresses                             addresses[]
+  auth_log                              auth_log[]
+  daily_reset_log                       daily_reset_log[]
+  reservations                          reservations[]
+  staff_profile                         staff_profile?
+  student_profile                       student_profile?
+  addresses_users_address_idToaddresses addresses?        @relation("users_address_idToaddresses", fields: [address_id], references: [id], map: "fk_users_address")
 
   @@index([role], map: "idx_users_role")
-}
-
-enum users_role {
-  student
-  staff
-  admin
+  @@index([address_id], map: "idx_users_address_id")
 }
 
 enum auth_log_action {
@@ -542,4 +547,28 @@ enum users_status {
   active
   inactive
   suspended
+}
+
+enum users_role {
+  student
+  staff
+  admin
+  guest
+}
+
+enum pricing_rules_user_role {
+  student
+  staff
+  admin
+  public
+}
+
+enum pricing_rules_membership {
+  member
+  non_member
+}
+
+enum users_membership {
+  member
+  non_member
 }

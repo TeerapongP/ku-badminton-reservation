@@ -21,13 +21,15 @@ export const userTypeOptions = [
 ] as const satisfies readonly Option<UserType>[];
 
 export const prefixTitleOptions = [
-  { label: 'นาย', value: 'mr' },
-  { label: 'นางสาว', value: 'ms' },
-  { label: 'นาง', value: 'mrs' },
-  { label: 'ดร.', value: 'dr' },
-  { label: 'ศ.', value: 'prof' },
-  { label: 'ผศ.', value: 'asst' },
-] as const satisfies readonly Option<PrefixTitle>[];
+  { label: 'นาย', value: { en: 'mr', th: 'นาย' } },
+  { label: 'นางสาว', value: { en: 'ms', th: 'นางสาว' } },
+  { label: 'นาง', value: { en: 'mrs', th: 'นาง' } },
+  { label: 'ดร.', value: { en: 'dr', th: 'ดร.' } },
+  { label: 'ศ.', value: { en: 'prof', th: 'ศ.' } },
+  { label: 'ผศ.', value: { en: 'asst', th: 'ผศ.' } },
+] as const;
+
+
 
 export const levelStudyOptions = [
   { label: 'ปริญญาตรี', value: 'bachelor', name: 'bachelor' },

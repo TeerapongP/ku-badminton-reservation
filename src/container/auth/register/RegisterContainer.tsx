@@ -9,15 +9,28 @@ import { DateField } from "@/components/DateField";
 import AutoCompleteField from "@/components/AutoCompleteField";
 import { DropdownOption } from "@/type/DropdownOption";
 import { useToast } from "@/components/ToastProvider";
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
 import {
     userTypeOptions,
     prefixTitleOptions,
     levelStudyOptions,
     staffTypeOptions,
 } from '@/constants/options';
+import bcrypt from 'bcryptjs';
 
 export default function RegisterContainner() {
     const toast = useToast();
+    const { register } = useAuth();
+    const router = useRouter();
+
+    // Loading state
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Password fields
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [username, setUsername] = useState('');
     const [studentId, setStudentId] = useState('');
     const [nationnalId, setNationnalId] = useState('');
 
@@ -25,22 +38,22 @@ export default function RegisterContainner() {
     const [lastName, setLastName] = useState('');
     const [nickname, setNickName] = useState('');
     const [userType, setUserType] = useState<"student" | "staff" | "guest">("student");
-    const [prefix, setPrefix] = useState<string>("");
+    const [prefix, setPrefix] = useState<{ en: string; th: string } | null>(null);
     const [dob, setDob] = useState<Date | null>(null);
     const [phone, setPhone] = useState<string>('');
-    const [email, setEmail] = useState<string | null>();
-    const [houseNumber, setHouseNumber] = useState<string | null>();
-    const [street, setStreet] = useState<string | null>();
-    const [tambon, setTambon] = useState<string>("");
-    const [district, setDistrict] = useState<string>();
-    const [province, setProvince] = useState<string>();
-    const [postalCode, setPostalCode] = useState<string>();
-    const [faculty, setFaculty] = useState<string | null>();
-    const [department, setDepartment] = useState<string | null>();
-    const [levelStudy, setLevelStudy] = useState<string | null>();
-    const [office, setOffice] = useState<string | null>(null);
-    const [jobtitle, setJobtitle] = useState<string | null>(null);
-    const [staffType, setStaffType] = useState<string | null>(null);
+    const [email, setEmail] = useState<string>('');
+    const [houseNumber, setHouseNumber] = useState<string>('');
+    const [street, setStreet] = useState<string>('');
+    const [tambon, setTambon] = useState<string>('');
+    const [district, setDistrict] = useState<string>('');
+    const [province, setProvince] = useState<string>('');
+    const [postalCode, setPostalCode] = useState<string>('');
+    const [faculty, setFaculty] = useState<string>('');
+    const [department, setDepartment] = useState<string>('');
+    const [levelStudy, setLevelStudy] = useState<string>('');
+    const [office, setOffice] = useState<string>('');
+    const [jobtitle, setJobtitle] = useState<string>('');
+    const [staffType, setStaffType] = useState<string>('');
 
     const [officeOptions, setOfficeOptions] = useState<DropdownOption[]>([]);
     const [subUnitOption, setSubUnitOptions] = useState<DropdownOption[]>([]);
@@ -144,7 +157,7 @@ export default function RegisterContainner() {
         const json = await res.json();
         return (json?.data ?? []).map((x: any) => ({
             label: x.label ?? x.name_th,
-            value: x.value ?? String(x.id),
+            value: x.label ?? x.name_th, // ใช้ label (รหัสไปรษณีย์) เป็น value ด้วย
         }));
     }
 
@@ -230,20 +243,20 @@ export default function RegisterContainner() {
         (async () => {
             // reset ก่อน
             setDepartmentOptions([]);
-            setDepartment("");
+            setDepartment('');
 
             if (!faculty) return;
 
             try {
                 const deps = await fetchDepartments(faculty);
-                if (!alive || rid !== reqIdRef.current) return;
+                if (!alive ?? rid !== reqIdRef.current) return;
                 setDepartmentOptions(deps ?? []);
                 // ถ้าเหลือตัวเดียว auto-select
                 if (deps?.length === 1) setDepartment(deps[0].value);
             } catch {
                 if (alive && rid === reqIdRef.current) {
                     setDepartmentOptions([]);
-                    setDepartment("");
+                    setDepartment('');
                 }
             }
         })();
@@ -267,7 +280,7 @@ export default function RegisterContainner() {
 
             try {
                 const subs = await fetchSubUnits(office);
-                if (!alive || rid !== reqIdRef.current) return;
+                if (!alive ?? rid !== reqIdRef.current) return;
                 setSubUnitOptions(subs ?? []);
             } catch {
                 if (alive && rid === reqIdRef.current) setSubUnitOptions([]);
@@ -295,7 +308,7 @@ export default function RegisterContainner() {
         async (districtId: string | undefined): Promise<void> => {
             if (!districtId) {
                 setProvinceOptions([]);
-                setProvince("");
+                setProvince('');
                 return;
             }
             try {
@@ -307,7 +320,7 @@ export default function RegisterContainner() {
                 }
             } catch {
                 setProvinceOptions([]);
-                setProvince("");
+                setProvince('');
             }
         },
         []
@@ -317,9 +330,9 @@ export default function RegisterContainner() {
         async (tambonId: string): Promise<void> => {
             if (!tambonId) {
                 setDistrictOptions([]);
-                setDistrict("");
+                setDistrict('');
                 setProvinceOptions([]);
-                setProvince("");
+                setProvince('');
                 return;
             }
             try {
@@ -334,19 +347,135 @@ export default function RegisterContainner() {
                     await searchProvinces(only);
                 }
                 if (postCodes && postCodes.length === 1) {
-                    setPostalCode(postCodes[0].value);
+                    setPostalCode(postCodes[0].value ?? '');
                 } else {
-                    setPostalCode("");
+                    setPostalCode('');
                 }
             } catch {
                 setDistrictOptions([]);
-                setDistrict("");
+                setDistrict('');
                 setProvinceOptions([]);
-                setProvince("");
+                setProvince('');
             }
         },
         [searchProvinces]
     );
+
+    // Validation function
+    const validateForm = (): string | null => {
+        // Basic validation
+        if (!username.trim()) return "กรุณากรอกชื่อผู้ใช้";
+        if (!password) return "กรุณากรอกรหัสผ่าน";
+        if (password !== confirmPassword) return "รหัสผ่านไม่ตรงกัน";
+        if (password.length < 6) return "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
+        if (!nationnalId.trim()) return "กรุณากรอกรหัสบัตรประชาชน";
+        if (!firstName.trim()) return "กรุณากรอกชื่อ";
+        if (!lastName.trim()) return "กรุณากรอกนามสกุล";
+        if (!email.trim()) return "กรุณากรอกอีเมล";
+        if (!phone.trim()) return "กรุณากรอกเบอร์โทรศัพท์";
+        if (phone && !/^0\d{9}$/.test(phone)) return "เบอร์โทรศัพท์ต้องขึ้นต้นด้วย 0 และมี 10 หลัก";
+        if (postalCode && !/^\d{5}$/.test(postalCode)) return "รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก";
+        if (nationnalId && !/^\d{13}$/.test(nationnalId)) return "เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก";
+
+        // Student validation
+        if (userType === "student") {
+            if (!studentId.trim()) return "กรุณากรอกรหัสนิสิต";
+            if (!faculty) return "กรุณาเลือกคณะ";
+            if (!department) return "กรุณาเลือกสาขา";
+            if (!levelStudy) return "กรุณาเลือกระดับการศึกษา";
+        }
+
+        // Staff validation
+        if (userType === "staff") {
+            if (!office) return "กรุณาเลือกหน่วยงาน";
+            if (!staffType) return "กรุณาเลือกประเภทบุคลากร";
+        }
+
+        return null;
+    };
+
+    // Submit function
+    const handleSubmit = async () => {
+        // Validate form
+        const validationError = validateForm();
+        if (validationError) {
+            toast.showError("ข้อมูลไม่ครบถ้วน", validationError);
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            // เข้ารหัส password และ national_id
+            const hashedPassword = await bcrypt.hash(password, 12);
+            const hashedNationalId = nationnalId ? await bcrypt.hash(nationnalId, 12) : null;
+
+            const userData = {
+                // Basic info
+                username: username.trim(),
+                password: hashedPassword,
+                email: email.trim(),
+                phone: phone.trim(),
+                title_th: prefix?.th ?? null,
+                 title_en: prefix?.en ?? null,
+                first_name: firstName.trim(),
+                last_name: lastName.trim(),
+                nickname: nickname.trim(),
+                dob: dob ? new Date(dob.getTime() + (7 * 60 * 60 * 1000)).toISOString() : null,
+                role: userType,
+
+                // Student specific
+                ...(userType === "student" && {
+                    student_id: studentId.trim(),
+                    faculty_id: faculty,
+                    department_id: department,
+                    level_of_study: levelStudy,
+                }),
+
+                // Staff specific
+                ...(userType === "staff" && {
+                    national_id: hashedNationalId,
+                    staff_type: staffType,
+                    unit_id: office,
+                    position: jobtitle,
+                }),
+
+                // Guest specific
+                ...(userType === "guest" && {
+                    national_id: hashedNationalId,
+                }),
+
+                // Address
+                house_number: houseNumber.trim() ?? null,
+                street: street.trim() ?? null,
+                subdistrict: tambon.trim() ?? null,
+                district: district ? districtOptions.find(d => d.value === district)?.label : null,
+                province: province ? provincesOptions.find(p => p.value === province)?.label : null,
+                postal_code: postalCode && /^\d{5}$/.test(postalCode) ? postalCode : null,
+            };
+
+            const result = await register(userData);
+
+            if (result.success) {
+                toast.showSuccess(
+                    "สมัครสมาชิกสำเร็จ",
+                    "กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่านที่สร้างไว้"
+                );
+
+                // Redirect to login page after 2 seconds
+                setTimeout(() => {
+                    router.push("/login");
+                }, 2000);
+            } else {
+                toast.showError("สมัครสมาชิกไม่สำเร็จ", result.error ?? "เกิดข้อผิดพลาด");
+            }
+        } catch (error) {
+            console.error("Registration error:", error);
+            toast.showError("เกิดข้อผิดพลาด", "ไม่สามารถสมัครสมาชิกได้ กรุณาลองใหม่อีกครั้ง");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
 
     return (
@@ -389,6 +518,36 @@ export default function RegisterContainner() {
                         value={nationnalId}
                         maxLength={13}
                         onChange={(val) => setNationnalId(val as string)}
+                        required
+                    />
+                </div>
+
+                <div className="tw-col-span-4 md:tw-col-span-12">
+                    <InputField
+                        type="text"
+                        placeholder="ชื่อผู้ใช้ (Username)"
+                        value={username}
+                        onChange={(val) => setUsername(val as string)}
+                        required
+                    />
+                </div>
+
+                <div className="tw-col-span-4 md:tw-col-span-6">
+                    <InputField
+                        type="password"
+                        placeholder="รหัสผ่าน"
+                        value={password}
+                        onChange={(val) => setPassword(val as string)}
+                        required
+                    />
+                </div>
+
+                <div className="tw-col-span-4 md:tw-col-span-6">
+                    <InputField
+                        type="password"
+                        placeholder="ยืนยันรหัสผ่าน"
+                        value={confirmPassword}
+                        onChange={(val) => setConfirmPassword(val as string)}
                         required
                     />
                 </div>
@@ -595,17 +754,26 @@ export default function RegisterContainner() {
             </div>
             <div className="tw-flex tw-justify-center tw-mt-4 tw-mx-4">
                 <Button
-                    className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none"
+                    onClick={handleSubmit}
+                    disabled={isSubmitting}
+                    className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
                     colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
                 >
                     <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
-                        สมัครสมาชิก
+                        {isSubmitting ? (
+                            <>
+                                <div className="tw-animate-spin tw-rounded-full tw-h-4 tw-w-4 tw-border-b-2 tw-border-white"></div>
+                                กำลังสมัครสมาชิก...
+                            </>
+                        ) : (
+                            "สมัครสมาชิก"
+                        )}
                     </span>
                 </Button>
             </div>
 
             <div className="tw-flex tw-justify-center tw-items-center tw-text-sm tw-font-medium tw-text-gray-700 tw-my-4 ">
-                <span className="tw-mr-2">ยังไม่มีบัญชีผู้ใช้?</span>
+                <span className="tw-mr-2">มีบัญชีผู้ใช้แล้ว?</span>
                 <Link
                     href="/login"
                     className="tw-text-emerald-600 hover:tw-text-emerald-700 tw-underline tw-underline-offset-2"
