@@ -176,3 +176,8 @@ dist
 
 # End of https://www.toptal.com/developers/gitignore/api/node,nextjs,dotenv
 /src/generated/prisma
+
+# Uploaded files
+/public/uploads/*
+!/public/uploads/.gitkeep
+!/public/uploads/*/.gitkeep
