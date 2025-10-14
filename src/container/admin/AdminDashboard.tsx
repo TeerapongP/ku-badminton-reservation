@@ -311,10 +311,12 @@ export default function AdminDashboard() {
                         <div className="tw-mt-6 tw-pt-4 tw-border-t tw-border-gray-100">
                             <Button
                                 onClick={() => router.push("/admin/audit")}
-                                variant="secondary"
-                                className="tw-w-full tw-text-sm"
+                                className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
+                                colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
                             >
-                                ดูกิจกรรมทั้งหมด
+                                <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
+                                    ดูกิจกรรมทั้งหมด
+                                </span>
                             </Button>
                         </div>
                     </div>

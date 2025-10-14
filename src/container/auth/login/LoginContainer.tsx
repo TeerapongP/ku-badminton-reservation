@@ -22,15 +22,16 @@ export default function LoginContainner() {
 
   // Validation function
   const validateForm = (): string | null => {
-    if (!identifier.trim()) return "กรุณากรอกรหัสนิสิตหรือเลขบัตรประชาชน";
+    if (!identifier.trim()) return "กรุณากรอกรหัสนิสิต, เลขบัตรประชาชน หรือ Username";
     if (!password) return "กรุณากรอกรหัสผ่าน";
 
     // ตรวจสอบรูปแบบ
     const isStudentId = /^\d{8,10}$/.test(identifier);
     const isNationalId = /^\d{13}$/.test(identifier);
+    const isUsername = /^[a-zA-Z0-9_]{3,20}$/.test(identifier); // Username สำหรับ admin
 
-    if (!isStudentId && !isNationalId) {
-      return "รหัสนิสิตต้องเป็นตัวเลข 8-10 หลัก หรือเลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก";
+    if (!isStudentId && !isNationalId && !isUsername) {
+      return "รหัสนิสิตต้องเป็นตัวเลข 8-10 หลัก, เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก หรือ Username สำหรับ Admin";
     }
 
     return null;
@@ -47,14 +48,22 @@ export default function LoginContainner() {
     setIsSubmitting(true);
 
     try {
-      // เข้ารหัส identifier สำหรับการค้นหา (เฉพาะเลขบัตรประชาชน)
+      // ตรวจสอบประเภทของ identifier
+      const isStudentId = /^\d{8,10}$/.test(identifier);
       const isNationalId = /^\d{13}$/.test(identifier);
+      const isUsername = /^[a-zA-Z0-9_]{3,20}$/.test(identifier);
+
+      // เข้ารหัส identifier สำหรับการค้นหา (เฉพาะเลขบัตรประชาชน)
       const hashedIdentifier = isNationalId ? await bcrypt.hash(identifier, 12) : identifier;
+
+      let loginType = 'student_id';
+      if (isNationalId) loginType = 'national_id';
+      if (isUsername) loginType = 'username';
 
       const loginData = {
         identifier: hashedIdentifier,
         password,
-        type: isNationalId ? 'national_id' : 'student_id',
+        type: loginType,
         originalIdentifier: identifier // ส่ง plain text ไปด้วยเพื่อเปรียบเทียบ
       };
 
@@ -81,11 +90,11 @@ export default function LoginContainner() {
   // แสดง Loading component เมื่อกำลัง redirect
   if (isRedirecting) {
     return (
-      <Loading 
-        text="กำลังเข้าสู่ระบบ..." 
-        color="emerald" 
-        size="md" 
-        fullScreen={true} 
+      <Loading
+        text="กำลังเข้าสู่ระบบ..."
+        color="emerald"
+        size="md"
+        fullScreen={true}
       />
     );
   }
@@ -100,12 +109,17 @@ export default function LoginContainner() {
         <div>
           <InputField
             type="text"
-            placeholder="กรอกรหัสนิสิตหรือรหัสบัตรประชาชน"
+            placeholder="รหัสนิสิต / เลขบัตรประชาชน / Username (Admin)"
             value={identifier}
-            maxLength={13}
+            maxLength={20}
             onChange={(val) => setIdentifier(val as string)}
             required
           />
+          <p className="tw-text-xs tw-text-gray-500 tw-mt-2">
+            • นิสิต: รหัสนิสิต 8-10 หลัก<br />
+            • บุคลากร: เลขบัตรประชาชน 13 หลัก<br />
+            • Admin: Username
+          </p>
         </div>
 
         <div>
