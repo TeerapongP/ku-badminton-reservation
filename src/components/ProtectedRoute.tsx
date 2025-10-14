@@ -22,7 +22,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
       return;
     }
 
-    if (requiredRole && !requiredRole.includes(session.user.role)) {
+    if (requiredRole && !requiredRole.includes((session.user as any).role)) {
       router.push("/"); // Redirect to home if role not allowed
       return;
     }
@@ -30,27 +30,27 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
 
   if (status === "loading") {
     return (
-      <Loading 
-        text="กำลังตรวจสอบสิทธิ์..." 
-        color="emerald" 
-        size="md" 
-        fullScreen={true} 
+      <Loading
+        text="กำลังตรวจสอบสิทธิ์..."
+        color="emerald"
+        size="md"
+        fullScreen={true}
       />
     );
   }
 
   if (!session) {
     return (
-      <Loading 
-        text="กำลังเปลี่ยนเส้นทาง..." 
-        color="emerald" 
-        size="md" 
-        fullScreen={true} 
+      <Loading
+        text="กำลังเปลี่ยนเส้นทาง..."
+        color="emerald"
+        size="md"
+        fullScreen={true}
       />
     );
   }
 
-  if (requiredRole && !requiredRole.includes(session.user.role)) {
+  if (requiredRole && !requiredRole.includes((session.user as any).role)) {
     return (
       <div className="tw-min-h-screen tw-flex tw-items-center tw-justify-center tw-bg-gray-50">
         <div className="tw-text-center">

@@ -28,10 +28,10 @@ export default function Navbar() {
 
   // Fetch user profile when authenticated
   useEffect(() => {
-    if (isAuthenticated && session?.user?.id && !userProfile) {
+    if (isAuthenticated && (session?.user as any)?.id && !userProfile) {
       fetchUserProfile();
     }
-  }, [isAuthenticated, session?.user?.id, userProfile]);
+  }, [isAuthenticated, (session?.user as any)?.id, userProfile]);
 
   // Decrypt profile image URL when userProfile changes
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function Navbar() {
 
   const fetchUserProfile = async () => {
     try {
-      const response = await fetch(`/api/profile/${session?.user?.id}`);
+      const response = await fetch(`/api/profile/${(session?.user as any)?.id}`);
       if (response.ok) {
         const data = await response.json();
         setUserProfile(data.user);
@@ -87,10 +87,17 @@ export default function Navbar() {
 
     if (isAuthenticated) {
       // เมื่อ login แล้ว
-      return [
+      const items = [
         ...baseItems,
         { id: "contract", label: "ติดต่อสอบถาม", href: "/contract" },
       ];
+
+      // เพิ่มเมนู Admin สำหรับ admin เท่านั้น
+      if ((session?.user as any)?.role === "admin") {
+        items.splice(2, 0, { id: "admin", label: "Admin Dashboard", href: "/admin" });
+      }
+
+      return items;
     } else {
       // เมื่อยังไม่ login
       return [
@@ -100,7 +107,7 @@ export default function Navbar() {
         { id: "contract", label: "ติดต่อสอบถาม", href: "/contract" },
       ];
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, (session?.user as any)?.role]);
 
   // แทนที่ isActive() ด้วยฟังก์ชันนี้
   const getActiveId = () => {
@@ -120,6 +127,7 @@ export default function Navbar() {
       return "booking";
     }
 
+    if (current.startsWith("/admin")) return "admin";
     if (current.startsWith("/register")) return "register";
     if (current.startsWith("/login")) return "login";
 
