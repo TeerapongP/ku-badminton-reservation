@@ -168,24 +168,26 @@ export default function AdminPaymentsPage() {
         <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-slate-50 tw-via-blue-50 tw-to-indigo-50 tw-px-6 tw-py-8">
             {/* Header */}
             <div className="tw-mb-8">
-                <div className="tw-flex tw-items-center tw-mb-4">
+                <div className="tw-flex tw-items-center tw-gap-6 tw-mb-6">
                     <Button
                         onClick={() => router.push("/admin")}
                         variant="secondary"
-                        className="tw-mr-4 tw-px-3 tw-py-2"
+                        className="tw-px-4 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 hover:tw-text-gray-900 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none"
                     >
-                        <ArrowLeft className="tw-w-4 tw-h-4 tw-mr-2" />
+                        <ArrowLeft className="tw-w-4 tw-h-4 tw-mr-2 tw-text-gray-600" />
                         กลับ
                     </Button>
+
                     <div>
-                        <h1 className="tw-text-4xl tw-font-bold tw-bg-gradient-to-r tw-from-emerald-600 tw-via-teal-600 tw-to-cyan-600 tw-bg-clip-text tw-text-transparent">
+                        <h1 className="tw-text-3xl md:tw-text-4xl tw-font-bold tw-bg-gradient-to-r tw-from-emerald-600 tw-via-teal-600 tw-to-cyan-600 tw-bg-clip-text tw-text-transparent">
                             ตรวจสอบการชำระเงิน
                         </h1>
-                        <p className="tw-text-gray-600 tw-mt-2">
+                        <p className="tw-text-gray-600 tw-mt-1">
                             ตรวจสอบและอนุมัติสลิปการโอนเงิน
                         </p>
                     </div>
                 </div>
+
                 <div className="tw-h-1 tw-w-32 tw-bg-gradient-to-r tw-from-emerald-500 tw-via-teal-500 tw-to-cyan-500 tw-rounded-full" />
             </div>
 
@@ -277,26 +279,23 @@ export default function AdminPaymentsPage() {
                                         <Button
                                             onClick={() => viewSlip(payment)}
                                             variant="secondary"
-                                            className="tw-w-full tw-justify-center"
+                                            className="tw-w-full tw-h-12 tw-text-lg tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-gray-200 tw-text-gray-700 tw-border-0 tw-outline-none tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-100 active:tw-bg-gray-200 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-bg-white focus:tw-ring-0 focus:tw-outline-none"
                                         >
-                                            <Eye className="tw-w-4 tw-h-4 tw-mr-2" />
+                                            <Eye className="tw-w-5 tw-h-5 tw-mr-2 tw-text-gray-600" />
                                             ดูสลิป
                                         </Button>
 
                                         <Button
-                                            onClick={() => handleApprovePayment(payment.payment_id)}
-                                            className="tw-w-full tw-justify-center"
-                                            colorClass="tw-bg-green-600 hover:tw-bg-green-700 tw-text-white"
+                                            onClick={() => router.push("/admin/audit")}
+                                            className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
+                                            colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
                                         >
-                                            <CheckCircle className="tw-w-4 tw-h-4 tw-mr-2" />
-                                            อนุมัติ
+                                            <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
+                                                อนุมัติ
+                                            </span>
                                         </Button>
 
-                                        <Button
-                                            onClick={() => handleRejectPayment(payment.payment_id, "สลิปไม่ชัดเจน")}
-                                            variant="danger"
-                                            className="tw-w-full tw-justify-center"
-                                        >
+                                        <Button onClick={() => handleRejectPayment(payment.payment_id, "สลิปไม่ชัดเจน")} className="tw-w-auto tw-px-4 tw-h-10 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100" colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl" >
                                             <XCircle className="tw-w-4 tw-h-4 tw-mr-2" />
                                             ปฏิเสธ
                                         </Button>
@@ -320,7 +319,7 @@ export default function AdminPaymentsPage() {
                                 <Button
                                     onClick={() => setShowSlipModal(false)}
                                     variant="secondary"
-                                    className="tw-px-3 tw-py-2"
+                                    className="tw-px-3 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-600 tw-border tw-border-transparent tw-outline-none tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 hover:tw-text-gray-800 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none"
                                 >
                                     ✕
                                 </Button>
@@ -354,21 +353,20 @@ export default function AdminPaymentsPage() {
                                         handleApprovePayment(selectedPayment.payment_id);
                                         setShowSlipModal(false);
                                     }}
-                                    className="tw-flex-1"
-                                    colorClass="tw-bg-green-600 hover:tw-bg-green-700 tw-text-white"
+                                    className="tw-w-full tw-h-10  tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
+                                    colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
                                 >
-                                    <CheckCircle className="tw-w-4 tw-h-4 tw-mr-2" />
-                                    อนุมัติ
+                                    <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
+                                        <CheckCircle className="tw-w-4 tw-h-4 tw-mr-2" />
+                                        อนุมัติ
+                                    </span>
                                 </Button>
-
                                 <Button
                                     onClick={() => {
                                         handleRejectPayment(selectedPayment.payment_id, "สลิปไม่ชัดเจน");
                                         setShowSlipModal(false);
                                     }}
-                                    variant="danger"
-                                    className="tw-flex-1"
-                                >
+                                    className="tw-w-full tw-px-4 tw-h-10 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100" colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl" >
                                     <XCircle className="tw-w-4 tw-h-4 tw-mr-2" />
                                     ปฏิเสธ
                                 </Button>

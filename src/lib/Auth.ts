@@ -22,7 +22,7 @@ export const authOptions: NextAuthOptions = {
 
         try {
           let user;
-          
+
           if (credentials.type === 'student_id') {
             // ค้นหาด้วยรหัสนิสิต
             user = await prisma.users.findFirst({
@@ -41,11 +41,12 @@ export const authOptions: NextAuthOptions = {
           } else if (credentials.type === 'national_id') {
             // ค้นหาด้วยเลขบัตรประชาชน
             const allUsers = await prisma.users.findMany({
-              where: { 
+              where: {
                 national_id: { not: null },
                 OR: [
                   { role: 'staff' },
-                  { role: 'guest' }
+                  { role: 'guest' },
+                  { role: 'admin' }
                 ]
               },
               select: {
@@ -63,12 +64,30 @@ export const authOptions: NextAuthOptions = {
 
             // เปรียบเทียบ plain text กับ hash ใน database
             for (const u of allUsers) {
-              if (u.national_id && credentials.originalIdentifier && 
-                  await bcrypt.compare(credentials.originalIdentifier, u.national_id)) {
+              if (u.national_id && credentials.originalIdentifier &&
+                await bcrypt.compare(credentials.originalIdentifier, u.national_id)) {
                 user = u;
                 break;
               }
             }
+          } else if (credentials.type === 'username') {
+            // ค้นหาด้วย username (สำหรับ admin เท่านั้น)
+            user = await prisma.users.findFirst({
+              where: {
+                username: credentials.identifier,
+                role: 'admin'
+              },
+              select: {
+                user_id: true,
+                username: true,
+                password_hash: true,
+                email: true,
+                first_name: true,
+                last_name: true,
+                role: true,
+                status: true,
+              }
+            });
           }
 
           if (!user) {
@@ -82,7 +101,7 @@ export const authOptions: NextAuthOptions = {
 
           // ตรวจสอบรหัสผ่าน
           const isPasswordValid = await bcrypt.compare(credentials.password, user.password_hash);
-          
+
           if (!isPasswordValid) {
             // บันทึก log การ login ไม่สำเร็จ
             await prisma.auth_log.create({
@@ -101,7 +120,7 @@ export const authOptions: NextAuthOptions = {
           // อัปเดต last_login_at
           await prisma.users.update({
             where: { user_id: user.user_id },
-            data: { 
+            data: {
               last_login_at: new Date(),
               last_login_ip: "unknown"
             }
