@@ -1,5 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@/generated/prisma';
+import { 
+  withErrorHandler, 
+  CustomApiError,
+  ERROR_CODES,
+  HTTP_STATUS,
+  successResponse
+} from "@/lib/error-handler";
+import { withMiddleware } from "@/lib/api-middleware";
 
 const prisma = new PrismaClient();
 
@@ -8,35 +16,46 @@ interface PostcodeRow {
     postcode: string;
 }
 
-export async function GET(req: Request) {
-    try {
-        const { searchParams } = new URL(req.url);
-        const tambonId = searchParams.get('tambonId');
+async function postcodesHandler(req: NextRequest) {
+    const { searchParams } = new URL(req.url);
+    const tambonId = searchParams.get('tambonId');
 
-        if (!tambonId) {
-            return NextResponse.json(
-                { success: false, error: 'tambonId is required' },
-                { status: 400 }
-            );
-        }
-
-        const rows = await prisma.$queryRaw<PostcodeRow[]>`
-            SELECT p.postcode_id, p.postcode 
-            FROM postcodes p 
-            WHERE p.tambon_id = ${BigInt(tambonId)}
-        `;
-
-        const data = rows.map((r) => ({
-            label: r.postcode,
-            value: r.postcode_id.toLocaleString(),
-        }));
-
-        return NextResponse.json({ success: true, data });
-    } catch (error) {
-        console.error('Postcodes API error:', error);
-        return NextResponse.json(
-            { success: false, error: 'Failed to fetch postcodes' },
-            { status: 500 }
+    if (!tambonId) {
+        throw new CustomApiError(
+            ERROR_CODES.MISSING_REQUIRED_FIELDS,
+            'กรุณาระบุรหัสตำบล (tambonId)',
+            HTTP_STATUS.BAD_REQUEST
         );
     }
+
+    // Validate tambonId
+    const tambonIdNum = Number(tambonId);
+    if (!Number.isInteger(tambonIdNum) || tambonIdNum <= 0) {
+        throw new CustomApiError(
+            ERROR_CODES.INVALID_PARAMETERS,
+            'รหัสตำบลไม่ถูกต้อง',
+            HTTP_STATUS.BAD_REQUEST
+        );
+    }
+
+    const rows = await prisma.$queryRaw<PostcodeRow[]>`
+        SELECT p.postcode_id, p.postcode 
+        FROM postcodes p 
+        WHERE p.tambon_id = ${BigInt(tambonId)}
+    `;
+
+    const data = rows.map((r) => ({
+        label: r.postcode,
+        value: r.postcode_id.toString(),
+    }));
+
+    return successResponse(data);
 }
+
+export const GET = withMiddleware(
+    withErrorHandler(postcodesHandler),
+    {
+        methods: ['GET'],
+        rateLimit: 'default',
+    }
+);

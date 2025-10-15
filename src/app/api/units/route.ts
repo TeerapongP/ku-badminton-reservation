@@ -1,5 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@/generated/prisma';
+import { 
+  withErrorHandler, 
+  successResponse
+} from "@/lib/error-handler";
+import { withMiddleware } from "@/lib/api-middleware";
 
 const prisma = new PrismaClient();
 
@@ -8,13 +13,12 @@ interface UnitRow {
     name_th: string;
 }
 
-export async function GET(req: Request) {
+async function unitsHandler(req: NextRequest) {
     const rows = await prisma.$queryRaw<UnitRow[]>`
         SELECT unit_id, name_th
         FROM units 
         ORDER BY name_th ASC 
     `;
-
 
     const data = rows.map((r) => ({
         label: r.name_th,
@@ -22,5 +26,13 @@ export async function GET(req: Request) {
         value: r.unit_id.toString(),
     }));
 
-    return NextResponse.json({ success: true, data });
+    return successResponse(data);
 }
+
+export const GET = withMiddleware(
+    withErrorHandler(unitsHandler),
+    {
+        methods: ['GET'],
+        rateLimit: 'default',
+    }
+);
