@@ -1,6 +1,15 @@
 // src/app/api/court-details/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@/generated/prisma";
+import { 
+  withErrorHandler, 
+  CustomApiError,
+  ERROR_CODES,
+  HTTP_STATUS,
+  successResponse
+} from "@/lib/error-handler";
+import { withMiddleware } from "@/lib/api-middleware";
+
 const prisma = new PrismaClient();
 
 // แปลง BigInt / Prisma.Decimal / object ซ้อน ๆ ให้ serialize เป็น JSON ได้
@@ -31,18 +40,28 @@ function normalizeForJson<T = any>(data: T): T {
     return norm(data);
 }
 
-export async function GET(req: Request) {
-    try {
-        const { searchParams } = new URL(req.url);
-        const courtIdStr = searchParams.get("courtId");
-        const courtId = Number.parseInt(courtIdStr ?? "", 10);
+async function courtDetailsHandler(req: NextRequest) {
+    const { searchParams } = new URL(req.url);
+    const courtIdStr = searchParams.get("courtId");
+    
+    if (!courtIdStr) {
+        throw new CustomApiError(
+            ERROR_CODES.MISSING_REQUIRED_FIELDS,
+            'กรุณาระบุรหัสสนาม (courtId)',
+            HTTP_STATUS.BAD_REQUEST
+        );
+    }
+    
+    const courtId = Number.parseInt(courtIdStr, 10);
 
-        if (!Number.isSafeInteger(courtId) || courtId <= 0) {
-            return NextResponse.json(
-                { success: false, error: "courtId must be a positive integer" },
-                { status: 400 }
-            );
-        }
+    if (!Number.isSafeInteger(courtId) || courtId <= 0) {
+        throw new CustomApiError(
+            ERROR_CODES.INVALID_PARAMETERS,
+            'รหัสสนามต้องเป็นตัวเลขบวก',
+            HTTP_STATUS.BAD_REQUEST,
+            { providedCourtId: courtIdStr }
+        );
+    }
 
         // วันนี้ในรูปแบบ YYYY-MM-DD (ใช้เลือก pricing_rules วันนี้)
         const today = new Date();
@@ -91,9 +110,14 @@ export async function GET(req: Request) {
       LIMIT 1
     `;
 
-        if (rows.length === 0) {
-            return NextResponse.json({ success: false, error: "Court not found" }, { status: 404 });
-        }
+    if (rows.length === 0) {
+        throw new CustomApiError(
+            ERROR_CODES.NOT_FOUND,
+            'ไม่พบข้อมูลสนาม',
+            HTTP_STATUS.NOT_FOUND,
+            { courtId }
+        );
+    }
 
         const r = rows[0];
 
@@ -111,17 +135,16 @@ export async function GET(req: Request) {
             pricePerHour: r.priceCents != null ? (typeof r.priceCents === "number" ? r.priceCents / 100 : r.priceCents) : null,
         };
 
-        // 🔧 ป้องกัน BigInt/Decimal พัง JSON.stringify
-        const safeData = normalizeForJson(data);
+    // 🔧 ป้องกัน BigInt/Decimal พัง JSON.stringify
+    const safeData = normalizeForJson(data);
 
-        return NextResponse.json({ success: true, data: safeData });
-    } catch (error) {
-        console.error("Court Details API error:", error);
-        return NextResponse.json(
-            { success: false, error: "Failed to fetch court details" },
-            { status: 500 }
-        );
-    } finally {
-        await prisma.$disconnect();
-    }
+    return successResponse(safeData);
 }
+
+export const GET = withMiddleware(
+    withErrorHandler(courtDetailsHandler),
+    {
+        methods: ['GET'],
+        rateLimit: 'default',
+    }
+);

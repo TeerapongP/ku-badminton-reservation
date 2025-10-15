@@ -2,59 +2,63 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { headers } from 'next/headers';
+import { 
+  withErrorHandler, 
+  validateRequired,
+  CustomApiError,
+  ERROR_CODES,
+  HTTP_STATUS,
+  successResponse
+} from "@/lib/error-handler";
+import { withMiddleware, getClientInfo } from "@/lib/api-middleware";
 
 // จำกัดจำนวนครั้งที่ login ผิด
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION = 30 * 60 * 1000; // 30 นาที
 
-export async function POST(request: NextRequest) {
-    try {
-        const { username, password, captchaToken } = await request.json();
-        const headersList = headers();
+async function loginHandler(request: NextRequest) {
+    const { username, password, captchaToken } = await request.json();
+    
+    // Validate required fields
+    validateRequired({ username, password }, ['username', 'password']);
 
-        // ดึงข้อมูล client
-        const clientInfo = getClientInfo(request, headersList);
+    // ดึงข้อมูล client
+    const clientInfo = getClientInfo(request);
 
-        if (!username || !password) {
-            return NextResponse.json(
-                { message: 'กรุณากรอก Username และ Password' },
-                { status: 400 }
-            );
-        }
-
-        // ตรวจสอบ rate limiting ตาม IP
-        const ipLimitCheck = await checkIPRateLimit(clientInfo.ip);
-        if (!ipLimitCheck.allowed) {
-            return NextResponse.json(
-                {
-                    message: 'มีการพยายามเข้าสู่ระบบมากเกินไป กรุณารอ 30 นาที',
-                    requireCaptcha: true,
-                    lockoutUntil: ipLimitCheck.lockoutUntil
-                },
-                { status: 429 }
-            );
-        }
-
-        // ตรวจสอบ captcha หากจำเป็น
-        if (ipLimitCheck.requireCaptcha && !captchaToken) {
-            return NextResponse.json(
-                {
-                    message: 'กรุณายืนยัน Captcha',
-                    requireCaptcha: true
-                },
-                { status: 400 }
-            );
-        }
-
-        if (captchaToken) {
-            const captchaValid = await verifyCaptcha(captchaToken);
-            if (!captchaValid) {
-                return NextResponse.json(
-                    { message: 'Captcha ไม่ถูกต้อง' },
-                    { status: 400 }
-                );
+    // ตรวจสอบ rate limiting ตาม IP
+    const ipLimitCheck = await checkIPRateLimit(clientInfo.ip);
+    if (!ipLimitCheck.allowed) {
+        throw new CustomApiError(
+            ERROR_CODES.TOO_MANY_ATTEMPTS,
+            'มีการพยายามเข้าสู่ระบบมากเกินไป กรุณารอ 30 นาที',
+            HTTP_STATUS.TOO_MANY_REQUESTS,
+            {
+                requireCaptcha: true,
+                lockoutUntil: ipLimitCheck.lockoutUntil
             }
+        );
+    }
+
+    // ตรวจสอบ captcha หากจำเป็น
+    if (ipLimitCheck.requireCaptcha && !captchaToken) {
+        throw new CustomApiError(
+            ERROR_CODES.VALIDATION_ERROR,
+            'กรุณายืนยัน Captcha',
+            HTTP_STATUS.BAD_REQUEST,
+            { requireCaptcha: true }
+        );
+    }
+
+    if (captchaToken) {
+        const captchaValid = await verifyCaptcha(captchaToken);
+        if (!captchaValid) {
+            throw new CustomApiError(
+                ERROR_CODES.VALIDATION_ERROR,
+                'Captcha ไม่ถูกต้อง',
+                HTTP_STATUS.BAD_REQUEST
+            );
         }
+    }
 
         // ค้นหาผู้ใช้
         const user = await prisma.users.findFirst({
@@ -85,21 +89,23 @@ export async function POST(request: NextRequest) {
             clientInfo
         });
 
-        if (!user) {
-            await recordFailedAttempt(null, clientInfo.ip);
-            return NextResponse.json(
-                { message: 'Username หรือ Password ไม่ถูกต้อง' },
-                { status: 401 }
-            );
-        }
+    if (!user) {
+        await recordFailedAttempt(null, clientInfo.ip);
+        throw new CustomApiError(
+            ERROR_CODES.INVALID_CREDENTIALS,
+            'Username หรือ Password ไม่ถูกต้อง',
+            HTTP_STATUS.UNAUTHORIZED
+        );
+    }
 
-        // ตรวจสอบสถานะบัญชี
-        if (user.status !== 'active') {
-            return NextResponse.json(
-                { message: 'บัญชีของคุณถูกระงับ กรุณาติดต่อผู้ดูแลระบบ' },
-                { status: 403 }
-            );
-        }
+    // ตรวจสอบสถานะบัญชี
+    if (user.status !== 'active') {
+        throw new CustomApiError(
+            ERROR_CODES.ACCOUNT_SUSPENDED,
+            'บัญชีของคุณถูกระงับ กรุณาติดต่อผู้ดูแลระบบ',
+            HTTP_STATUS.FORBIDDEN
+        );
+    }
 
         // ตรวจสอบรหัสผ่าน (ใช้ password_hash แทน password)
         const passwordValid = await bcrypt.compare(password, user.password_hash);
@@ -111,23 +117,21 @@ export async function POST(request: NextRequest) {
             const failedCount = await getFailedLoginCount(user.user_id);
             const remainingAttempts = MAX_LOGIN_ATTEMPTS - failedCount;
 
-            if (remainingAttempts <= 0) {
-                return NextResponse.json(
-                    {
-                        message: 'มีการพยายามเข้าสู่ระบบผิดเกิน 5 ครั้ง กรุณารอ 30 นาที',
-                        lockedUntil: new Date(Date.now() + LOCKOUT_DURATION)
-                    },
-                    { status: 423 }
-                );
-            }
-
-            return NextResponse.json(
-                {
-                    message: `Username หรือ Password ไม่ถูกต้อง (เหลือ ${remainingAttempts} ครั้ง)`,
-                    remainingAttempts
-                },
-                { status: 401 }
+        if (remainingAttempts <= 0) {
+            throw new CustomApiError(
+                ERROR_CODES.TOO_MANY_ATTEMPTS,
+                'มีการพยายามเข้าสู่ระบบผิดเกิน 5 ครั้ง กรุณารอ 30 นาที',
+                423, // Locked
+                { lockedUntil: new Date(Date.now() + LOCKOUT_DURATION) }
             );
+        }
+
+        throw new CustomApiError(
+            ERROR_CODES.INVALID_CREDENTIALS,
+            `Username หรือ Password ไม่ถูกต้อง (เหลือ ${remainingAttempts} ครั้ง)`,
+            HTTP_STATUS.UNAUTHORIZED,
+            { remainingAttempts }
+        );
         }
 
         // Login สำเร็จ - อัปเดต last_login_at
@@ -147,44 +151,28 @@ export async function POST(request: NextRequest) {
             clientInfo
         });
 
-        // รีเซ็ต IP rate limit
-        await resetIPRateLimit(clientInfo.ip);
+    // รีเซ็ต IP rate limit
+    await resetIPRateLimit(clientInfo.ip);
 
-        return NextResponse.json({
-            message: 'เข้าสู่ระบบสำเร็จ',
-            success: true,
-            user: {
-                id: user.user_id,
-                username: user.username,
-                email: user.email,
-                name: `${user.first_name} ${user.last_name}`
-            }
-        });
+    return successResponse({
+        id: user.user_id,
+        username: user.username,
+        email: user.email,
+        name: `${user.first_name} ${user.last_name}`
+    }, 'เข้าสู่ระบบสำเร็จ');
+}
 
-    } catch (error) {
-        console.error('Login security error:', error);
-        return NextResponse.json(
-            { message: 'เกิดข้อผิดพลาดในระบบ' },
-            { status: 500 }
-        );
+export const POST = withMiddleware(
+    withErrorHandler(loginHandler),
+    {
+        methods: ['POST'],
+        rateLimit: 'auth',
+        requireContentType: 'application/json',
+        maxBodySize: 5 * 1024, // 5KB
     }
-}
+);
 
-// ฟังก์ชันดึงข้อมูล client
-function getClientInfo(request: NextRequest, headersList: any) {
-    const forwarded = headersList.get('x-forwarded-for');
-    const realIP = headersList.get('x-real-ip');
-    const cfConnectingIP = headersList.get('cf-connecting-ip');
-    const ip = forwarded?.split(',')[0]?.trim() || realIP || cfConnectingIP || '127.0.0.1';
 
-    return {
-        ip,
-        userAgent: headersList.get('user-agent') || 'unknown',
-        browser: getBrowserInfo(headersList.get('user-agent') || ''),
-        os: getOSInfo(headersList.get('user-agent') || ''),
-        timestamp: new Date()
-    };
-}
 
 // ฟังก์ชันดึงข้อมูล browser
 function getBrowserInfo(userAgent: string): string {

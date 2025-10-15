@@ -1,12 +1,24 @@
 // src/app/api/auth/register/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@/generated/prisma";
+import { 
+  withErrorHandler, 
+  validateRequired, 
+  validateEmail, 
+  validatePhone, 
+  validatePostalCode, 
+  validateStudentId,
+  CustomApiError,
+  ERROR_CODES,
+  HTTP_STATUS,
+  successResponse
+} from "@/lib/error-handler";
+import { withMiddleware } from "@/lib/api-middleware";
 
 const prisma = new PrismaClient();
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
+async function registerHandler(req: NextRequest) {
+  const body = await req.json();
 
     // ---- รองรับ prefix ได้ 3 รูปแบบ: {en, th} หรือ "mr|นาย" หรือส่ง title_th/title_en มาเลย ----
     const prefix = body.prefix as { en?: string; th?: string } | string | undefined;
@@ -19,7 +31,7 @@ export async function POST(req: Request) {
         title_th = title_th ?? th ?? undefined;
       } else if (prefix && typeof prefix === "object") {
         title_en = title_en ?? prefix.en ?? undefined;
-        title_th = title_th ?? prefix.th ?? undefine
+        title_th = title_th ?? prefix.th ?? undefined;
       }
     }
 
@@ -60,61 +72,32 @@ export async function POST(req: Request) {
     } = body;
 
     // ---------- Validate เบื้องต้น ----------
-    if (!username || !password || !email || !first_name || !last_name || !role) {
-      return NextResponse.json(
-        { success: false, error: "ข้อมูลไม่ครบถ้วน" },
-        { status: 400 }
-      );
-    }
+    validateRequired(body, ['username', 'password', 'email', 'first_name', 'last_name', 'role']);
+    
+    // Validate email format
+    validateEmail(email);
 
     // เงื่อนไขเฉพาะ role
     if (role === "student") {
-      if (!student_id || !faculty_id || !department_id || !level_of_study) {
-        return NextResponse.json(
-          { success: false, error: "ข้อมูลนิสิตไม่ครบถ้วน" },
-          { status: 400 }
-        );
-      }
+      validateRequired(body, ['student_id', 'faculty_id', 'department_id', 'level_of_study']);
+      validateStudentId(student_id);
     }
 
     if (role === "staff") {
-      if (!national_id || !staff_type) {
-        return NextResponse.json(
-          { success: false, error: "ข้อมูลบุคลากรไม่ครบถ้วน" },
-          { status: 400 }
-        );
-      }
+      validateRequired(body, ['national_id', 'staff_type']);
     }
 
     if (role === "guest") {
-      if (!national_id) {
-        return NextResponse.json(
-          { success: false, error: "กรุณากรอกเลขบัตรประชาชน/เอกสารแสดงตน" },
-          { status: 400 }
-        );
-      }
+      validateRequired(body, ['national_id']);
     }
 
-    // รูปแบบทั่วไป
-    if (postal_code && !/^\d{5}$/.test(postal_code)) {
-      return NextResponse.json(
-        { success: false, error: "รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก" },
-        { status: 400 }
-      );
+    // Validate formats
+    if (postal_code) {
+      validatePostalCode(postal_code);
     }
 
-    if (phone && !/^0\d{9}$/.test(phone)) {
-      return NextResponse.json(
-        { success: false, error: "เบอร์โทรศัพท์ต้องขึ้นต้นด้วย 0 และมี 10 หลัก" },
-        { status: 400 }
-      );
-    }
-
-    if (student_id && !/^\d{8,10}$/.test(student_id)) {
-      return NextResponse.json(
-        { success: false, error: "รหัสนิสิตต้องเป็นตัวเลข 8-10 หลัก" },
-        { status: 400 }
-      );
+    if (phone) {
+      validatePhone(phone);
     }
 
     // national_id อาจถูก hash มาจากหน้าบ้านแล้ว (คอลัมน์รองรับ VARCHAR(255))
@@ -138,13 +121,18 @@ export async function POST(req: Request) {
     });
 
     if (existingUser) {
-      let errorMessage = "ข้อมูลซ้ำในระบบ: ";
-      if (existingUser.username === username) errorMessage += "ชื่อผู้ใช้";
-      else if (existingUser.email.toLowerCase() === email.toLowerCase()) errorMessage += "อีเมล";
-      else if (existingUser.phone && existingUser.phone === phone) errorMessage += "เบอร์โทรศัพท์";
-      else if (existingUser.student_id && existingUser.student_id === student_id) errorMessage += "รหัสนิสิต";
+      let duplicateField = "";
+      if (existingUser.username === username) duplicateField = "ชื่อผู้ใช้";
+      else if (existingUser.email.toLowerCase() === email.toLowerCase()) duplicateField = "อีเมล";
+      else if (existingUser.phone && existingUser.phone === phone) duplicateField = "เบอร์โทรศัพท์";
+      else if (existingUser.student_id && existingUser.student_id === student_id) duplicateField = "รหัสนิสิต";
 
-      return NextResponse.json({ success: false, error: errorMessage }, { status: 400 });
+      throw new CustomApiError(
+        ERROR_CODES.DUPLICATE_ENTRY,
+        `ข้อมูลซ้ำในระบบ: ${duplicateField}`,
+        HTTP_STATUS.CONFLICT,
+        { duplicateField }
+      );
     }
 
     // รหัสผ่าน: ฝั่งหน้าเว็บส่ง hash มาแล้ว
@@ -267,37 +255,22 @@ export async function POST(req: Request) {
 
     const { newUser, addressId } = result;
 
-    return NextResponse.json({
-      success: true,
-      message: "สมัครสมาชิกสำเร็จ",
-      user: {
-        id: newUser.user_id.toString(),
-        username: newUser.username,
-        email: newUser.email,
-        name: `${newUser.first_name} ${newUser.last_name}`,
-        role: newUser.role,
-        address_id: addressId ? addressId.toString() : null,
-      },
-    });
-  } catch (error) {
-    console.error("Registration error:", error);
-
-    let errorMessage = "เกิดข้อผิดพลาดในการสมัครสมาชิก";
-    if (error instanceof Error) {
-      const msg = error.message || "";
-      if (msg.includes("chk_postal_th")) {
-        errorMessage = "รหัสไปรษณีย์ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง";
-      } else if (msg.includes("Duplicate entry")) {
-        errorMessage = "ข้อมูลซ้ำในระบบ กรุณาตรวจสอบชื่อผู้ใช้ อีเมล หรือเบอร์โทรศัพท์";
-      } else if (msg.includes("foreign key constraint")) {
-        errorMessage = "ข้อมูลอ้างอิงไม่ถูกต้อง กรุณาตรวจสอบคณะ สาขา หรือหน่วยงาน";
-      } else if (msg.includes("check constraint")) {
-        errorMessage = "ข้อมูลไม่ตรงตามรูปแบบที่กำหนด กรุณาตรวจสอบอีกครั้ง";
-      } else if (msg.includes("P2000")) {
-        errorMessage = "ข้อมูลบางฟิลด์ยาวเกินกำหนด กรุณาตรวจสอบอีกครั้ง";
-      }
-    }
-
-    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
-  }
+    return successResponse({
+      id: newUser.user_id.toString(),
+      username: newUser.username,
+      email: newUser.email,
+      name: `${newUser.first_name} ${newUser.last_name}`,
+      role: newUser.role,
+      address_id: addressId ? addressId.toString() : null,
+    }, "สมัครสมาชิกสำเร็จ");
 }
+
+export const POST = withMiddleware(
+  withErrorHandler(registerHandler),
+  {
+    methods: ['POST'],
+    rateLimit: 'auth',
+    requireContentType: 'application/json',
+    maxBodySize: 10 * 1024, // 10KB
+  }
+);
