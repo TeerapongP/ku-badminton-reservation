@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 
 interface DashboardStats {
-    pendingMembers: number;
     pendingPayments: number;
     todayBookings: number;
     activeUsers: number;
@@ -32,7 +31,6 @@ export default function AdminDashboard() {
     const toast = useToast();
 
     const [stats, setStats] = useState<DashboardStats>({
-        pendingMembers: 0,
         pendingPayments: 0,
         todayBookings: 0,
         activeUsers: 0
@@ -56,7 +54,6 @@ export default function AdminDashboard() {
             // Mock data for now - will be replaced with actual API calls
             await new Promise(resolve => setTimeout(resolve, 1000));
             setStats({
-                pendingMembers: 5,
                 pendingPayments: 12,
                 todayBookings: 28,
                 activeUsers: 156
@@ -84,15 +81,6 @@ export default function AdminDashboard() {
     }
 
     const quickActions = [
-        {
-            title: "จัดการสมาชิก",
-            description: "อนุมัติ/ปฏิเสธสมาชิกใหม่",
-            icon: Users,
-            color: "tw-from-blue-500 tw-to-blue-600",
-            hoverColor: "hover:tw-from-blue-600 hover:tw-to-blue-700",
-            count: stats.pendingMembers,
-            href: "/admin/members"
-        },
         {
             title: "ตรวจสอบการชำระเงิน",
             description: "ตรวจสอบสลิปการโอนเงิน",
@@ -138,13 +126,7 @@ export default function AdminDashboard() {
     ];
 
     const recentActivities = [
-        {
-            type: "member_approval",
-            message: "อนุมัติสมาชิกใหม่: นายสมชาย ใจดี",
-            time: "5 นาทีที่แล้ว",
-            icon: CheckCircle,
-            color: "tw-text-green-600"
-        },
+
         {
             type: "payment_rejection",
             message: "ปฏิเสธการชำระเงิน: สลิปไม่ชัดเจน",
@@ -200,19 +182,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Stats Overview */}
-            <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 lg:tw-grid-cols-4 tw-gap-6 tw-mb-8">
-                <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
-                    <div className="tw-flex tw-items-center tw-justify-between">
-                        <div>
-                            <p className="tw-text-sm tw-font-medium tw-text-gray-600">สมาชิกรอการอนุมัติ</p>
-                            <p className="tw-text-3xl tw-font-bold tw-text-blue-600">{stats.pendingMembers}</p>
-                        </div>
-                        <div className="tw-w-12 tw-h-12 tw-bg-blue-100 tw-rounded-xl tw-flex tw-items-center tw-justify-center">
-                            <Users className="tw-w-6 tw-h-6 tw-text-blue-600" />
-                        </div>
-                    </div>
-                </div>
-
+            <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-6 tw-mb-8">
                 <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
                     <div className="tw-flex tw-items-center tw-justify-between">
                         <div>
