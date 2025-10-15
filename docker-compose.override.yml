@@ -1,0 +1,44 @@
+# Development override for docker-compose
+# This file is automatically loaded by docker-compose for development
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      target: base  # Use base stage for development
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    ports:
+      - "3000:3000"
+
+  # Development database with exposed port
+  db:
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: development_db
+      MYSQL_USER: dev_user
+      MYSQL_PASSWORD: dev_password
+
+  # Development Redis
+  redis:
+    ports:
+      - "6379:6379"
+
+  # Disable nginx in development (use Next.js dev server directly)
+  nginx:
+    profiles:
+      - production
+
+  # Disable Traefik in development
+  traefik:
+    profiles:
+      - production
