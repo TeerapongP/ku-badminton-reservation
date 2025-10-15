@@ -181,3 +181,77 @@ dist
 /public/uploads/*
 !/public/uploads/.gitkeep
 !/public/uploads/*/.gitkeep
+# Cypress
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+cypress/fixtures/examples.json
+cypress/support/e2e.js
+cypress/support/commands.js
+
+# Cypress cache
+~/.cache/Cypress/
+
+# Test results
+test-results/
+playwright-report/
+coverage/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.temp/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.backup
+*.bak
+
+# Log files
+*.log
+logs/
+
+# Environment specific
+.env.test
+.env.staging
+.env.development
+.env.production
+
+# Package manager
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Build artifacts
+dist/
+build/
+out/
+
+# Generated files
+generated/
+auto-generated/
+
+# Prisma
+prisma/migrations/
+!prisma/migrations/.gitkeep
+
+# Admin uploads (if any)
+/public/admin-uploads/
+/uploads/
+
+# Temporary admin files
+/temp-admin/

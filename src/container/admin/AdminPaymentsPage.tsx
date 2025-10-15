@@ -18,6 +18,7 @@ import {
     Download,
     Calendar
 } from "lucide-react";
+import SearchInput from "@/components/SearchInput";
 
 interface PendingPayment {
     payment_id: string;
@@ -172,13 +173,13 @@ export default function AdminPaymentsPage() {
                     <Button
                         onClick={() => router.push("/admin")}
                         variant="secondary"
-                        className="tw-px-4 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 hover:tw-text-gray-900 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none"
+                        className="tw-px-4 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-indigo-50 tw-text-indigo-700 tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-indigo-100 active:tw-bg-indigo-200 focus:tw-ring-0 focus:tw-outline-none"
                     >
-                        <ArrowLeft className="tw-w-4 tw-h-4 tw-mr-2 tw-text-gray-600" />
+                        <ArrowLeft className="tw-w-4 tw-h-4 tw-mr-2 tw-text-indigo-600" />
                         กลับ
                     </Button>
 
-                    <div>
+                    <div className="tw-mt-8">
                         <h1 className="tw-text-3xl md:tw-text-4xl tw-font-bold tw-bg-gradient-to-r tw-from-emerald-600 tw-via-teal-600 tw-to-cyan-600 tw-bg-clip-text tw-text-transparent">
                             ตรวจสอบการชำระเงิน
                         </h1>
@@ -192,18 +193,15 @@ export default function AdminPaymentsPage() {
             </div>
 
             {/* Search */}
-            <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-mb-8 tw-border tw-border-gray-100">
-                <div className="tw-relative">
-                    <Search className="tw-absolute tw-left-3 tw-top-1/2 tw-transform tw--translate-y-1/2 tw-text-gray-400 tw-w-5 tw-h-5" />
-                    <input
-                        type="text"
-                        placeholder="ค้นหาการชำระเงิน..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="tw-w-full tw-pl-10 tw-pr-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-xl focus:tw-ring-2 focus:tw-ring-emerald-500 focus:tw-border-transparent tw-transition-all"
-                    />
-                </div>
+            <div className="tw-bg-white tw-rounded-2xl tw-shadow-sm tw-p-5 tw-border tw-border-gray-100">
+                <SearchInput
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    placeholder="ค้นหาการชำระเงิน..."
+                    onSubmit={() => console.log("search:", searchTerm)}
+                />
             </div>
+
 
             {/* Payments List */}
             <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-border tw-border-gray-100 tw-overflow-hidden">
@@ -295,7 +293,7 @@ export default function AdminPaymentsPage() {
                                             </span>
                                         </Button>
 
-                                        <Button onClick={() => handleRejectPayment(payment.payment_id, "สลิปไม่ชัดเจน")} className="tw-w-auto tw-px-4 tw-h-10 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100" colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl" >
+                                        <Button onClick={() => handleRejectPayment(payment.payment_id, "สลิปไม่ชัดเจน")} className="tw-w-auto tw-px-4 tw-h-12 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100" colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl" >
                                             <XCircle className="tw-w-4 tw-h-4 tw-mr-2" />
                                             ปฏิเสธ
                                         </Button>
