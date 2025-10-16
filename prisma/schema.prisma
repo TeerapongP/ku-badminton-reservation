@@ -174,11 +174,11 @@ model departments {
 }
 
 model districts {
-  district_id BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
-  province_id BigInt    @db.UnsignedBigInt
-  name_th     String    @db.VarChar(100)
-  provinces   provinces @relation(fields: [province_id], references: [province_id], onDelete: Cascade, map: "fk_districts_province")
-  tambons     tambons[]
+  district_id   BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  province_id   BigInt          @db.UnsignedBigInt
+  name_th       String          @db.VarChar(100)
+  provinces     provinces       @relation(fields: [province_id], references: [province_id], onDelete: Cascade, map: "fk_districts_province")
+  sub_districts sub_districts[]
 
   @@unique([name_th, province_id], map: "uq_district_name_th")
   @@index([province_id], map: "fk_districts_province")
@@ -257,12 +257,12 @@ model payments {
 }
 
 model postcodes {
-  postcode_id BigInt  @id @default(autoincrement()) @db.UnsignedBigInt
-  tambon_id   BigInt  @db.UnsignedBigInt
-  postcode    String  @db.VarChar(10)
-  tambons     tambons @relation(fields: [tambon_id], references: [tambon_id], onDelete: Cascade, map: "fk_postcodes_tambon")
+  postcode_id     BigInt        @id @default(autoincrement()) @db.UnsignedBigInt
+  sub_district_id BigInt        @db.UnsignedBigInt
+  postcode        String        @db.VarChar(10)
+  sub_districts   sub_districts @relation(fields: [sub_district_id], references: [sub_district_id], onDelete: Cascade, map: "fk_postcodes_sub_district")
 
-  @@index([tambon_id], map: "fk_postcodes_tambon")
+  @@index([sub_district_id], map: "fk_postcodes_sub_district")
 }
 
 model pricing_rules {
@@ -396,15 +396,15 @@ model sub_units {
   @@index([unit_id], map: "idx_sub_units_unit")
 }
 
-model tambons {
-  tambon_id   BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
-  district_id BigInt      @db.UnsignedBigInt
-  name_th     String      @db.VarChar(100)
-  postcodes   postcodes[]
-  districts   districts   @relation(fields: [district_id], references: [district_id], onDelete: Cascade, map: "fk_tambons_district")
+model sub_districts {
+  sub_district_id BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  district_id     BigInt      @db.UnsignedBigInt
+  name_th         String      @db.VarChar(100)
+  postcodes       postcodes[]
+  districts       districts   @relation(fields: [district_id], references: [district_id], onDelete: Cascade, map: "fk_sub_districts_district")
 
-  @@unique([name_th, district_id], map: "uq_tambon_name_th")
-  @@index([district_id], map: "fk_tambons_district")
+  @@unique([name_th, district_id], map: "uq_sub_district_name_th")
+  @@index([district_id], map: "fk_sub_districts_district")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
