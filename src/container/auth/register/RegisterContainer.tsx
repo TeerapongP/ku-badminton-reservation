@@ -44,7 +44,7 @@ export default function RegisterContainner() {
     const [email, setEmail] = useState<string>('');
     const [houseNumber, setHouseNumber] = useState<string>('');
     const [street, setStreet] = useState<string>('');
-    const [tambon, setTambon] = useState<string>('');
+    const [subDistrict, setSubDistrict] = useState<string>('');
     const [district, setDistrict] = useState<string>('');
     const [province, setProvince] = useState<string>('');
     const [postalCode, setPostalCode] = useState<string>('');
@@ -98,16 +98,16 @@ export default function RegisterContainner() {
         }));
     }
 
-    async function fetchTambons(tambon: string): Promise<DropdownOption[]> {
+    async function fetchSubDistricts(subDistrict: string): Promise<DropdownOption[]> {
         try {
-            const res = await fetch(`/api/tambons?tambon=${encodeURIComponent(tambon)}&take=10`, {
+            const res = await fetch(`/api/sub-districts?subDistrict=${encodeURIComponent(subDistrict)}&take=10`, {
                 cache: 'no-store',
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return (json?.data ?? []).map((x: any) => ({
                 label: x.label ?? x.name_th,
-                value: x.value ?? String(x.id),
+                value: x.value ?? String(x.sub_district_id),
             }));
         } catch (error) {
             toast.showError('ไม่สามารถค้นหาตำบลได้', 'กรุณาลองใหม่อีกครั้ง');
@@ -115,16 +115,16 @@ export default function RegisterContainner() {
         }
     }
 
-    async function fetchDistricts(tambonId: string): Promise<DropdownOption[]> {
+    async function fetchDistricts(subDistrictId: string): Promise<DropdownOption[]> {
         try {
-            const res = await fetch(`/api/districts?tambonId=${encodeURIComponent(tambonId)}`, {
+            const res = await fetch(`/api/districts?subDistrictId=${encodeURIComponent(subDistrictId)}`, {
                 cache: 'no-store',
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return (json?.data ?? []).map((x: any) => ({
                 label: x.label ?? x.name_th,
-                value: x.value ?? String(x.id),
+                value: x.value ?? String(x.district_id),
             }));
         } catch (error) {
             toast.showError('ไม่สามารถโหลดข้อมูลอำเภอได้', 'กรุณาลองใหม่อีกครั้ง');
@@ -149,15 +149,15 @@ export default function RegisterContainner() {
         }
     }
 
-    async function fetchPostcode(tambonId: string): Promise<DropdownOption[]> {
-        const res = await fetch(`/api/postcodes?tambonId=${encodeURIComponent(tambonId)}`, {
+    async function fetchPostcode(subDistrictId: string): Promise<DropdownOption[]> {
+        const res = await fetch(`/api/postcodes?subDistrictId=${encodeURIComponent(subDistrictId)}`, {
             cache: 'no-store',
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         return (json?.data ?? []).map((x: any) => ({
-            label: x.label ?? x.name_th,
-            value: x.label ?? x.name_th, // ใช้ label (รหัสไปรษณีย์) เป็น value ด้วย
+            label: x.label ?? x.postcode,
+            value: x.label ?? x.postcode, // ใช้ label (รหัสไปรษณีย์) เป็น value ด้วย
         }));
     }
 
@@ -293,12 +293,12 @@ export default function RegisterContainner() {
         };
     }, [office]);
 
-    const searchTambon = useCallback(async (q: string): Promise<string[]> => {
+    const searchSubDistrict = useCallback(async (q: string): Promise<string[]> => {
         try {
-            const tambons = await fetchTambons(q);
-            const tambonId = tambons.find(t => t.value)?.value ?? null;
-            await searchDistricts(tambonId);
-            return tambons.map(t => t.label ?? '').filter(label => label !== '');
+            const subDistricts = await fetchSubDistricts(q);
+            const subDistrictId = subDistricts.find(t => t.value)?.value ?? null;
+            await searchDistricts(subDistrictId);
+            return subDistricts.map(t => t.label ?? '').filter(label => label !== '');
         } catch (error) {
             return [];
         }
@@ -327,8 +327,8 @@ export default function RegisterContainner() {
     );
 
     const searchDistricts = useCallback(
-        async (tambonId: string): Promise<void> => {
-            if (!tambonId) {
+        async (subDistrictId: string): Promise<void> => {
+            if (!subDistrictId) {
                 setDistrictOptions([]);
                 setDistrict('');
                 setProvinceOptions([]);
@@ -336,8 +336,8 @@ export default function RegisterContainner() {
                 return;
             }
             try {
-                const districts = await fetchDistricts(tambonId);
-                const postCodes = await fetchPostcode(tambonId);
+                const districts = await fetchDistricts(subDistrictId);
+                const postCodes = await fetchPostcode(subDistrictId);
                 setPostCodeOptions(postCodes);
                 setDistrictOptions(districts);
 
@@ -417,7 +417,7 @@ export default function RegisterContainner() {
                 email: email.trim(),
                 phone: phone.trim(),
                 title_th: prefix?.th || null,
-                 title_en: prefix?.en || null,
+                title_en: prefix?.en || null,
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
                 nickname: nickname.trim(),
@@ -448,7 +448,7 @@ export default function RegisterContainner() {
                 // Address
                 house_number: houseNumber.trim() || null,
                 street: street.trim() || null,
-                subdistrict: tambon.trim() || null,
+                subdistrict: subDistrict.trim() || null,
                 district: district ? districtOptions.find(d => d.value === district)?.label : null,
                 province: province ? provincesOptions.find(p => p.value === province)?.label : null,
                 postal_code: postalCode && /^\d{5}$/.test(postalCode) ? postalCode : null,
@@ -642,9 +642,9 @@ export default function RegisterContainner() {
                 <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
                     <AutoCompleteField
                         placeholder="พิมพ์ชื่อตำบล"
-                        value={tambon}
-                        onChange={(value) => setTambon(value || "")}
-                        onSearch={searchTambon}
+                        value={subDistrict}
+                        onChange={(value) => setSubDistrict(value || "")}
+                        onSearch={searchSubDistrict}
                         required
                     />
                 </div>

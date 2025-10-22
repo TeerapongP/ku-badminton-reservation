@@ -1,61 +1,83 @@
+import { PrismaClient } from '../../../generated/prisma';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
-import { 
-  withErrorHandler, 
-  CustomApiError,
-  ERROR_CODES,
-  HTTP_STATUS,
-  successResponse
-} from "@/lib/error-handler";
-import { withMiddleware } from "@/lib/api-middleware";
 
 const prisma = new PrismaClient();
 
-interface PostcodeRow {
-    postcode_id: bigint;
-    postcode: string;
-}
+export async function GET(request: NextRequest) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const subDistrictId = searchParams.get('subDistrictId');
+        const take = parseInt(searchParams.get('take') || '10');
+        const skip = parseInt(searchParams.get('skip') || '0');
 
-async function postcodesHandler(req: NextRequest) {
-    const { searchParams } = new URL(req.url);
-    const tambonId = searchParams.get('tambonId');
+        if (!subDistrictId) {
+            return NextResponse.json(
+                { error: 'subDistrictId parameter is required' },
+                { status: 400 }
+            );
+        }
 
-    if (!tambonId) {
-        throw new CustomApiError(
-            ERROR_CODES.MISSING_REQUIRED_FIELDS,
-            'กรุณาระบุรหัสตำบล (tambonId)',
-            HTTP_STATUS.BAD_REQUEST
+        // Search for postcodes by sub-district ID
+        const postcodes = await prisma.postcodes.findMany({
+            where: {
+                sub_district_id: BigInt(subDistrictId)
+            },
+            include: {
+                sub_districts: {
+                    include: {
+                        districts: {
+                            include: {
+                                provinces: true
+                            }
+                        }
+                    }
+                }
+            },
+            take,
+            skip,
+            orderBy: {
+                postcode: 'asc'
+            }
+        });
+
+        // Format the response
+        const formattedResults = postcodes.map(pc => ({
+            postcode_id: Number(pc.postcode_id),
+            postcode: pc.postcode,
+            label: pc.postcode,
+            value: pc.postcode,
+            sub_district: {
+                sub_district_id: Number(pc.sub_districts.sub_district_id),
+                name_th: pc.sub_districts.name_th
+            },
+            district: {
+                district_id: Number(pc.sub_districts.districts.district_id),
+                name_th: pc.sub_districts.districts.name_th
+            },
+            province: {
+                province_id: Number(pc.sub_districts.districts.provinces.province_id),
+                name_th: pc.sub_districts.districts.provinces.name_th,
+                name_en: pc.sub_districts.districts.provinces.name_en
+            }
+        }));
+
+        return NextResponse.json({
+            data: formattedResults,
+            total: formattedResults.length,
+            query: {
+                subDistrictId,
+                take,
+                skip
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching postcodes:', error);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
         );
+    } finally {
+        await prisma.$disconnect();
     }
-
-    // Validate tambonId
-    const tambonIdNum = Number(tambonId);
-    if (!Number.isInteger(tambonIdNum) || tambonIdNum <= 0) {
-        throw new CustomApiError(
-            ERROR_CODES.INVALID_PARAMETERS,
-            'รหัสตำบลไม่ถูกต้อง',
-            HTTP_STATUS.BAD_REQUEST
-        );
-    }
-
-    const rows = await prisma.$queryRaw<PostcodeRow[]>`
-        SELECT p.postcode_id, p.postcode 
-        FROM postcodes p 
-        WHERE p.tambon_id = ${BigInt(tambonId)}
-    `;
-
-    const data = rows.map((r) => ({
-        label: r.postcode,
-        value: r.postcode_id.toString(),
-    }));
-
-    return successResponse(data);
 }
-
-export const GET = withMiddleware(
-    withErrorHandler(postcodesHandler),
-    {
-        methods: ['GET'],
-        rateLimit: 'default',
-    }
-);

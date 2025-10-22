@@ -1,79 +1,65 @@
+import { PrismaClient } from '../../../generated/prisma';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
-import { 
-  withErrorHandler, 
-  CustomApiError,
-  ERROR_CODES,
-  HTTP_STATUS,
-  successResponse
-} from "@/lib/error-handler";
-import { withMiddleware } from "@/lib/api-middleware";
 
 const prisma = new PrismaClient();
 
-interface ProvinceRow {
-    province_id: bigint;
-    province_name: string;
-}
+export async function GET(request: NextRequest) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const districtId = searchParams.get('districtId');
+        const take = parseInt(searchParams.get('take') || '10');
+        const skip = parseInt(searchParams.get('skip') || '0');
 
-async function provincesHandler(req: NextRequest) {
-    const { searchParams } = new URL(req.url);
-    const districtId = searchParams.get('districtId');
-    const q = (searchParams.get('q') || '').trim();
-    const take = Number(searchParams.get('take') || 100);
-    
-    // Validate take parameter
-    if (take < 1 || take > 1000) {
-        throw new CustomApiError(
-            ERROR_CODES.INVALID_PARAMETERS,
-            'จำนวนข้อมูลที่ขอต้องอยู่ระหว่าง 1-1000',
-            HTTP_STATUS.BAD_REQUEST
-        );
-    }
-    
-    let rows: ProvinceRow[];
-
-    if (districtId) {
-        // Validate districtId
-        const districtIdNum = Number(districtId);
-        if (!Number.isInteger(districtIdNum) || districtIdNum <= 0) {
-            throw new CustomApiError(
-                ERROR_CODES.INVALID_PARAMETERS,
-                'รหัสอำเภอไม่ถูกต้อง',
-                HTTP_STATUS.BAD_REQUEST
+        if (!districtId) {
+            return NextResponse.json(
+                { error: 'districtId parameter is required' },
+                { status: 400 }
             );
         }
 
-        // Get province by district ID
-        rows = await prisma.$queryRaw<ProvinceRow[]>`
-            SELECT p.province_id, p.name_th AS province_name
-            FROM provinces AS p
-            INNER JOIN districts AS d ON d.province_id = p.province_id
-            WHERE d.district_id = ${BigInt(districtId)}
-        `;
-    } else {
-        // Search provinces by name
-        rows = await prisma.$queryRaw<ProvinceRow[]>`
-            SELECT province_id, name_th AS province_name
-            FROM provinces
-            WHERE name_th LIKE CONCAT('%', ${q}, '%')
-            ORDER BY name_th ASC
-            LIMIT ${take}
-        `;
+        // Find the district first to get its province
+        const district = await prisma.districts.findUnique({
+            where: {
+                district_id: BigInt(districtId)
+            },
+            include: {
+                provinces: true
+            }
+        });
+
+        if (!district) {
+            return NextResponse.json(
+                { error: 'District not found' },
+                { status: 404 }
+            );
+        }
+
+        // Format the response
+        const formattedResult = {
+            province_id: Number(district.provinces.province_id),
+            name_th: district.provinces.name_th,
+            name_en: district.provinces.name_en,
+            label: district.provinces.name_th,
+            value: String(district.provinces.province_id)
+        };
+
+        return NextResponse.json({
+            data: [formattedResult],
+            total: 1,
+            query: {
+                districtId,
+                take,
+                skip
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching provinces:', error);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+        );
+    } finally {
+        await prisma.$disconnect();
     }
-
-    const data = rows.map((r) => ({
-        label: r.province_name,
-        value: r.province_id.toString(),
-    }));
-
-    return successResponse(data);
 }
-
-export const GET = withMiddleware(
-    withErrorHandler(provincesHandler),
-    {
-        methods: ['GET'],
-        rateLimit: 'default',
-    }
-);
