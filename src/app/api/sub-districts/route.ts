@@ -1,56 +1,79 @@
+import { PrismaClient } from '../../../generated/prisma';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
-import {
-    withErrorHandler,
-    CustomApiError,
-    ERROR_CODES,
-    HTTP_STATUS,
-    successResponse
-} from "@/lib/error-handler";
-import { withMiddleware } from "@/lib/api-middleware";
 
 const prisma = new PrismaClient();
 
-interface SubDistrictRow {
-    sub_district_id: bigint;
-    name_th: string;
-}
+export async function GET(request: NextRequest) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const subDistrict = searchParams.get('subDistrict');
+        const take = parseInt(searchParams.get('take') || '10');
+        const skip = parseInt(searchParams.get('skip') || '0');
 
-async function subDistrictsHandler(req: NextRequest) {
-    const { searchParams } = new URL(req.url);
-    const subDistrict = (searchParams.get('sub_district') || '').trim();
-    const take = Number(searchParams.get('take') ?? 20);
+        if (!subDistrict) {
+            return NextResponse.json(
+                { error: 'subDistrict parameter is required' },
+                { status: 400 }
+            );
+        }
 
-    // Validate take parameter
-    if (take < 1 || take > 1000) {
-        throw new CustomApiError(
-            ERROR_CODES.INVALID_PARAMETERS,
-            'จำนวนข้อมูลที่ขอต้องอยู่ระหว่าง 1-1000',
-            HTTP_STATUS.BAD_REQUEST
+        // Search for sub-districts that match the name
+        const subDistricts = await prisma.sub_districts.findMany({
+            where: {
+                name_th: {
+                    contains: subDistrict
+                }
+            },
+            include: {
+                districts: {
+                    include: {
+                        provinces: true
+                    }
+                },
+                postcodes: true
+            },
+            take,
+            skip,
+            orderBy: {
+                name_th: 'asc'
+            }
+        });
+
+        // Format the response
+        const formattedResults = subDistricts.map(subDist => ({
+            sub_district_id: Number(subDist.sub_district_id),
+            name_th: subDist.name_th,
+            label: subDist.name_th,
+            value: String(subDist.sub_district_id),
+            district: {
+                district_id: Number(subDist.districts.district_id),
+                name_th: subDist.districts.name_th
+            },
+            province: {
+                province_id: Number(subDist.districts.provinces.province_id),
+                name_th: subDist.districts.provinces.name_th,
+                name_en: subDist.districts.provinces.name_en
+            },
+            postcodes: subDist.postcodes.map((pc: any) => pc.postcode)
+        }));
+
+        return NextResponse.json({
+            data: formattedResults,
+            total: formattedResults.length,
+            query: {
+                subDistrict,
+                take,
+                skip
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching sub-districts:', error);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
         );
+    } finally {
+        await prisma.$disconnect();
     }
-
-    const rows = await prisma.$queryRaw<SubDistrictRow[]>`
-      SELECT MIN(sub_district_id) AS sub_district_id, name_th
-        FROM sub_districts sd
-        WHERE sd.name_th LIKE CONCAT('%', ${subDistrict}, '%')
-        GROUP BY name_th
-        ORDER BY name_th ASC
-        LIMIT ${take};
-    `;
-
-    const data = rows.map((r) => ({
-        label: r.name_th,
-        value: r.sub_district_id.toString(),
-    }));
-
-    return successResponse(data);
 }
-
-export const GET = withMiddleware(
-    withErrorHandler(subDistrictsHandler),
-    {
-        methods: ['GET'],
-        rateLimit: 'default',
-    }
-);
