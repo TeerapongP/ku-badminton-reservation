@@ -6,16 +6,14 @@ import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ToastProvider";
 import { Button } from "@/components/Button";
 import Loading from "@/components/Loading";
+import { RejectPaymentModal } from "@/components/RejectPaymentModal"
 import {
     CreditCard,
-    Search,
-    Filter,
     CheckCircle,
     XCircle,
     Clock,
     Eye,
     ArrowLeft,
-    Download,
     Calendar
 } from "lucide-react";
 import SearchInput from "@/components/SearchInput";
@@ -47,6 +45,7 @@ export default function AdminPaymentsPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedPayment, setSelectedPayment] = useState<PendingPayment | null>(null);
     const [showSlipModal, setShowSlipModal] = useState(false);
+    const [showRejectModal, setShowRejectModal] = useState(false);
 
     useEffect(() => {
         if (status === "loading") return;
@@ -123,15 +122,29 @@ export default function AdminPaymentsPage() {
 
     const handleRejectPayment = async (paymentId: string, reason: string) => {
         try {
-            // Mock API call
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Mock API call - ในระบบจริงจะส่ง reason ไปด้วย
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
             setPayments(prev => prev.filter(payment => payment.payment_id !== paymentId));
 
-            toast.showSuccess("ปฏิเสธการชำระเงินสำเร็จ", "ได้ส่งแจ้งเตือนไปยังผู้ใช้แล้ว");
+            toast.showSuccess("ปฏิเสธการชำระเงินสำเร็จ", `เหตุผล: ${reason}`);
+
+            // Reset modal state
+            setShowRejectModal(false);
+            setSelectedPayment(null);
         } catch (error) {
             toast.showError("เกิดข้อผิดพลาด", "ไม่สามารถปฏิเสธการชำระเงินได้");
         }
+    };
+
+    const openRejectModal = (payment: PendingPayment) => {
+        setSelectedPayment(payment);
+        setShowRejectModal(true);
+    };
+
+    const closeRejectModal = () => {
+        setShowRejectModal(false);
+        setSelectedPayment(null);
     };
 
     const viewSlip = (payment: PendingPayment) => {
@@ -293,7 +306,11 @@ export default function AdminPaymentsPage() {
                                             </span>
                                         </Button>
 
-                                        <Button onClick={() => handleRejectPayment(payment.payment_id, "สลิปไม่ชัดเจน")} className="tw-w-auto tw-px-4 tw-h-12 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100" colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl" >
+                                        <Button
+                                            onClick={() => openRejectModal(payment)}
+                                            className="tw-w-auto tw-px-4 tw-h-12 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
+                                            colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl"
+                                        >
                                             <XCircle className="tw-w-4 tw-h-4 tw-mr-2" />
                                             ปฏิเสธ
                                         </Button>
@@ -361,10 +378,12 @@ export default function AdminPaymentsPage() {
                                 </Button>
                                 <Button
                                     onClick={() => {
-                                        handleRejectPayment(selectedPayment.payment_id, "สลิปไม่ชัดเจน");
                                         setShowSlipModal(false);
+                                        openRejectModal(selectedPayment);
                                     }}
-                                    className="tw-w-full tw-px-4 tw-h-10 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100" colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl" >
+                                    className="tw-w-full tw-px-4 tw-h-10 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
+                                    colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl"
+                                >
                                     <XCircle className="tw-w-4 tw-h-4 tw-mr-2" />
                                     ปฏิเสธ
                                 </Button>
@@ -372,6 +391,25 @@ export default function AdminPaymentsPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Reject Modal */}
+            {showRejectModal && selectedPayment && (
+                <RejectPaymentModal
+                    visible={showRejectModal}
+                    onHide={closeRejectModal}
+                    selectedPayment={{
+                        user_name: selectedPayment.user_name,
+                        reservation_id: selectedPayment.reservation_id,
+                        amount_cents: selectedPayment.amount_cents,
+                        currency: selectedPayment.currency
+                    }}
+                    onConfirm={(reason: string) => {
+                        if (selectedPayment) {
+                            handleRejectPayment(selectedPayment.payment_id, reason);
+                        }
+                    }}
+                />
             )}
         </div>
     );
