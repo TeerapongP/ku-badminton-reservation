@@ -3,6 +3,19 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 export async function middleware(request: NextRequest) {
+  // Debug NextAuth requests
+  if (request.nextUrl.pathname.startsWith('/api/auth/')) {
+    console.log("🔍 NextAuth request:", {
+      method: request.method,
+      url: request.nextUrl.pathname,
+      hasBody: request.method !== 'GET',
+      headers: {
+        'content-type': request.headers.get('content-type'),
+        'user-agent': request.headers.get('user-agent')?.substring(0, 50),
+      }
+    });
+  }
+
   // ตรวจสอบ token เฉพาะ protected routes
   const protectedPaths = ["/dashboard", "/profile", "/booking"];
   const isProtectedPath = protectedPaths.some(path =>

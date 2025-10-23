@@ -47,7 +47,7 @@ model api_logs {
   request_size     Int?     @db.UnsignedInt
   response_size    Int?     @db.UnsignedInt
   created_at       DateTime @default(now()) @db.DateTime(0)
-  users            users?   @relation(fields: [user_id], references: [user_id], onDelete: SetNull, map: "fk_api_logs_user")
+  users            users?   @relation(fields: [user_id], references: [user_id], map: "fk_api_logs_user")
 
   @@index([method], map: "idx_api_logs_method")
   @@index([path], map: "idx_api_logs_path")
@@ -428,19 +428,14 @@ model time_slots {
 }
 
 model units {
-  unit_id        BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
-  name_th        String
-  name_en        String?
-  short_code     String?         @db.VarChar(32)
-  parent_unit_id BigInt?         @db.UnsignedBigInt
-  created_at     DateTime        @default(now()) @db.DateTime(0)
-  updated_at     DateTime        @default(now()) @db.DateTime(0)
-  staff_profile  staff_profile[]
-  sub_units      sub_units[]
-  units          units?          @relation("unitsTounits", fields: [parent_unit_id], references: [unit_id], map: "fk_units_parent")
-  other_units    units[]         @relation("unitsTounits")
-
-  @@index([parent_unit_id], map: "idx_units_parent")
+  unit_id       BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  name_th       String
+  name_en       String?
+  short_code    String?         @db.VarChar(32)
+  created_at    DateTime        @default(now()) @db.DateTime(0)
+  updated_at    DateTime        @default(now()) @db.DateTime(0)
+  staff_profile staff_profile[]
+  sub_units     sub_units[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
