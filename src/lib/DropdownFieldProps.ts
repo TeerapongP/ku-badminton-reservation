@@ -1,4 +1,4 @@
-import { DropdownOption } from "@/type/DropdownOption";
+import { DropdownOption } from "@/types/DropdownOption";
 
 export interface DropdownFieldProps {
   label?: string;

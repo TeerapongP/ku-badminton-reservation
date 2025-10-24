@@ -7,7 +7,7 @@ import { Button } from "@/components/Button";
 import { DropdownField } from "@/components/DropdownField";
 import { DateField } from "@/components/DateField";
 import AutoCompleteField from "@/components/AutoCompleteField";
-import { DropdownOption } from "@/type/DropdownOption";
+import { DropdownOption } from "@/types/DropdownOption";
 import { useToast } from "@/components/ToastProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
