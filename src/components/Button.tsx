@@ -1,7 +1,7 @@
 import { ButtonProps } from "@/lib/ButtonProps";
 
 interface ExtendedButtonProps extends ButtonProps {
-  colorClass?: string; 
+  colorClass?: string;
 }
 
 export const Button: React.FC<ExtendedButtonProps> = ({
