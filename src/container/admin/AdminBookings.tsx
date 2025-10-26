@@ -81,7 +81,7 @@ const ROLE_CONFIG = {
     guest: { label: 'บุคคลภายนอก', color: 'tw-text-gray-600', bg: 'tw-bg-gray-50' }
 } as const;
 
-export default function AdminBookingsPage() {
+export default function AdminBookingsContainer() {
     const router = useRouter();
     const { data: session, status } = useSession();
     const toast = useToast();

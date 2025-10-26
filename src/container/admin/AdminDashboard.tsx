@@ -100,14 +100,6 @@ export default function AdminDashboard() {
             href: "/admin/bookings"
         },
         {
-            title: "ควบคุมระบบ",
-            description: "ตั้งค่าระบบและ blackout",
-            icon: Settings,
-            color: "tw-from-orange-500 tw-to-orange-600",
-            hoverColor: "hover:tw-from-orange-600 hover:tw-to-orange-700",
-            href: "/admin/system"
-        },
-        {
             title: "รายงานและสถิติ",
             description: "ดูรายงานการใช้งาน",
             icon: BarChart3,

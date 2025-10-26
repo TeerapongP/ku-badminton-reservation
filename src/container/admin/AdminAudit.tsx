@@ -59,7 +59,7 @@ const AUDIT_ACTIONS = {
     'system': { icon: Settings, color: 'text-gray-700', bg: 'bg-gray-100' },
 } as const;
 
-export default function AdminAuditPage() {
+export default function AdminAuditContainer() {
     const router = useRouter();
     const { data: session, status } = useSession();
     const toast = useToast();
@@ -124,85 +124,8 @@ export default function AdminAuditPage() {
             // Mock data - ในระบบจริงจะเรียก API
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            const mockLogs: AuditLog[] = [
-                {
-                    log_id: "1",
-                    user_id: "admin1",
-                    user_name: "ผู้ดูแลระบบ",
-                    user_role: "admin",
-                    action: "approve",
-                    resource_type: "payment",
-                    resource_id: "PAY001",
-                    details: "อนุมัติการชำระเงินสำหรับการจอง R001",
-                    ip_address: "192.168.1.100",
-                    user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                    timestamp: "2024-01-16T14:30:00Z",
-                    status: "success",
-                    severity: "medium"
-                },
-                {
-                    log_id: "2",
-                    user_id: "admin1",
-                    user_name: "ผู้ดูแลระบบ",
-                    user_role: "admin",
-                    action: "reject",
-                    resource_type: "payment",
-                    resource_id: "PAY002",
-                    details: "ปฏิเสธการชำระเงิน - สลิปไม่ชัดเจน",
-                    ip_address: "192.168.1.100",
-                    user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                    timestamp: "2024-01-16T15:45:00Z",
-                    status: "success",
-                    severity: "high"
-                },
-                {
-                    log_id: "3",
-                    user_id: "user123",
-                    user_name: "สมชาย ใจดี",
-                    user_role: "student",
-                    action: "login",
-                    resource_type: "auth",
-                    resource_id: "AUTH001",
-                    details: "เข้าสู่ระบบสำเร็จ",
-                    ip_address: "10.0.0.50",
-                    user_agent: "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)",
-                    timestamp: "2024-01-16T16:20:00Z",
-                    status: "success",
-                    severity: "low"
-                },
-                {
-                    log_id: "4",
-                    user_id: "user456",
-                    user_name: "วิชัย เรียนดี",
-                    user_role: "student",
-                    action: "create",
-                    resource_type: "reservation",
-                    resource_id: "RES003",
-                    details: "สร้างการจองใหม่ - คอร์ท 5 วันที่ 18/01/2024",
-                    ip_address: "10.0.0.75",
-                    user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-                    timestamp: "2024-01-16T17:10:00Z",
-                    status: "success",
-                    severity: "low"
-                },
-                {
-                    log_id: "5",
-                    user_id: "system",
-                    user_name: "ระบบ",
-                    user_role: "system",
-                    action: "system",
-                    resource_type: "database",
-                    resource_id: "DB_BACKUP",
-                    details: "สำรองข้อมูลฐานข้อมูลอัตโนมัติ",
-                    ip_address: "127.0.0.1",
-                    user_agent: "System/1.0",
-                    timestamp: "2024-01-16T18:00:00Z",
-                    status: "success",
-                    severity: "low"
-                }
-            ];
-
-            setAuditLogs(mockLogs);
+            
+            setAuditLogs([]);
         } catch (error) {
             toast.showError("ไม่สามารถโหลดข้อมูลได้", "กรุณาลองใหม่อีกครั้ง");
         } finally {
