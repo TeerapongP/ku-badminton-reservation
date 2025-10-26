@@ -35,7 +35,7 @@ interface PendingPayment {
     };
 }
 
-export default function AdminPaymentsPage() {
+export default function AdminPaymentsContainner() {
     const router = useRouter();
     const { data: session, status } = useSession();
     const toast = useToast();
