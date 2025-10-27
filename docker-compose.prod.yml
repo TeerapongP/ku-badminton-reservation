@@ -1,6 +1,21 @@
 version: '3.8'
 
 services:
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./public/uploads:/var/www/uploads:ro
+    depends_on:
+      - app
+    networks:
+      - app-network
+
   # Next.js Application (Pull from Docker Hub)
   app:
     image: thirapongp/ku-badminton-reservation:latest
@@ -10,8 +25,7 @@ services:
       - .env.prod
     environment:
       - NODE_ENV=production
-    ports:
-      - "3000:3000"
+    # Remove port exposure - only accessible through nginx
     networks:
       - app-network
     depends_on:
