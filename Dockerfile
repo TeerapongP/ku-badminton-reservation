@@ -1,5 +1,5 @@
 # Multi-stage build for Next.js application
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -22,7 +22,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client
+# Generate Prisma client first
 RUN npx prisma generate
 
 # Next.js collects completely anonymous telemetry data about general usage.
@@ -30,8 +30,8 @@ RUN npx prisma generate
 # Uncomment the following line in case you want to disable telemetry during the build.
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build the application
-RUN yarn build
+# Build the application (without turbopack for production build)
+RUN yarn build:prod || yarn build
 
 # If using npm comment out above and use below instead
 # RUN npm run build
