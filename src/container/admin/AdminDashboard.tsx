@@ -152,7 +152,7 @@ export default function AdminDashboard() {
                             Admin Dashboard
                         </h1>
                         <p className="tw-text-gray-600 tw-mt-2">
-                            ยินดีต้อนรับ, {session.user?.name || "Admin"}
+                            ยินดีต้อนรับ  {session.user?.username}
                         </p>
                     </div>
                     <div className="tw-text-right">
