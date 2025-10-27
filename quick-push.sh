@@ -10,6 +10,7 @@ DOCKER_HUB_REPO="thirapongp/ku-badminton-reservation"
 echo "🚀 Quick Push Script - Mac/Linux"
 echo "================================"
 echo "Pushing: $DOCKER_HUB_REPO:$TAG"
+echo "Platform: linux/amd64 (compatible with x86_64 servers)"
 echo ""
 
 # Check if Docker is running

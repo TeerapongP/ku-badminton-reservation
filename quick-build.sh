@@ -22,9 +22,9 @@ fi
 echo "🧹 Cleaning up old images..."
 docker image prune -f
 
-# Build the image
-echo "📦 Building Docker image..."
-docker build -t $IMAGE_NAME:$TAG .
+# Build the image for multiple platforms (especially for ARM Mac -> x86 server)
+echo "📦 Building Docker image for linux/amd64 platform..."
+docker build --platform linux/amd64 -t $IMAGE_NAME:$TAG .
 
 if [ $? -eq 0 ]; then
     echo "✅ Build successful!"
