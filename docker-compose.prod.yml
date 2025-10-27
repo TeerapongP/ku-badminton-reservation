@@ -1,120 +1,55 @@
-# Production configuration for docker-compose
-# Use with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
-
 version: '3.8'
 
 services:
+  # Next.js Application (Pull from Docker Hub)
   app:
-    restart: always
+    image: thirapongp/ku-badminton-reservation:latest
+    container_name: nextjs-app
+    restart: unless-stopped
+    env_file:
+      - .env.prod
     environment:
       - NODE_ENV=production
-      - NEXT_TELEMETRY_DISABLED=1
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-
-  db:
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 2G
-        reservations:
-          cpus: '1.0'
-          memory: 1G
-    command: >
-      --default-authentication-plugin=mysql_native_password
-      --innodb-buffer-pool-size=1G
-      --innodb-log-file-size=256M
-      --max-connections=200
-      --query-cache-size=64M
-      --query-cache-type=1
-
-  redis:
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-    command: >
-      redis-server
-      --appendonly yes
-      --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
-
-  nginx:
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.25'
-          memory: 128M
-
-  # Production monitoring
-  prometheus:
-    profiles:
-      - monitoring
-    restart: always
-
-  grafana:
-    profiles:
-      - monitoring
-    restart: always
-
-  # Log aggregation (Optional)
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
-    container_name: elasticsearch
-    environment:
-      - discovery.type=single-node
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - xpack.security.enabled=false
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - app-network
-    profiles:
-      - logging
-
-  logstash:
-    image: docker.elastic.co/logstash/logstash:8.8.0
-    container_name: logstash
-    volumes:
-      - ./logging/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
-    networks:
-      - app-network
-    depends_on:
-      - elasticsearch
-    profiles:
-      - logging
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.8.0
-    container_name: kibana
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     ports:
-      - "5601:5601"
+      - "3000:3000"
     networks:
       - app-network
     depends_on:
-      - elasticsearch
-    profiles:
-      - logging
+      - db
+    volumes:
+      - ./public/uploads:/app/public/uploads
+
+  # MySQL Database (ใช้ database ที่มีอยู่แล้วบน server)
+  db:
+    image: mysql:8.0
+    container_name: mysql-db
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./prisma/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+    ports:
+      - "3306:3306"
+    command: --default-authentication-plugin=mysql_native_password
+
+  # Redis for Rate Limiting
+  redis:
+    image: redis:7-alpine
+    container_name: redis-cache
+    restart: unless-stopped
+    networks:
+      - app-network
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
 
 volumes:
-  elasticsearch_data:
+  mysql_data:
+  redis_data:
+
+networks:
+  app-network:
+    driver: bridge
