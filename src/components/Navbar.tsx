@@ -198,7 +198,12 @@ export default function Navbar() {
                     )}
                   </div>
                   <span className="tw-hidden lg:tw-inline tw-text-sm tw-text-emerald-100/90">
-                    {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : 'โปรไฟล์'}
+                    {(session?.user as any)?.role === "admin"
+                      ? session?.user?.username
+                      : userProfile
+                        ? `${userProfile.first_name} ${userProfile.last_name}`
+                        : 'โปรไฟล์'
+                    }
                   </span>
                 </Link>
                 <Button onClick={handleLogout} className="tw-w-auto tw-px-4 tw-h-10 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100" colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl" >
@@ -287,9 +292,14 @@ export default function Navbar() {
                 </div>
                 <div className="tw-flex tw-flex-col">
                   <span className="tw-text-emerald-100 tw-font-medium">
-                    {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : 'โปรไฟล์ของฉัน'}
+                    {(session?.user as any)?.role === "admin"
+                      ? session?.user?.username
+                      : userProfile
+                        ? `${userProfile.first_name} ${userProfile.last_name}`
+                        : 'โปรไฟล์ของฉัน'
+                    }
                   </span>
-                  {userProfile?.nickname && (
+                  {userProfile?.nickname && (session?.user as any)?.role !== "admin" && (
                     <span className="tw-text-emerald-200/70 tw-text-xs">
                       ({userProfile.nickname})
                     </span>
