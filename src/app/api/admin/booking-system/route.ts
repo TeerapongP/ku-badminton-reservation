@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]/route';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@/generated/prisma';
 
 const prisma = new PrismaClient();
 
@@ -31,11 +31,11 @@ export async function GET() {
     }
 
     const status = JSON.parse(systemStatus.value);
-    
+
     // เช็ค auto-open (เวลา 9:00)
     const now = new Date();
     const hour = now.getHours();
-    
+
     if (hour >= 9 && !status.isOpen) {
       const autoOpenStatus = {
         isOpen: true,
@@ -66,7 +66,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user || session.user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Unauthorized' },
