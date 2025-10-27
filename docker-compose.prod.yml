@@ -25,7 +25,8 @@ services:
       - .env.prod
     environment:
       - NODE_ENV=production
-    # Remove port exposure - only accessible through nginx
+    ports:
+      - "3000:3000"
     networks:
       - app-network
     depends_on:
