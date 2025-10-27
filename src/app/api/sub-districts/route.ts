@@ -34,9 +34,11 @@ export async function GET(request: NextRequest) {
             },
             take,
             skip,
-            orderBy: {
-                name_th: 'asc'
-            }
+            orderBy: [
+                { name_th: 'asc' },
+                { sub_district_id: 'asc' }
+            ],
+            distinct: ['sub_district_id'] // Ensure unique sub-districts
         });
 
         // Format the response

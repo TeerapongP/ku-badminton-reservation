@@ -37,7 +37,9 @@ export const AutoCompleteField: React.FC<AutoCompleteComponentProps> = ({
 
     try {
       const results = await Promise.resolve(onSearch(event.query));
-      setSuggestions(results || []);
+      // Remove duplicates and filter out empty values
+      const uniqueResults = [...new Set(results || [])].filter(item => item && item.trim().length > 0);
+      setSuggestions(uniqueResults);
     } catch (error) {
       console.error('Search error:', error);
       setSuggestions([]);
