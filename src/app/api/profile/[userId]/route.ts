@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 // GET - ดึงข้อมูลโปรไฟล์
 export async function GET(
   req: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -20,8 +20,11 @@ export async function GET(
       );
     }
 
+    // Await params since it's now a Promise in Next.js 15
+    const { userId } = await params;
+
     // ตรวจสอบว่าผู้ใช้เข้าถึงโปรไฟล์ของตัวเองหรือไม่
-    if (session.user.id !== params.userId) {
+    if (session.user.id !== userId) {
       return NextResponse.json(
         { success: false, error: "ไม่ได้รับอนุญาต" },
         { status: 403 }
@@ -29,7 +32,7 @@ export async function GET(
     }
 
     const user = await prisma.users.findUnique({
-      where: { user_id: BigInt(params.userId) },
+      where: { user_id: BigInt(userId) },
       select: {
         user_id: true,
         role: true,
@@ -86,7 +89,7 @@ export async function GET(
 // PUT - อัปเดตข้อมูลโปรไฟล์
 export async function PUT(
   req: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -98,8 +101,11 @@ export async function PUT(
       );
     }
 
+    // Await params since it's now a Promise in Next.js 15
+    const { userId } = await params;
+
     // ตรวจสอบว่าผู้ใช้แก้ไขโปรไฟล์ของตัวเองหรือไม่
-    if (session.user.id !== params.userId) {
+    if (session.user.id !== userId) {
       return NextResponse.json(
         { success: false, error: "ไม่ได้รับอนุญาต" },
         { status: 403 }
@@ -133,7 +139,7 @@ export async function PUT(
     const existingUser = await prisma.users.findFirst({
       where: {
         AND: [
-          { user_id: { not: BigInt(params.userId) } },
+          { user_id: { not: BigInt(userId) } },
           {
             OR: [
               { username },
@@ -157,7 +163,7 @@ export async function PUT(
 
     // อัปเดตข้อมูล
     const updatedUser = await prisma.users.update({
-      where: { user_id: BigInt(params.userId) },
+      where: { user_id: BigInt(userId) },
       data: {
         username,
         email,
