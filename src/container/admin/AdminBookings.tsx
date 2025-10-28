@@ -154,6 +154,17 @@ export default function AdminBookingsContainer() {
         });
     };
 
+    // Check authentication and role
+    useEffect(() => {
+        if (status === "loading") return;
+
+        if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super-admin")) {
+            toast?.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
+            router.push("/");
+            return;
+        }
+    }, [session, status, router, toast]);
+
     // Load bookings data
     useEffect(() => {
         const loadBookings = async () => {
@@ -290,6 +301,10 @@ export default function AdminBookingsContainer() {
                 fullScreen={true}
             />
         );
+    }
+
+    if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super-admin")) {
+        return null;
     }
 
     return (

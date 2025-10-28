@@ -171,9 +171,7 @@ export default function CourtBookingContainer() {
                         value={selectedDate}
                         onChange={setSelectedDate}
                         showIcon
-                        // ถ้าต้องการจองได้วันนี้เท่านั้น ให้ใช้ minDate=maxDate=today
-                        minDate={hundredYearsAgo}
-                        maxDate={today}
+                        minDate={today}
                         placeholder="เลือกวันที่ต้องการจอง"
                         required
                     />
