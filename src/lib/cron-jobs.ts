@@ -1,7 +1,14 @@
 // Cron Jobs for automatic system management
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+// Use singleton pattern for Prisma client
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
+
+const prisma = globalForPrisma.prisma ?? new PrismaClient();
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 export class BookingSystemCronJobs {
   // เปิดระบบอัตโนมัติเวลา 9:00 น.
@@ -9,7 +16,7 @@ export class BookingSystemCronJobs {
     try {
       const now = new Date();
       const hour = now.getHours();
-      
+
       // เช็คว่าเป็นเวลา 9:00 น.
       if (hour !== 9) {
         console.log(`⏰ Not time to auto-open yet. Current hour: ${hour}`);
@@ -59,7 +66,7 @@ export class BookingSystemCronJobs {
       }
     } catch (error) {
       console.error('Error in auto-open booking system:', error);
-      
+
       // บันทึก error log
       await prisma.adminLog.create({
         data: {

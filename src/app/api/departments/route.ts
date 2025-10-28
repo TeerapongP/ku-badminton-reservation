@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
-import { 
-  withErrorHandler, 
-  CustomApiError,
-  ERROR_CODES,
-  HTTP_STATUS,
-  successResponse
+import { PrismaClient } from '@prisma/client';
+
+import {
+    withErrorHandler,
+    CustomApiError,
+    ERROR_CODES,
+    HTTP_STATUS,
+    successResponse
 } from "@/lib/error-handler";
 import { withMiddleware } from "@/lib/api-middleware";
 

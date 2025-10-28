@@ -1,8 +1,9 @@
-import { PrismaClient } from '@/generated/prisma';
+import { PrismaClient } from '@prisma/client';
+
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  withErrorHandler, 
-  successResponse
+import {
+    withErrorHandler,
+    successResponse
 } from "@/lib/error-handler";
 import { withMiddleware } from "@/lib/api-middleware";
 
@@ -20,7 +21,7 @@ async function facilitiesHandler(req: NextRequest) {
         },
         orderBy: { facility_code: 'asc' },
     });
-    
+
     const data = facilities.map((f) => ({
         facility_id: f.facility_id.toString(),
         facility_code: f.facility_code,
@@ -29,7 +30,7 @@ async function facilitiesHandler(req: NextRequest) {
         active: f.active,
         image_path: f.image_path
     }));
-    
+
     return successResponse(data);
 }
 
