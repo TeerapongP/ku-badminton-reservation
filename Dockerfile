@@ -1,49 +1,85 @@
+# =========================
+# Base
+# =========================
 FROM node:20-alpine AS base
 WORKDIR /app
+# Prisma บน musl ต้องมี openssl / libc6-compat
 RUN apk add --no-cache libc6-compat openssl
+# ใช้ pnpm ผ่าน corepack
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# ---------- deps ----------
+# =========================
+# Dependencies
+# =========================
 FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
+# ถ้ามีพวก native deps (sharp/bcrypt) แล้วเจอ compile error ให้เปิดบรรทัดนี้
+# RUN apk add --no-cache python3 make g++
 RUN pnpm install --frozen-lockfile
 
-# ---------- builder ----------
+# =========================
+# Builder
+# =========================
 FROM base AS builder
 WORKDIR /app
+
+# ใช้ node_modules จาก deps
 COPY --from=deps /app/node_modules ./node_modules
-# แยก copy prisma ก่อน เพื่อให้ cache bust เมื่อ schema เปลี่ยน
+
+# คัดลอก prisma ก่อนเพื่อให้ cache bust เมื่อ schema เปลี่ยน
 COPY prisma ./prisma
-# แล้วค่อย copy โค้ดส่วนที่เหลือ
+
+# แล้วค่อยคัดลอกโค้ดที่เหลือ
 COPY . .
 
-# ✅ generate Prisma client บน Alpine (musl)
-RUN npx prisma generate
+# Prisma imports have been fixed to use @prisma/client
 
+# ✅ Generate Prisma Client บน Alpine (linux-musl)
+RUN npx prisma -v && npx prisma generate
+
+# ปิด telemetry และ build Next.js (ควรตั้ง next.config ให้ output=standalone)
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# กันเคส validate ENV ตอน build (ถ้าคุณมีโค้ดตรวจ .env ใน phase build ให้ใช้ตัวนี้)
+ARG SKIP_ENV_VALIDATION=1
+ENV SKIP_ENV_VALIDATION=$SKIP_ENV_VALIDATION
+
+# ✅ สร้าง production build (ถ้าไม่มี script build:prod จะรัน build ปกติ)
 RUN pnpm run build:prod || pnpm run build
 
-# ✅ prune ให้เหลือ production deps เท่านั้น (ยังคง @prisma/client + engines)
+# ✅ ตัด dev deps ออก เหลือเฉพาะ production (ยังคง @prisma/client + engines)
 RUN pnpm prune --prod
 
-# ---------- runner ----------
+# =========================
+# Runner (Production)
+# =========================
 FROM base AS runner
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
 
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    HOSTNAME=0.0.0.0 \
+    PORT=3000
+
+# สร้าง user ปลอดภัย
 RUN addgroup --system --gid 1001 nodejs \
  && adduser  --system --uid 1001 nextjs
 
-# แอป + static
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+# ✅ คัดลอกไฟล์สำหรับ Next.js standalone
+# หมายเหตุ: ต้องตั้งค่า output=standalone ใน next.config.js
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
+
+# Prisma schema (เผื่อใช้ migrate deploy ใน runtime)
 COPY --from=builder /app/prisma ./prisma
 
-# ✅ คัดลอก node_modules ที่ “pruned แล้ว” จาก builder (มี @prisma/client + engines ตรง platform)
+# ✅ ใช้ node_modules จาก builder (ที่ถูก prune แล้ว และ Prisma client ถูก generate สำหรับ Alpine แล้ว)
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 USER nextjs
 EXPOSE 3000
-CMD ["pnpm","start"]
+
+# Next.js standalone สร้าง server.js มาให้แล้ว
+CMD ["node", "server.js"]

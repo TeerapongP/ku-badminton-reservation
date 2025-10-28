@@ -1,6 +1,6 @@
 // src/lib/error-handler.ts
 import { NextResponse } from 'next/server';
-import { Prisma } from '@/generated/prisma';
+import { Prisma } from '@prisma/client';
 
 export interface ApiError {
   code: string;
@@ -30,35 +30,35 @@ export const ERROR_CODES = {
   MISSING_REQUIRED_FIELDS: 'MISSING_REQUIRED_FIELDS',
   INVALID_FORMAT: 'INVALID_FORMAT',
   INVALID_PARAMETERS: 'INVALID_PARAMETERS',
-  
+
   // Authentication errors (401)
   UNAUTHORIZED: 'UNAUTHORIZED',
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
   TOKEN_EXPIRED: 'TOKEN_EXPIRED',
-  
+
   // Authorization errors (403)
   FORBIDDEN: 'FORBIDDEN',
   ACCOUNT_SUSPENDED: 'ACCOUNT_SUSPENDED',
   INSUFFICIENT_PERMISSIONS: 'INSUFFICIENT_PERMISSIONS',
-  
+
   // Not found errors (404)
   NOT_FOUND: 'NOT_FOUND',
   USER_NOT_FOUND: 'USER_NOT_FOUND',
   RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
-  
+
   // Conflict errors (409)
   DUPLICATE_ENTRY: 'DUPLICATE_ENTRY',
   RESOURCE_CONFLICT: 'RESOURCE_CONFLICT',
-  
+
   // Rate limiting (429)
   RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
   TOO_MANY_ATTEMPTS: 'TOO_MANY_ATTEMPTS',
-  
+
   // Server errors (500)
   INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
   DATABASE_ERROR: 'DATABASE_ERROR',
   EXTERNAL_SERVICE_ERROR: 'EXTERNAL_SERVICE_ERROR',
-  
+
   // Service unavailable (503)
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
   MAINTENANCE_MODE: 'MAINTENANCE_MODE',
@@ -69,29 +69,29 @@ export const ERROR_MESSAGES = {
   [ERROR_CODES.MISSING_REQUIRED_FIELDS]: 'ข้อมูลไม่ครบถ้วน',
   [ERROR_CODES.INVALID_FORMAT]: 'รูปแบบข้อมูลไม่ถูกต้อง',
   [ERROR_CODES.INVALID_PARAMETERS]: 'พารามิเตอร์ไม่ถูกต้อง',
-  
+
   [ERROR_CODES.UNAUTHORIZED]: 'ไม่ได้รับอนุญาต',
   [ERROR_CODES.INVALID_CREDENTIALS]: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',
   [ERROR_CODES.TOKEN_EXPIRED]: 'โทเค็นหมดอายุ',
-  
+
   [ERROR_CODES.FORBIDDEN]: 'ไม่มีสิทธิ์เข้าถึง',
   [ERROR_CODES.ACCOUNT_SUSPENDED]: 'บัญชีถูกระงับ',
   [ERROR_CODES.INSUFFICIENT_PERMISSIONS]: 'สิทธิ์ไม่เพียงพอ',
-  
+
   [ERROR_CODES.NOT_FOUND]: 'ไม่พบข้อมูล',
   [ERROR_CODES.USER_NOT_FOUND]: 'ไม่พบผู้ใช้',
   [ERROR_CODES.RESOURCE_NOT_FOUND]: 'ไม่พบทรัพยากรที่ต้องการ',
-  
+
   [ERROR_CODES.DUPLICATE_ENTRY]: 'ข้อมูลซ้ำในระบบ',
   [ERROR_CODES.RESOURCE_CONFLICT]: 'ข้อมูลขัดแย้ง',
-  
+
   [ERROR_CODES.RATE_LIMIT_EXCEEDED]: 'เกินขอบเขตการใช้งาน',
   [ERROR_CODES.TOO_MANY_ATTEMPTS]: 'มีการพยายามมากเกินไป',
-  
+
   [ERROR_CODES.INTERNAL_SERVER_ERROR]: 'เกิดข้อผิดพลาดภายในระบบ',
   [ERROR_CODES.DATABASE_ERROR]: 'เกิดข้อผิดพลาดฐานข้อมูล',
   [ERROR_CODES.EXTERNAL_SERVICE_ERROR]: 'เกิดข้อผิดพลาดบริการภายนอก',
-  
+
   [ERROR_CODES.SERVICE_UNAVAILABLE]: 'บริการไม่พร้อมใช้งาน',
   [ERROR_CODES.MAINTENANCE_MODE]: 'ระบบอยู่ในช่วงปรับปรุง',
 } as const;
@@ -126,14 +126,14 @@ export function handlePrismaError(error: any): CustomApiError {
           HTTP_STATUS.CONFLICT,
           { field: error.meta?.target }
         );
-      
+
       case 'P2025': // Record not found
         return new CustomApiError(
           ERROR_CODES.NOT_FOUND,
           'ไม่พบข้อมูลที่ต้องการ',
           HTTP_STATUS.NOT_FOUND
         );
-      
+
       case 'P2003': // Foreign key constraint violation
         return new CustomApiError(
           ERROR_CODES.VALIDATION_ERROR,
@@ -141,14 +141,14 @@ export function handlePrismaError(error: any): CustomApiError {
           HTTP_STATUS.BAD_REQUEST,
           { field: error.meta?.field_name }
         );
-      
+
       case 'P2000': // Value too long
         return new CustomApiError(
           ERROR_CODES.VALIDATION_ERROR,
           'ข้อมูลยาวเกินกำหนด',
           HTTP_STATUS.BAD_REQUEST
         );
-      
+
       case 'P2011': // Null constraint violation
         return new CustomApiError(
           ERROR_CODES.MISSING_REQUIRED_FIELDS,
@@ -156,21 +156,21 @@ export function handlePrismaError(error: any): CustomApiError {
           HTTP_STATUS.BAD_REQUEST,
           { field: error.meta?.constraint }
         );
-      
+
       case 'P2012': // Missing required value
         return new CustomApiError(
           ERROR_CODES.MISSING_REQUIRED_FIELDS,
           'ข้อมูลจำเป็นหายไป',
           HTTP_STATUS.BAD_REQUEST
         );
-      
+
       case 'P2014': // Invalid ID
         return new CustomApiError(
           ERROR_CODES.INVALID_PARAMETERS,
           'รหัสอ้างอิงไม่ถูกต้อง',
           HTTP_STATUS.BAD_REQUEST
         );
-      
+
       default:
         return new CustomApiError(
           ERROR_CODES.DATABASE_ERROR,
@@ -180,7 +180,7 @@ export function handlePrismaError(error: any): CustomApiError {
         );
     }
   }
-  
+
   if (error instanceof Prisma.PrismaClientUnknownRequestError) {
     return new CustomApiError(
       ERROR_CODES.DATABASE_ERROR,
@@ -188,7 +188,7 @@ export function handlePrismaError(error: any): CustomApiError {
       HTTP_STATUS.INTERNAL_SERVER_ERROR
     );
   }
-  
+
   if (error instanceof Prisma.PrismaClientRustPanicError) {
     return new CustomApiError(
       ERROR_CODES.DATABASE_ERROR,
@@ -196,7 +196,7 @@ export function handlePrismaError(error: any): CustomApiError {
       HTTP_STATUS.INTERNAL_SERVER_ERROR
     );
   }
-  
+
   if (error instanceof Prisma.PrismaClientInitializationError) {
     return new CustomApiError(
       ERROR_CODES.SERVICE_UNAVAILABLE,
@@ -204,7 +204,7 @@ export function handlePrismaError(error: any): CustomApiError {
       HTTP_STATUS.SERVICE_UNAVAILABLE
     );
   }
-  
+
   if (error instanceof Prisma.PrismaClientValidationError) {
     return new CustomApiError(
       ERROR_CODES.VALIDATION_ERROR,
@@ -212,7 +212,7 @@ export function handlePrismaError(error: any): CustomApiError {
       HTTP_STATUS.BAD_REQUEST
     );
   }
-  
+
   // Generic error
   return new CustomApiError(
     ERROR_CODES.INTERNAL_SERVER_ERROR,

@@ -1,12 +1,12 @@
 // src/app/api/court-details/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@/generated/prisma";
-import { 
-  withErrorHandler, 
-  CustomApiError,
-  ERROR_CODES,
-  HTTP_STATUS,
-  successResponse
+import { PrismaClient } from "@prisma/client";
+import {
+    withErrorHandler,
+    CustomApiError,
+    ERROR_CODES,
+    HTTP_STATUS,
+    successResponse
 } from "@/lib/error-handler";
 import { withMiddleware } from "@/lib/api-middleware";
 
@@ -43,7 +43,7 @@ function normalizeForJson<T = any>(data: T): T {
 async function courtDetailsHandler(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const courtIdStr = searchParams.get("courtId");
-    
+
     if (!courtIdStr) {
         throw new CustomApiError(
             ERROR_CODES.MISSING_REQUIRED_FIELDS,
@@ -51,7 +51,7 @@ async function courtDetailsHandler(req: NextRequest) {
             HTTP_STATUS.BAD_REQUEST
         );
     }
-    
+
     const courtId = Number.parseInt(courtIdStr, 10);
 
     if (!Number.isSafeInteger(courtId) || courtId <= 0) {
@@ -63,25 +63,25 @@ async function courtDetailsHandler(req: NextRequest) {
         );
     }
 
-        // วันนี้ในรูปแบบ YYYY-MM-DD (ใช้เลือก pricing_rules วันนี้)
-        const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(
-            today.getDate()
-        ).padStart(2, "0")}`;
+    // วันนี้ในรูปแบบ YYYY-MM-DD (ใช้เลือก pricing_rules วันนี้)
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(
+        today.getDate()
+    ).padStart(2, "0")}`;
 
-        const rows = await prisma.$queryRaw<
-            Array<{
-                courtId: bigint;
-                courtCode: string;
-                courtName: string | null;
-                surface: "wood" | "synthetic" | "other";
-                isActive: number; // tinyint(1)
-                facilityId: bigint;
-                facilityNameTh: string;
-                facilityNameEn: string | null;
-                priceCents: number | null; // อาจเป็น Decimal ก็รองรับด้วย normalizeForJson
-            }>
-        >`
+    const rows = await prisma.$queryRaw<
+        Array<{
+            courtId: bigint;
+            courtCode: string;
+            courtName: string | null;
+            surface: "wood" | "synthetic" | "other";
+            isActive: number; // tinyint(1)
+            facilityId: bigint;
+            facilityNameTh: string;
+            facilityNameEn: string | null;
+            priceCents: number | null; // อาจเป็น Decimal ก็รองรับด้วย normalizeForJson
+        }>
+    >`
       SELECT
         c.court_id                                          AS courtId,
         c.court_code                                        AS courtCode,
@@ -119,21 +119,21 @@ async function courtDetailsHandler(req: NextRequest) {
         );
     }
 
-        const r = rows[0];
+    const r = rows[0];
 
-        // map ให้อยู่ในรูปที่ UI ใช้ + แปลงหน่วยราคาเป็นบาท
-        const data = {
-            court_id: r.courtId, // bigint → จะถูก normalize ต่อไป
-            courtCode: r.courtCode,
-            courtName: r.courtName ?? `Court ${r.courtCode}`,
-            surface: r.surface,
-            active: r.isActive === 1,
-            facilityId: r.facilityId, // bigint
-            building: r.facilityNameTh,
-            facilityNameTh: r.facilityNameTh,
-            facilityNameEn: r.facilityNameEn,
-            pricePerHour: r.priceCents != null ? (typeof r.priceCents === "number" ? r.priceCents / 100 : r.priceCents) : null,
-        };
+    // map ให้อยู่ในรูปที่ UI ใช้ + แปลงหน่วยราคาเป็นบาท
+    const data = {
+        court_id: r.courtId, // bigint → จะถูก normalize ต่อไป
+        courtCode: r.courtCode,
+        courtName: r.courtName ?? `Court ${r.courtCode}`,
+        surface: r.surface,
+        active: r.isActive === 1,
+        facilityId: r.facilityId, // bigint
+        building: r.facilityNameTh,
+        facilityNameTh: r.facilityNameTh,
+        facilityNameEn: r.facilityNameEn,
+        pricePerHour: r.priceCents != null ? (typeof r.priceCents === "number" ? r.priceCents / 100 : r.priceCents) : null,
+    };
 
     // 🔧 ป้องกัน BigInt/Decimal พัง JSON.stringify
     const safeData = normalizeForJson(data);

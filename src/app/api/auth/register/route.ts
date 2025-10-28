@@ -1,12 +1,12 @@
 // src/app/api/auth/register/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@/generated/prisma";
-import { 
-  withErrorHandler, 
-  validateRequired, 
-  validateEmail, 
-  validatePhone, 
-  validatePostalCode, 
+import { PrismaClient } from "@prisma/client";
+import {
+  withErrorHandler,
+  validateRequired,
+  validateEmail,
+  validatePhone,
+  validatePostalCode,
   validateStudentId,
   CustomApiError,
   ERROR_CODES,
@@ -20,249 +20,258 @@ const prisma = new PrismaClient();
 async function registerHandler(req: NextRequest) {
   const body = await req.json();
 
-    // ---- รองรับ prefix ได้ 3 รูปแบบ: {en, th} หรือ "mr|นาย" หรือส่ง title_th/title_en มาเลย ----
-    const prefix = body.prefix as { en?: string; th?: string } | string | undefined;
-    let { title_th, title_en } = body as { title_th?: string; title_en?: string };
+  // ---- รองรับ prefix ได้ 3 รูปแบบ: {en, th} หรือ "mr|นาย" หรือส่ง title_th/title_en มาเลย ----
+  const prefix = body.prefix as { en?: string; th?: string } | string | undefined;
+  let { title_th, title_en } = body as { title_th?: string; title_en?: string };
 
-    if (!title_th || !title_en) {
-      if (typeof prefix === "string" && prefix.includes("|")) {
-        const [en, th] = prefix.split("|");
-        title_en = title_en ?? en ?? undefined;
-        title_th = title_th ?? th ?? undefined;
-      } else if (prefix && typeof prefix === "object") {
-        title_en = title_en ?? prefix.en ?? undefined;
-        title_th = title_th ?? prefix.th ?? undefined;
-      }
+  if (!title_th || !title_en) {
+    if (typeof prefix === "string" && prefix.includes("|")) {
+      const [en, th] = prefix.split("|");
+      title_en = title_en ?? en ?? undefined;
+      title_th = title_th ?? th ?? undefined;
+    } else if (prefix && typeof prefix === "object") {
+      title_en = title_en ?? prefix.en ?? undefined;
+      title_th = title_th ?? prefix.th ?? undefined;
     }
+  }
 
-    const {
-      // Basic info
-      username,
-      password, // NOTE: มาเป็น hash จาก frontend แล้ว
-      email,
-      phone,
-      first_name,
-      last_name,
-      nickname,
-      gender,
-      dob,
-      role,
+  const {
+    // Basic info
+    username,
+    password, // NOTE: มาเป็น hash จาก frontend แล้ว
+    email,
+    phone,
+    first_name,
+    last_name,
+    nickname,
+    gender,
+    dob,
+    role,
 
-      // Student specific
-      student_id,
-      faculty_id,
-      department_id,
-      level_of_study,
+    // Student specific
+    student_id,
+    faculty_id,
+    department_id,
+    level_of_study,
 
-      // Staff / Guest
-      national_id,
-      office_department,
-      position,
-      staff_type,
-      unit_id,
+    // Staff / Guest
+    national_id,
+    office_department,
+    position,
+    staff_type,
+    unit_id,
 
-      // Address
-      house_number,
-      street,
-      subdistrict,
-      district,
-      province,
-      postal_code,
-      country = "TH",
-    } = body;
+    // Address
+    house_number,
+    street,
+    subdistrict,
+    district,
+    province,
+    postal_code,
+    country = "TH",
+  } = body;
 
-    // ---------- Validate เบื้องต้น ----------
-    validateRequired(body, ['username', 'password', 'email', 'first_name', 'last_name', 'role']);
-    
-    // Validate email format
-    validateEmail(email);
+  // ---------- Validate เบื้องต้น ----------
+  validateRequired(body, ['username', 'password', 'email', 'first_name', 'last_name', 'role']);
 
-    // เงื่อนไขเฉพาะ role
-    if (role === "student") {
-      validateRequired(body, ['student_id', 'faculty_id', 'department_id', 'level_of_study']);
-      validateStudentId(student_id);
-    }
+  // Validate email format
+  validateEmail(email);
 
-    if (role === "staff") {
-      validateRequired(body, ['national_id', 'staff_type']);
-    }
+  // เงื่อนไขเฉพาะ role
+  if (role === "student") {
+    validateRequired(body, ['student_id', 'faculty_id', 'department_id', 'level_of_study']);
+    validateStudentId(student_id);
+  }
 
-    if (role === "guest") {
-      validateRequired(body, ['national_id']);
-    }
+  if (role === "staff") {
+    validateRequired(body, ['national_id', 'staff_type']);
+  }
 
-    // Validate formats
-    if (postal_code) {
-      validatePostalCode(postal_code);
-    }
+  if (role === "guest") {
+    validateRequired(body, ['national_id']);
+  }
 
-    if (phone) {
-      validatePhone(phone);
-    }
+  // Validate formats
+  if (postal_code) {
+    validatePostalCode(postal_code);
+  }
 
-    // national_id อาจถูก hash มาจากหน้าบ้านแล้ว (คอลัมน์รองรับ VARCHAR(255))
+  if (phone) {
+    validatePhone(phone);
+  }
 
-    // ---------- ตรวจซ้ำ ----------
-    const existingUser = await prisma.users.findFirst({
-      where: {
-        OR: [
-          { username },
-          { email },
-          ...(phone ? [{ phone }] : []),
-          ...(role === "student" && student_id ? [{ student_id }] : []),
-        ],
+  // national_id อาจถูก hash มาจากหน้าบ้านแล้ว (คอลัมน์รองรับ VARCHAR(255))
+
+  // ---------- ตรวจซ้ำ ----------
+  const existingUser = await prisma.users.findFirst({
+    where: {
+      OR: [
+        { username },
+        { email },
+        ...(phone ? [{ phone }] : []),
+        ...(role === "student" && student_id ? [{ student_id }] : []),
+      ],
+    },
+    select: {
+      username: true,
+      email: true,
+      phone: true,
+      student_id: true,
+    },
+  });
+
+  if (existingUser) {
+    let duplicateField = "";
+    if (existingUser.username === username) duplicateField = "ชื่อผู้ใช้";
+    else if (existingUser.email.toLowerCase() === email.toLowerCase()) duplicateField = "อีเมล";
+    else if (existingUser.phone && existingUser.phone === phone) duplicateField = "เบอร์โทรศัพท์";
+    else if (existingUser.student_id && existingUser.student_id === student_id) duplicateField = "รหัสนิสิต";
+
+    throw new CustomApiError(
+      ERROR_CODES.DUPLICATE_ENTRY,
+      `ข้อมูลซ้ำในระบบ: ${duplicateField}`,
+      HTTP_STATUS.CONFLICT,
+      { duplicateField }
+    );
+  }
+
+  // รหัสผ่าน: ฝั่งหน้าเว็บส่ง hash มาแล้ว
+  const password_hash: string = password;
+
+  // ---------- Transaction ----------
+  const result = await prisma.$transaction(async (tx: {
+    users: {
+      create: (arg0: {
+        data: {
+          username: any; password_hash: string; // ใช้ตัวแปรเดียว
+          email: any; phone: any; title_th: string | null; title_en: string | null; first_name: any; last_name: any; nickname: any; gender: any; dob: Date | null; role: any; student_id: any; staff_id: string | null; national_id: any; status: string;
+        }; select: { user_id: boolean; username: boolean; email: boolean; first_name: boolean; last_name: boolean; role: boolean; };
+      }) => any; update: (arg0: { where: { user_id: any; } | { user_id: any; }; data: { address_id: bigint | null; } | { address_id: bigint | null; }; }) => any;
+    }; addresses: { create: (arg0: { data: { user_id: any; house_number: any; street: any; subdistrict: any; district: any; province: any; postal_code: any; country: any; is_primary: boolean; }; select: { id: boolean; }; }) => any; findFirst: (arg0: { where: { user_id: any; is_primary: boolean; }; select: { id: boolean; }; orderBy: { id: string; }; }) => any; }; student_profile: { create: (arg0: { data: { user_id: any; student_id: any; national_id: any; faculty_id: bigint; department_id: bigint; level_of_study: any; student_status: string; }; }) => any; }; staff_profile: { create: (arg0: { data: { user_id: any; national_id: any; office_department: any; position: any; staff_type: any; unit_id: bigint | null; }; }) => any; }; auth_log: { create: (arg0: { data: { user_id: any; username_input: any; action: string; ip: string; user_agent: string; }; }) => any; };
+  }) => {
+    // 1) users (ยังไม่ใส่ address_id)
+    const newUser = await tx.users.create({
+      data: {
+        username,
+        password_hash, // ใช้ตัวแปรเดียว
+        email,
+        phone,
+        title_th: title_th || null,
+        title_en: title_en || null,
+        first_name,
+        last_name,
+        nickname: nickname || null,
+        gender: (gender ?? null) as any,
+        dob: dob ? new Date(dob) : null,
+        role: role as any,
+        student_id: role === "student" ? student_id : null,
+        staff_id: role === "staff" ? `STAFF_${Date.now()}` : null,
+        national_id: national_id || null,
+        status: "active",
       },
       select: {
+        user_id: true,
         username: true,
         email: true,
-        phone: true,
-        student_id: true,
+        first_name: true,
+        last_name: true,
+        role: true,
       },
     });
 
-    if (existingUser) {
-      let duplicateField = "";
-      if (existingUser.username === username) duplicateField = "ชื่อผู้ใช้";
-      else if (existingUser.email.toLowerCase() === email.toLowerCase()) duplicateField = "อีเมล";
-      else if (existingUser.phone && existingUser.phone === phone) duplicateField = "เบอร์โทรศัพท์";
-      else if (existingUser.student_id && existingUser.student_id === student_id) duplicateField = "รหัสนิสิต";
+    // 2) addresses (ถ้ามีข้อมูล)
+    let addressId: bigint | null = null;
 
-      throw new CustomApiError(
-        ERROR_CODES.DUPLICATE_ENTRY,
-        `ข้อมูลซ้ำในระบบ: ${duplicateField}`,
-        HTTP_STATUS.CONFLICT,
-        { duplicateField }
-      );
-    }
-
-    // รหัสผ่าน: ฝั่งหน้าเว็บส่ง hash มาแล้ว
-    const password_hash: string = password;
-
-    // ---------- Transaction ----------
-    const result = await prisma.$transaction(async (tx) => {
-      // 1) users (ยังไม่ใส่ address_id)
-      const newUser = await tx.users.create({
+    if (house_number || street || subdistrict || district || province || postal_code) {
+      const createdAddress = await tx.addresses.create({
         data: {
-          username,
-          password_hash, // ใช้ตัวแปรเดียว
-          email,
-          phone,
-          title_th: title_th || null,
-          title_en: title_en || null,
-          first_name,
-          last_name,
-          nickname: nickname || null,
-          gender: (gender ?? null) as any,
-          dob: dob ? new Date(dob) : null,
-          role: role as any,
-          student_id: role === "student" ? student_id : null,
-          staff_id: role === "staff" ? `STAFF_${Date.now()}` : null,
-          national_id: national_id || null,
-          status: "active",
+          user_id: newUser.user_id,
+          house_number: house_number || null,
+          street: street || null,
+          subdistrict: subdistrict || null,
+          district: district || null,
+          province: province || null,
+          postal_code: postal_code && /^\d{5}$/.test(postal_code) ? postal_code : null,
+          country,
+          is_primary: true,
         },
-        select: {
-          user_id: true,
-          username: true,
-          email: true,
-          first_name: true,
-          last_name: true,
-          role: true,
-        },
+        select: { id: true },
       });
 
-      // 2) addresses (ถ้ามีข้อมูล)
-      let addressId: bigint | null = null;
+      addressId = createdAddress.id;
 
-      if (house_number || street || subdistrict || district || province || postal_code) {
-        const createdAddress = await tx.addresses.create({
-          data: {
-            user_id: newUser.user_id,
-            house_number: house_number || null,
-            street: street || null,
-            subdistrict: subdistrict || null,
-            district: district || null,
-            province: province || null,
-            postal_code: postal_code && /^\d{5}$/.test(postal_code) ? postal_code : null,
-            country,
-            is_primary: true,
-          },
-          select: { id: true },
-        });
+      // 3) อัปเดต users.address_id
+      await tx.users.update({
+        where: { user_id: newUser.user_id },
+        data: { address_id: addressId },
+      });
+    } else {
+      // ลองหา primary ที่มีอยู่ (เผื่อกรณีพิเศษ)
+      const primaryAddress = await tx.addresses.findFirst({
+        where: { user_id: newUser.user_id, is_primary: true },
+        select: { id: true },
+        orderBy: { id: "asc" },
+      });
 
-        addressId = createdAddress.id;
-
-        // 3) อัปเดต users.address_id
+      if (primaryAddress) {
+        addressId = primaryAddress.id;
         await tx.users.update({
           where: { user_id: newUser.user_id },
           data: { address_id: addressId },
         });
-      } else {
-        // ลองหา primary ที่มีอยู่ (เผื่อกรณีพิเศษ)
-        const primaryAddress = await tx.addresses.findFirst({
-          where: { user_id: newUser.user_id, is_primary: true },
-          select: { id: true },
-          orderBy: { id: "asc" },
-        });
-
-        if (primaryAddress) {
-          addressId = primaryAddress.id;
-          await tx.users.update({
-            where: { user_id: newUser.user_id },
-            data: { address_id: addressId },
-          });
-        }
       }
+    }
 
-      // 4) profile ตาม role
-      if (role === "student") {
-        await tx.student_profile.create({
-          data: {
-            user_id: newUser.user_id,
-            student_id: student_id!,
-            national_id: national_id || null,
-            faculty_id: BigInt(faculty_id),
-            department_id: BigInt(department_id),
-            level_of_study: level_of_study as any,
-            student_status: "enrolled",
-          },
-        });
-      } else if (role === "staff") {
-        await tx.staff_profile.create({
-          data: {
-            user_id: newUser.user_id,
-            national_id: national_id || null,
-            office_department: office_department || null,
-            position: position || null,
-            staff_type: staff_type as any,
-            unit_id: unit_id ? BigInt(unit_id) : null,
-          },
-        });
-      }
-
-      // 5) auth log
-      await tx.auth_log.create({
+    // 4) profile ตาม role
+    if (role === "student") {
+      await tx.student_profile.create({
         data: {
           user_id: newUser.user_id,
-          username_input: newUser.username,
-          action: "login_success",
-          ip: "unknown",
-          user_agent: "unknown",
+          student_id: student_id!,
+          national_id: national_id || null,
+          faculty_id: BigInt(faculty_id),
+          department_id: BigInt(department_id),
+          level_of_study: level_of_study as any,
+          student_status: "enrolled",
         },
       });
+    } else if (role === "staff") {
+      await tx.staff_profile.create({
+        data: {
+          user_id: newUser.user_id,
+          national_id: national_id || null,
+          office_department: office_department || null,
+          position: position || null,
+          staff_type: staff_type as any,
+          unit_id: unit_id ? BigInt(unit_id) : null,
+        },
+      });
+    }
 
-      return { newUser, addressId };
+    // 5) auth log
+    await tx.auth_log.create({
+      data: {
+        user_id: newUser.user_id,
+        username_input: newUser.username,
+        action: "login_success",
+        ip: "unknown",
+        user_agent: "unknown",
+      },
     });
 
-    const { newUser, addressId } = result;
+    return { newUser, addressId };
+  });
 
-    return successResponse({
-      id: newUser.user_id.toString(),
-      username: newUser.username,
-      email: newUser.email,
-      name: `${newUser.first_name} ${newUser.last_name}`,
-      role: newUser.role,
-      address_id: addressId ? addressId.toString() : null,
-    }, "สมัครสมาชิกสำเร็จ");
+  const { newUser, addressId } = result;
+
+  return successResponse({
+    id: newUser.user_id.toString(),
+    username: newUser.username,
+    email: newUser.email,
+    name: `${newUser.first_name} ${newUser.last_name}`,
+    role: newUser.role,
+    address_id: addressId ? addressId.toString() : null,
+  }, "สมัครสมาชิกสำเร็จ");
 }
 
 export const POST = withMiddleware(
