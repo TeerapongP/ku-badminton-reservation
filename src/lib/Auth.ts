@@ -1,12 +1,10 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-
-const prisma = new PrismaClient();
+import { prisma } from "./prisma";
 
 // Ensure database connection
-prisma.$connect().catch((error) => {
+prisma.$connect().catch((error: any) => {
   console.error("Failed to connect to database:", error);
 });
 
@@ -71,7 +69,8 @@ export const authOptions: NextAuthOptions = {
                 OR: [
                   { role: 'staff' },
                   { role: 'guest' },
-                  { role: 'admin' }
+                  { role: 'admin' },
+                  { role: 'super-admin' }
                 ]
               },
               select: {
@@ -100,7 +99,10 @@ export const authOptions: NextAuthOptions = {
             user = await prisma.users.findFirst({
               where: {
                 username: credentials.identifier,
-                role: 'admin'
+                OR: [
+                  { role: 'admin' },
+                  { role: 'super_admin' }
+                ]
               },
               select: {
                 user_id: true,
@@ -116,8 +118,8 @@ export const authOptions: NextAuthOptions = {
           }
 
           if (!user) {
-            console.log("❌ User not found");
-            return null; // Return null instead of throwing error
+            console.log("❌ User not found for identifier:", credentials.identifier, "type:", loginType);
+            throw new Error("CredentialsSignin");
           }
 
           console.log("✅ User found:", {
@@ -130,7 +132,7 @@ export const authOptions: NextAuthOptions = {
           // ตรวจสอบสถานะผู้ใช้
           if (user.status !== 'active') {
             console.log("❌ User account suspended");
-            return null; // Return null instead of throwing error
+            throw new Error("CredentialsSignin");
           }
 
           // ตรวจสอบรหัสผ่าน
@@ -154,7 +156,7 @@ export const authOptions: NextAuthOptions = {
               console.error("Failed to log auth attempt:", logError);
             }
 
-            return null; // Return null instead of throwing error
+            throw new Error("CredentialsSignin");
           }
 
           console.log("✅ Password valid, logging in user");
@@ -197,7 +199,7 @@ export const authOptions: NextAuthOptions = {
 
         } catch (error) {
           console.error("❌ Login error:", error);
-          return null; // Return null instead of throwing error
+          throw new Error("CredentialsSignin");
         }
       }
     })

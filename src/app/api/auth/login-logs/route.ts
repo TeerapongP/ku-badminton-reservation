@@ -5,7 +5,7 @@ import { getServerSession } from 'next-auth';
 export async function GET(request: NextRequest) {
     try {
         const session = await getServerSession();
-        
+
         if (!session?.user?.id) {
             return NextResponse.json(
                 { message: 'กรุณาเข้าสู่ระบบ' },
@@ -17,12 +17,12 @@ export async function GET(request: NextRequest) {
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '20');
         const userId = searchParams.get('userId');
-        
+
         const skip = (page - 1) * limit;
 
         // สร้าง where condition
         const whereCondition: any = {};
-        
+
         // ถ้าไม่ใช่ admin ให้ดูแค่ log ของตัวเอง
         if (userId) {
             whereCondition.user_id = BigInt(userId);
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         ]);
 
         // แปลงข้อมูลให้อ่านง่าย
-        const formattedLogs = logs.map(log => ({
+        const formattedLogs = logs.map((log: { auth_log_id: any; username_input: any; action: string; ip: any; user_agent: any; created_at: any; users: { username: any; first_name: any; last_name: any; email: any; }; }) => ({
             id: log.auth_log_id,
             username: log.username_input,
             action: getActionText(log.action),
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const session = await getServerSession();
-        
+
         if (!session?.user?.id) {
             return NextResponse.json(
                 { message: 'กรุณาเข้าสู่ระบบ' },
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
             prisma.auth_log.count({
                 where: { user_id: userId }
             }),
-            
+
             // Success logins ใน 24 ชั่วโมง
             prisma.auth_log.count({
                 where: {
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
                     created_at: { gte: last24Hours }
                 }
             }),
-            
+
             // Failed logins ใน 24 ชั่วโมง
             prisma.auth_log.count({
                 where: {
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
                     created_at: { gte: last24Hours }
                 }
             }),
-            
+
             // Success logins ใน 7 วัน
             prisma.auth_log.count({
                 where: {
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
                     created_at: { gte: last7Days }
                 }
             }),
-            
+
             // Failed logins ใน 7 วัน
             prisma.auth_log.count({
                 where: {
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
                     created_at: { gte: last7Days }
                 }
             }),
-            
+
             // Unique IPs ใน 7 วัน
             prisma.auth_log.findMany({
                 where: {
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
                 select: { ip: true },
                 distinct: ['ip']
             }),
-            
+
             // อุปกรณ์ที่ใช้ล่าสุด
             prisma.auth_log.findMany({
                 where: {
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
 
         // จัดกลุ่มอุปกรณ์
         const deviceMap = new Map();
-        recentDevices.forEach(device => {
+        recentDevices.forEach((device: { ip: any; user_agent: any; created_at: any; }) => {
             const key = `${device.ip}-${device.user_agent}`;
             if (!deviceMap.has(key)) {
                 deviceMap.set(key, {
@@ -255,7 +255,7 @@ function getOSFromUserAgent(userAgent: string): string {
 
 function generateSecurityAlerts(failedLogins24h: number, uniqueIPs7d: number) {
     const alerts = [];
-    
+
     if (failedLogins24h > 5) {
         alerts.push({
             type: 'warning',
@@ -263,7 +263,7 @@ function generateSecurityAlerts(failedLogins24h: number, uniqueIPs7d: number) {
             severity: 'medium'
         });
     }
-    
+
     if (uniqueIPs7d > 5) {
         alerts.push({
             type: 'info',
@@ -271,6 +271,6 @@ function generateSecurityAlerts(failedLogins24h: number, uniqueIPs7d: number) {
             severity: 'low'
         });
     }
-    
+
     return alerts;
 }

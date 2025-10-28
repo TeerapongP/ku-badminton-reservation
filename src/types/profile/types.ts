@@ -1,6 +1,6 @@
 import { LucideIcon } from "lucide-react";
 
-export type UserRole = 'student' | 'staff' | 'admin' | 'guest';
+export type UserRole = 'student' | 'staff' | 'admin' | 'super-admin' | 'guest';
 export type UserStatus = 'active' | 'inactive' | 'suspended';
 export type Gender = 'M' | 'F' | 'I' | 'Other';
 export type Membership = 'member' | 'non_member';

@@ -67,7 +67,16 @@ export default function LoginContainner() {
         originalIdentifier: identifier // ส่ง plain text ไปด้วยเพื่อเปรียบเทียบ
       };
 
+      console.log("🔐 Attempting login with data:", {
+        identifier: hashedIdentifier,
+        type: loginType,
+        hasPassword: !!password,
+        originalIdentifier: identifier
+      });
+
       const result = await login(loginData);
+
+      console.log("🔐 Login result:", result);
 
       if (result.success) {
         toast.showSuccess("เข้าสู่ระบบสำเร็จ", "ยินดีต้อนรับเข้าสู่ระบบ");
