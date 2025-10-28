@@ -1,127 +1,110 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ================================
+# 🔧 CORE BUILD EXCLUSIONS
+# ================================
 
-# dependencies
-/node_modules
-node_modules
-
+# Git
 .git
+.gitignore
+.gitattributes
 
-/.pnp
-.pnp.js
+# Environment files (local/dev only)
+.env*
+!.env.example
 
-# testing
-/coverage
+# Node dependencies
+node_modules
+.pnpm-store
+.npm
+.npmrc
+.yarn*
+.yarn-cache
+.yarnrc*
+package-lock.json  # optional — only if using pnpm/yarn exclusively
 
-# next.js
-/.next/
-/out/
-.next/cache
-
-# production
-/build
-
-# misc
+# OS junk
 .DS_Store
-*.pem
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# debug
+# IDEs / Editors
+.vscode
+.idea
+*.swp
+*.swo
+
+# ================================
+# 🧱 BUILD OUTPUT
+# ================================
+
+# Next.js
+.next/cache
+.next/static/cache
+/out
+dist
+build
+storybook-static
+.storybook-out
+
+# Nuxt / Gatsby (if used in same repo)
+.nuxt
+.cache/
+public/build
+public/static/cache
+
+# ================================
+# 🧪 TEST / DEBUG FILES
+# ================================
+coverage
+*.lcov
+.nyc_output
+__tests__/
+__mocks__/
+jest.config.*
+vitest.config.*
+cypress/
+playwright-report/
+test-results/
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
-.env*
+# ================================
+# 🧬 PRISMA / DATABASE
+# ================================
+# Prisma local artifacts that break cross-platform builds
+src/generated/prisma/
+.prisma/
+prisma/dev.db
+prisma/migrations/dev/
+*.sqlite
 
-# vercel
-.vercel
-
-# typescript
+# ================================
+# 🚀 BUILD / PACKAGE SYSTEM
+# ================================
+.cache/
+.parcel-cache
+.rpt2_cache/
+.rts2_cache_*/
+.eslintcache
 *.tsbuildinfo
 next-env.d.ts
-
-# IDE
-.vscode
-.idea
-
-# OS
-Thumbs.db
-
-# logs
-logs
-*.log
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage
-*.lcov
-
-# nyc test coverage
-.nyc_output
-
-# Dependency directories
-node_modules/
-jspm_packages/
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Microbundle cache
-.rpt2_cache/
-.rts2_cache_cjs/
-.rts2_cache_es/
-.rts2_cache_umd/
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
 *.tgz
+*.pid
+*.pid.lock
+*.seed
 
-# Yarn Integrity file
-.yarn-integrity
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# Next.js build output
-.next
-
-# Nuxt.js build / generate output
-.nuxt
-dist
-
-# Gatsby files
-.cache/
-# public - commented out as we need this for Next.js
-
-# Storybook build outputs
-.out
-.storybook-out
-
-# Temporary folders
-tmp/
-temp/
-
-# Editor directories and files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# ================================
+# 🧩 OPTIONAL: DOCS / MISC
+# ================================
+README.md
+LICENSE
+docs/
+designs/
+assets/psd/
+*.pem
+*.crt
+*.key
+*.pfx
