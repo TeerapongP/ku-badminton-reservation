@@ -1,21 +1,17 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { InputField } from "@/components/InputField";
 import { Button } from "@/components/Button";
 import { DropdownField } from "@/components/DropdownField";
-import { DateField } from "@/components/DateField";
-import AutoCompleteField from "@/components/AutoCompleteField";
+
 import { DropdownOption } from "@/types/DropdownOption";
 import { useToast } from "@/components/ToastProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import {
-    userTypeOptions,
     prefixTitleOptions,
-    levelStudyOptions,
-    staffTypeOptions,
 } from '@/constants/options';
 import bcrypt from 'bcryptjs';
 
@@ -24,6 +20,13 @@ export default function RegisterContainner() {
     const { register } = useAuth();
     const router = useRouter();
 
+    // User type options (staff, guest, and student)
+    const userTypeOptions = [
+        { label: "บุคลากร", value: "staff" },
+        { label: "นักเรียนสาธิต", value: "student" },
+        { label: "บุคคลทั่วไป", value: "guest" }
+    ];
+
     // Loading state
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -31,40 +34,23 @@ export default function RegisterContainner() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [username, setUsername] = useState('');
-    const [studentId, setStudentId] = useState('');
     const [nationnalId, setNationnalId] = useState('');
 
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
-    const [nickname, setNickName] = useState('');
-    const [userType, setUserType] = useState<"student" | "staff" | "guest">("student");
+    const [userType, setUserType] = useState<"staff" | "student" | "guest">("staff");
     const [prefix, setPrefix] = useState<{ en: string; th: string } | null>(null);
-    const [dob, setDob] = useState<Date | null>(null);
     const [phone, setPhone] = useState<string>('');
     const [email, setEmail] = useState<string>('');
-    const [houseNumber, setHouseNumber] = useState<string>('');
-    const [street, setStreet] = useState<string>('');
-    const [subDistrict, setSubDistrict] = useState<string>('');
-    const [district, setDistrict] = useState<string>('');
-    const [province, setProvince] = useState<string>('');
-    const [postalCode, setPostalCode] = useState<string>('');
-    const [faculty, setFaculty] = useState<string>('');
-    const [department, setDepartment] = useState<string>('');
-    const [levelStudy, setLevelStudy] = useState<string>('');
     const [office, setOffice] = useState<string>('');
     const [jobtitle, setJobtitle] = useState<string>('');
-    const [staffType, setStaffType] = useState<string>('');
 
     const [officeOptions, setOfficeOptions] = useState<DropdownOption[]>([]);
     const [subUnitOption, setSubUnitOptions] = useState<DropdownOption[]>([]);
-    const today = new Date();
-    const hundredYearsAgo = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
 
-    const [districtOptions, setDistrictOptions] = useState<DropdownOption[]>([]);
-    const [provincesOptions, setProvinceOptions] = useState<DropdownOption[]>([]);
-    const [postCodeOptions, setPostCodeOptions] = useState<DropdownOption[]>([]);
-    const [facultiesOption, setFacultiesOptions] = useState<DropdownOption[]>([]);
-    const [departmentOption, setDepartmentOptions] = useState<DropdownOption[]>([]);
+
+
+
 
 
     async function fetchUnits(): Promise<DropdownOption[]> {
@@ -98,110 +84,15 @@ export default function RegisterContainner() {
         }));
     }
 
-    async function fetchSubDistricts(subDistrict: string): Promise<DropdownOption[]> {
-        try {
-            const res = await fetch(`/api/sub-districts?subDistrict=${encodeURIComponent(subDistrict)}&take=10`, {
-                cache: 'no-store',
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const json = await res.json();
-            return (json?.data ?? []).map((x: any) => ({
-                label: x.label ?? x.name_th,
-                value: x.value ?? String(x.sub_district_id),
-            }));
-        } catch (error) {
-            toast.showError('ไม่สามารถค้นหาตำบลได้', 'กรุณาลองใหม่อีกครั้ง');
-            throw error;
-        }
-    }
 
-    async function fetchDistricts(subDistrictId: string): Promise<DropdownOption[]> {
-        try {
-            const res = await fetch(`/api/districts?subDistrictId=${encodeURIComponent(subDistrictId)}`, {
-                cache: 'no-store',
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const json = await res.json();
-            return (json?.data ?? []).map((x: any) => ({
-                label: x.label ?? x.name_th,
-                value: x.value ?? String(x.district_id),
-            }));
-        } catch (error) {
-            toast.showError('ไม่สามารถโหลดข้อมูลอำเภอได้', 'กรุณาลองใหม่อีกครั้ง');
-            throw error;
-        }
-    }
 
-    async function fetchProvinces(districtsId: string): Promise<DropdownOption[]> {
-        try {
-            const res = await fetch(`/api/provinces?districtId=${encodeURIComponent(districtsId)}`, {
-                cache: 'no-store',
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const json = await res.json();
-            return (json?.data ?? []).map((x: any) => ({
-                label: x.label ?? x.name_th,
-                value: x.value ?? String(x.id),
-            }));
-        } catch (error) {
-            toast.showError('ไม่สามารถโหลดข้อมูลจังหวัดได้', 'กรุณาลองใหม่อีกครั้ง');
-            throw error;
-        }
-    }
 
-    async function fetchPostcode(subDistrictId: string): Promise<DropdownOption[]> {
-        const res = await fetch(`/api/postcodes?subDistrictId=${encodeURIComponent(subDistrictId)}`, {
-            cache: 'no-store',
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        return (json?.data ?? []).map((x: any) => ({
-            label: x.label ?? x.postcode,
-            value: x.label ?? x.postcode, // ใช้ label (รหัสไปรษณีย์) เป็น value ด้วย
-        }));
-    }
-
-    async function fetchFaculties(): Promise<DropdownOption[]> {
-        const res = await fetch(`/api/faculties`, {
-            cache: 'no-store',
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        return (json?.data ?? []).map((x: any) => ({
-            label: x.label ?? x.name_th,
-            value: x.value ?? String(x.id),
-        }));
-    }
-
-    async function fetchDepartments(facultyId: string): Promise<DropdownOption[]> {
-        if (!facultyId) return [];
-
-        try {
-            const res = await fetch(`/api/departments?facultyId=${encodeURIComponent(facultyId)}`, {
-                cache: 'no-store',
-            });
-
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-            const json = await res.json();
-
-            const data = (json?.data ?? []).map((x: any) => ({
-                label: x.label ?? x.name_th ?? "",
-                value: x.value ?? String(x.id ?? ""),
-            }));
-
-            return data.filter((x: { label: any; value: any; }) => x.label && x.value);
-        } catch (err) {
-            console.error("fetchDepartments error:", err);
-            return [];
-        }
-    }
 
     // state/ref ที่ใช้
     const loadedInitRef = useRef(false);
     const reqIdRef = useRef(0);
 
-    // 1) โหลด Units + Faculties แค่ครั้งแรก
+    // 1) โหลด Units แค่ครั้งแรก
     useEffect(() => {
         if (loadedInitRef.current) return;
 
@@ -210,18 +101,13 @@ export default function RegisterContainner() {
 
         (async () => {
             try {
-                const [units, faculties] = await Promise.all([
-                    fetchUnits(),
-                    fetchFaculties(),
-                ]);
+                const units = await fetchUnits();
                 if (!alive) return;
 
                 setOfficeOptions(units ?? []);
-                setFacultiesOptions(faculties ?? []);
             } catch {
                 if (alive) {
                     setOfficeOptions([]);
-                    setFacultiesOptions([]);
                 }
             } finally {
                 loadedInitRef.current = true;
@@ -234,40 +120,9 @@ export default function RegisterContainner() {
         };
     }, []);
 
-    // 2) faculty -> departments
-    useEffect(() => {
-        const controller = new AbortController();
-        let alive = true;
-        const rid = ++reqIdRef.current;
 
-        (async () => {
-            // reset ก่อน
-            setDepartmentOptions([]);
-            setDepartment('');
 
-            if (!faculty) return;
-
-            try {
-                const deps = await fetchDepartments(faculty);
-                if (!alive || rid !== reqIdRef.current) return;
-                setDepartmentOptions(deps ?? []);
-                // ถ้าเหลือตัวเดียว auto-select
-                if (deps?.length === 1) setDepartment(deps[0].value);
-            } catch {
-                if (alive && rid === reqIdRef.current) {
-                    setDepartmentOptions([]);
-                    setDepartment('');
-                }
-            }
-        })();
-
-        return () => {
-            alive = false;
-            controller.abort();
-        };
-    }, [faculty]);
-
-    // 3) office -> subUnits
+    // 2) office -> subUnits
     useEffect(() => {
         const controller = new AbortController();
         let alive = true;
@@ -293,73 +148,7 @@ export default function RegisterContainner() {
         };
     }, [office]);
 
-    const searchSubDistrict = useCallback(async (q: string): Promise<string[]> => {
-        try {
-            const subDistricts = await fetchSubDistricts(q);
-            const subDistrictId = subDistricts.find(t => t.value)?.value ?? null;
-            await searchDistricts(subDistrictId);
-            return subDistricts.map(t => t.label ?? '').filter(label => label !== '');
-        } catch (error) {
-            return [];
-        }
-    }, []);
 
-    const searchProvinces = useCallback(
-        async (districtId: string | undefined): Promise<void> => {
-            if (!districtId) {
-                setProvinceOptions([]);
-                setProvince('');
-                return;
-            }
-            try {
-                const provinces = await fetchProvinces(districtId);
-                setProvinceOptions(provinces);
-
-                if (provinces.length === 1) {
-                    setProvince(provinces[0].value);
-                }
-            } catch {
-                setProvinceOptions([]);
-                setProvince('');
-            }
-        },
-        []
-    );
-
-    const searchDistricts = useCallback(
-        async (subDistrictId: string): Promise<void> => {
-            if (!subDistrictId) {
-                setDistrictOptions([]);
-                setDistrict('');
-                setProvinceOptions([]);
-                setProvince('');
-                return;
-            }
-            try {
-                const districts = await fetchDistricts(subDistrictId);
-                const postCodes = await fetchPostcode(subDistrictId);
-                setPostCodeOptions(postCodes);
-                setDistrictOptions(districts);
-
-                if (districts.length === 1) {
-                    const only = districts[0].value;
-                    setDistrict(only);
-                    await searchProvinces(only);
-                }
-                if (postCodes && postCodes.length === 1) {
-                    setPostalCode(postCodes[0].value || '');
-                } else {
-                    setPostalCode('');
-                }
-            } catch {
-                setDistrictOptions([]);
-                setDistrict('');
-                setProvinceOptions([]);
-                setProvince('');
-            }
-        },
-        [searchProvinces]
-    );
 
     // Validation function
     const validateForm = (): string | null => {
@@ -374,21 +163,16 @@ export default function RegisterContainner() {
         if (!email.trim()) return "กรุณากรอกอีเมล";
         if (!phone.trim()) return "กรุณากรอกเบอร์โทรศัพท์";
         if (phone && !/^0\d{9}$/.test(phone)) return "เบอร์โทรศัพท์ต้องขึ้นต้นด้วย 0 และมี 10 หลัก";
-        if (postalCode && !/^\d{5}$/.test(postalCode)) return "รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก";
         if (nationnalId && !/^\d{13}$/.test(nationnalId)) return "เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก";
-
-        // Student validation
-        if (userType === "student") {
-            if (!studentId.trim()) return "กรุณากรอกรหัสนิสิต";
-            if (!faculty) return "กรุณาเลือกคณะ";
-            if (!department) return "กรุณาเลือกสาขา";
-            if (!levelStudy) return "กรุณาเลือกระดับการศึกษา";
-        }
 
         // Staff validation
         if (userType === "staff") {
             if (!office) return "กรุณาเลือกหน่วยงาน";
-            if (!staffType) return "กรุณาเลือกประเภทบุคลากร";
+        }
+
+        // Student validation
+        if (userType === "student") {
+            // นักเรียนสาธิตไม่ต้องมี validation เพิ่มเติม
         }
 
         return null;
@@ -420,38 +204,24 @@ export default function RegisterContainner() {
                 title_en: prefix?.en || null,
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
-                nickname: nickname.trim(),
-                dob: dob ? new Date(dob.getTime() + (7 * 60 * 60 * 1000)).toISOString() : null,
                 role: userType,
-
-                // Student specific
-                ...(userType === "student" && {
-                    student_id: studentId.trim(),
-                    faculty_id: faculty,
-                    department_id: department,
-                    level_of_study: levelStudy,
-                }),
 
                 // Staff specific
                 ...(userType === "staff" && {
                     national_id: hashedNationalId,
-                    staff_type: staffType,
                     unit_id: office,
                     position: jobtitle,
+                }),
+
+                // Student specific (นักเรียนสาธิต)
+                ...(userType === "student" && {
+                    national_id: hashedNationalId,
                 }),
 
                 // Guest specific
                 ...(userType === "guest" && {
                     national_id: hashedNationalId,
                 }),
-
-                // Address
-                house_number: houseNumber.trim() || null,
-                street: street.trim() || null,
-                subdistrict: subDistrict.trim() || null,
-                district: district ? districtOptions.find(d => d.value === district)?.label : null,
-                province: province ? provincesOptions.find(p => p.value === province)?.label : null,
-                postal_code: postalCode && /^\d{5}$/.test(postalCode) ? postalCode : null,
             };
 
             const result = await register(userData);
@@ -499,18 +269,7 @@ export default function RegisterContainner() {
                     />
                 </div>
 
-                {userType === "student" && (
-                    <div className="tw-col-span-4 md:tw-col-span-12 sm:tw-col-span-12">
-                        <InputField
-                            type="text"
-                            placeholder="กรอกเลขบัตรนิสิต"
-                            value={studentId}
-                            maxLength={10}
-                            onChange={(val) => setStudentId(val as string)}
-                            required
-                        />
-                    </div>
-                )}
+
                 <div className="tw-col-span-4 md:tw-col-span-12">
                     <InputField
                         type="text"
@@ -582,26 +341,8 @@ export default function RegisterContainner() {
                         required
                     />
                 </div>
-                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
-                    <InputField
-                        type="text"
-                        placeholder="ชื่อเล่น"
-                        value={nickname}
-                        onChange={(val) => setNickName(val as string)}
-                        required
-                    />
-                </div>
-                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
-                    <DateField
-                        value={dob}
-                        onChange={setDob}
-                        showIcon={true}
-                        maxDate={today}
-                        minDate={hundredYearsAgo}
-                        placeholder="เลือกวันเกิด"
-                        required
-                    />
-                </div>
+
+
                 <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
                     <InputField
                         type="tel"
@@ -621,101 +362,8 @@ export default function RegisterContainner() {
                         required
                     />
                 </div>
-                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
-                    <InputField
-                        type="text"
-                        placeholder="บ้านเลขที่"
-                        value={houseNumber}
-                        onChange={(val) => setHouseNumber(val as string)}
-                        required
-                    />
-                </div>
-                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
-                    <InputField
-                        type="text"
-                        placeholder="ถนน"
-                        value={street}
-                        onChange={(val) => setStreet(val as string)}
-                        required
-                    />
-                </div>
-                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
-                    <AutoCompleteField
-                        placeholder="พิมพ์ชื่อตำบล"
-                        value={subDistrict}
-                        onChange={(value) => setSubDistrict(value || "")}
-                        onSearch={searchSubDistrict}
-                        required
-                    />
-                </div>
-                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
-                    <DropdownField
-                        placeholder="กรุณาเลือกเขตหรืออำเภอ"
-                        value={district}
-                        disabled={true}
-                        onChange={setDistrict}
-                        options={districtOptions}
-                        optionLabel="label"
-                        required
-                    />
-                </div>
-                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
-                    <DropdownField
-                        placeholder="กรุณาเลือกจังหวัด"
-                        value={province}
-                        onChange={setProvince}
-                        disabled={true}
-                        options={provincesOptions}
-                        optionLabel="label"
-                        required
-                    />
-                </div>
-                <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
-                    <DropdownField
-                        placeholder="กรุณาเลือกรหัสไปรษณ์ย์"
-                        value={postalCode}
-                        disabled={true}
-                        onChange={setPostalCode}
-                        options={postCodeOptions}
-                        optionLabel="label"
-                        required
-                    />
-                </div>
-                {userType === "student" && (
-                    <>
-                        <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-12">
-                            <DropdownField
-                                placeholder="คณะ"
-                                value={faculty}
-                                onChange={setFaculty}
-                                options={facultiesOption}
-                                optionLabel="label"
-                                required
-                            />
-                        </div>
-                        <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
-                            <DropdownField
-                                placeholder="สาขา"
-                                value={department}
-                                onChange={setDepartment}
-                                options={departmentOption}
-                                optionLabel="label"
-                                required
-                                disabled={!faculty}
-                            />
-                        </div>
-                        <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
-                            <DropdownField
-                                placeholder="ระดับการศึกษา"
-                                value={levelStudy}
-                                onChange={setLevelStudy}
-                                options={levelStudyOptions}
-                                optionLabel="label"
-                                required
-                            />
-                        </div>
-                    </>
-                )}
+
+
                 {userType === "staff" && (
                     <>
                         <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-12">
@@ -728,22 +376,12 @@ export default function RegisterContainner() {
                                 required
                             />
                         </div>
-                        <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
+                        <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-12">
                             <DropdownField
                                 placeholder="ตำแหน่งงาน"
                                 value={jobtitle}
                                 onChange={setJobtitle}
                                 options={subUnitOption}
-                                optionLabel="label"
-                                required
-                            />
-                        </div>
-                        <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-6">
-                            <DropdownField
-                                placeholder="ประเภทบุคลากร"
-                                value={staffType}
-                                onChange={setStaffType}
-                                options={staffTypeOptions}
                                 optionLabel="label"
                                 required
                             />
