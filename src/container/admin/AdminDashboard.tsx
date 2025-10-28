@@ -40,7 +40,7 @@ export default function AdminDashboard() {
     useEffect(() => {
         if (status === "loading") return;
 
-        if (!session || (session.user as any)?.role !== "admin") {
+        if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super-admin")) {
             toast.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
@@ -76,7 +76,7 @@ export default function AdminDashboard() {
         );
     }
 
-    if (!session || (session.user as any)?.role !== "admin") {
+    if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super-admin")) {
         return null;
     }
 
@@ -116,6 +116,18 @@ export default function AdminDashboard() {
             href: "/admin/audit"
         }
     ];
+
+    // เพิ่ม action สำหรับ super-admin
+    if ((session.user as any)?.role === "super_admin" || (session.user as any)?.role === "super-admin") {
+        quickActions.push({
+            title: "จัดการ Admin",
+            description: "จัดการบัญชี Admin และ Super Admin",
+            icon: Users,
+            color: "tw-from-orange-500 tw-to-red-600",
+            hoverColor: "hover:tw-from-orange-600 hover:tw-to-red-700",
+            href: "/admin/manage"
+        });
+    }
 
     const recentActivities = [
 

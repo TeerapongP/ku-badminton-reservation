@@ -109,7 +109,7 @@ export default function AdminAuditContainer() {
     useEffect(() => {
         if (status === "loading") return;
 
-        if (!session || (session.user as any)?.role !== "admin") {
+        if (!session || (session.user as any)?.role !== "admin" || !session || (session.user as any)?.role !== "super_admin") {
             toast.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
@@ -124,7 +124,7 @@ export default function AdminAuditContainer() {
             // Mock data - ในระบบจริงจะเรียก API
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            
+
             setAuditLogs([]);
         } catch (error) {
             toast.showError("ไม่สามารถโหลดข้อมูลได้", "กรุณาลองใหม่อีกครั้ง");
