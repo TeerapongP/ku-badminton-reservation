@@ -2,6 +2,10 @@
 
 # dependencies
 /node_modules
+node_modules
+
+.git
+
 /.pnp
 .pnp.js
 
@@ -11,6 +15,7 @@
 # next.js
 /.next/
 /out/
+.next/cache
 
 # production
 /build
@@ -25,8 +30,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env*.local
-.env
+.env*
 
 # vercel
 .vercel
