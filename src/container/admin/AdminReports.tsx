@@ -148,6 +148,17 @@ export default function AdminReportsContainner() {
         { name: 'ไม่มาใช้', value: reportData?.bookingsByStatus.no_show || 0, color: '#F97316' }
     ];
 
+    // Check authentication and role
+    useEffect(() => {
+        if (status === "loading") return;
+
+        if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super-admin")) {
+            toast?.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
+            router.push("/");
+            return;
+        }
+    }, [session, status, router, toast]);
+
     // Load report data
     useEffect(() => {
         const loadReportData = async () => {
@@ -190,6 +201,10 @@ export default function AdminReportsContainner() {
                 fullScreen={true}
             />
         );
+    }
+
+    if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super-admin")) {
+        return null;
     }
 
     if (!reportData) {

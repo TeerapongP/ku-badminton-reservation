@@ -94,10 +94,8 @@ export function BookingConfirmationModal({
     }, []);
 
     const handleCancel = () => {
-        if (window.confirm("คุณต้องการยกเลิกการจองหรือไม่?")) {
-            onCancel?.();
-            onHide?.();
-        }
+        onCancel?.();
+        onHide?.();
     };
 
     const handleEdit = () => onEdit?.();
@@ -215,16 +213,6 @@ export function BookingConfirmationModal({
                     >
                         <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
                             ยกเลิก
-                        </span>
-                    </Button>
-
-                    <Button
-                        className="tw-flex-1 tw-h-12 tw-text-base tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none"
-                        colorClass="tw-bg-gradient-to-r tw-from-yellow-400 tw-to-yellow-500 hover:tw-from-yellow-500 hover:tw-to-yellow-600 tw-text-gray-800 focus:tw-ring-4 focus:tw-ring-yellow-300"
-                        onClick={handleEdit}
-                    >
-                        <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
-                            แก้ไข
                         </span>
                     </Button>
 
