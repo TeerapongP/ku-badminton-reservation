@@ -2,9 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, Users, MapPin, RefreshCw, AlertCircle } from 'lucide-react';
 import { BookingTableProps } from '@/lib/BookingTableProps';
 import Loading from './Loading';
+import { useRouter } from 'next/navigation';
 
 const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => {
     const [hoveredCell, setHoveredCell] = useState<string | null>(null);
+    const router = useRouter();
+
+    // Handle click on available slots
+    const handleAvailableSlotClick = (courtNumber: number, timeSlot: string) => {
+        router.push(`/courts-booking/${courtNumber}?time_slot=${timeSlot}`);
+    };
 
     // Generate time slots (09:00 - 19:00)
     const timeSlots: any[] = [];
@@ -26,6 +33,12 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
         });
     };
 
+    // Get court name for specific court number
+    const getCourtName = (courtNumber: number) => {
+        const booking = bookings.find(b => b.court_number === courtNumber);
+        return booking?.court_name || `สนามที่ ${courtNumber}`;
+    };
+
     // Get booking status for specific court and time
     const getBookingStatus = (courtNumber: number, timeSlot: any) => {
         // Check if it's lunch break time (12:00)
@@ -39,11 +52,6 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
         );
 
         if (!booking) return { status: 'available', user: '' };
-
-        // Debug log to see booking data
-        if (booking.status === 'confirmed' || booking.status === 'pending') {
-            console.log('Booking found:', booking);
-        }
 
         return { status: booking.status, user: booking.user_name };
     };
@@ -202,6 +210,7 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
                                                 <div className="tw-text-sm tw-font-semibold tw-text-slate-800">
                                                     สนามที่ {courtNumber}
                                                 </div>
+
                                                 <div className="tw-text-xs tw-text-slate-500">Badminton Court</div>
                                             </div>
                                         </div>
@@ -219,13 +228,16 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
                                                 onMouseEnter={() => setHoveredCell(cellKey)}
                                                 onMouseLeave={() => setHoveredCell(null)}
                                             >
-                                                <div className={`
+                                                <div
+                                                    className={`
                           tw-px-3 tw-py-2.5 tw-rounded-xl tw-text-xs tw-font-semibold 
                           tw-min-h-full tw-flex tw-flex-col tw-items-center tw-justify-center tw-gap-1
-                          tw-transition-all tw-duration-200 tw-cursor-pointer
+                          tw-transition-all tw-duration-200 ${status === 'available' ? 'tw-cursor-pointer hover:tw-scale-105' : 'tw-cursor-default'}
                           ${color}
                           ${isHovered ? 'tw-scale-105 tw-shadow-lg tw-z-20' : ''}
-                        `}>
+                        `}
+                                                    onClick={() => status === 'available' && handleAvailableSlotClick(courtNumber, timeSlot)}
+                                                >
                                                     <div className="tw-flex tw-items-center tw-gap-1">
                                                         <span className="tw-text-base">{icon}</span>
                                                         <span className="tw-text-md tw-leading-tight">{text}</span>
@@ -295,7 +307,7 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
                         </div>
                         <div>
                             <div className="tw-text-xs tw-font-bold tw-text-gray-800">พักเที่ยง</div>
-                            <div className="tw-text-[10px] tw-text-gray-600">Lunch Break</div>
+                            <div className="tw-text-md tw-text-gray-600">Lunch Break</div>
                         </div>
                     </div>
                 </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ToastProvider";
 import { Facility } from "@/lib/Facility";
 import { Button } from "@/components/Button";
@@ -10,6 +11,7 @@ import Loading, { ButtonLoading } from "@/components/Loading";
 
 export default function BadmintonContainer() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const toast = useToast();
 
   const [facilities, setFacilities] = useState<Facility[]>([]);
@@ -27,14 +29,27 @@ export default function BadmintonContainer() {
     }
   }
 
+  // Check authentication
   useEffect(() => {
-    fetchFacility()
-      .then(setFacilities)
-      .catch(() => {
-        toast.showError("ไม่สามารถโหลดข้อมูลได้", "กรุณาลองใหม่อีกครั้ง");
-        setFacilities([]);
-      });
-  }, []);
+    if (status === "loading") return; // Still loading session
+    
+    if (!session) {
+      toast?.showError("กรุณาเข้าสู่ระบบ", "คุณต้องเข้าสู่ระบบก่อนเข้าใช้งาน");
+      router.push("/login");
+      return;
+    }
+  }, [session, status, router, toast]);
+
+  useEffect(() => {
+    if (session) { // Only fetch data if authenticated
+      fetchFacility()
+        .then(setFacilities)
+        .catch(() => {
+          toast.showError("ไม่สามารถโหลดข้อมูลได้", "กรุณาลองใหม่อีกครั้ง");
+          setFacilities([]);
+        });
+    }
+  }, [session, toast]);
 
   const goToCourts = async (f: Facility) => {
     if (!f.active) return;
@@ -47,6 +62,25 @@ export default function BadmintonContainer() {
       setBookingLoading(null);
     }
   };
+
+  // Show loading while checking authentication
+  if (status === "loading") {
+    return (
+      <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-green-50 tw-via-emerald-50 tw-to-teal-50 tw-flex tw-items-center tw-justify-center">
+        <Loading
+          text="กำลังตรวจสอบการเข้าสู่ระบบ..."
+          fullScreen={false}
+          color="emerald"
+          size="lg"
+        />
+      </div>
+    );
+  }
+
+  // Don't render anything if not authenticated (will redirect)
+  if (!session) {
+    return null;
+  }
 
   return (
     <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-green-50 tw-via-emerald-50 tw-to-teal-50 tw-px-6">
