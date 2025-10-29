@@ -1,31 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { DateField } from "@/components/DateField";
 import { Button } from "@/components/Button";
 import { useToast } from "@/components/ToastProvider";
 import { BookingConfirmationModal } from "@/components/BookingConfirmationModa";
+import Loading from "@/components/Loading";
+import { CourtView } from "@/types/CourtView";
+import { Slot } from "@/types/Slot";
 
-type Slot = {
-    id: number;
-    label: string;
-    status: "available" | "reserved" | "pending" | "break";
-    bookedBy?: string;
-};
 
-// ชนิดฝั่งหน้าบ้านที่เราจะใช้แสดงผล
-type CourtView = {
-    courtId: number | string;
-    name: string;
-    building?: string | null;
-    pricePerHour?: number | null; // หน่วย THB ถ้ามี
-    active?: boolean;
-};
 
 export default function CourtBookingContainer() {
     const params = useParams<{ id?: string }>();
+    const router = useRouter();
+    const { data: session, status } = useSession();
     const toast = useToast();
 
     // รองรับ /courts/[id]
@@ -38,36 +30,23 @@ export default function CourtBookingContainer() {
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
+    const [slotsLoading, setSlotsLoading] = useState(false);
     const [court, setCourt] = useState<CourtView | null>(null);
+    const [slots, setSlots] = useState<Slot[]>([]);
     const [visible, setVisible] = useState<boolean>(false);
     const today = useMemo(() => {
         const d = new Date();
         d.setHours(0, 0, 0, 0);
         return d;
     }, []);
-    const hundredYearsAgo = useMemo(() => {
-        const d = new Date(today);
-        d.setFullYear(d.getFullYear() - 100);
-        return d;
-    }, [today]);
-
-    const slots: Slot[] = [
-        { id: 1, label: "08.00 - 09.00 น.", status: "reserved", bookedBy: "คุณสมชาย" },
-        { id: 2, label: "09.00 - 10.00 น.", status: "reserved", bookedBy: "คุณสมศรี" },
-        { id: 3, label: "10.00 - 11.00 น.", status: "reserved", bookedBy: "คุณสมหมาย" },
-        { id: 4, label: "11.00 - 12.00 น.", status: "pending", bookedBy: "รอชำระเงิน" },
-        { id: 5, label: "พักกลางวัน", status: "break" },
-        { id: 6, label: "13.00 - 14.00 น.", status: "available" },
-        { id: 7, label: "14.00 - 15.00 น.", status: "available" },
-    ];
 
     // map response จาก API → รูปแบบที่จอใช้
     function mapServerToView(s: any): CourtView {
         // รองรับทั้ง snake_case และ camelCase
         const courtId = s.courtId ?? s.court_id ?? s.id ?? "-";
         const name =
-            s.name ??
             s.courtName ??
+            s.name ??
             (s.courtCode ? `Court ${s.courtCode}` : "Court");
         const building = s.building ?? s.facilityNameTh ?? null;
         const pricePerHour =
@@ -76,6 +55,34 @@ export default function CourtBookingContainer() {
         return { courtId, name, building, pricePerHour, active: s.active };
     }
 
+    // Fetch court availability for selected date
+    const fetchCourtAvailability = async (date: Date) => {
+        if (!courtId) return;
+
+        setSlotsLoading(true);
+        try {
+            const dateString = date.toISOString().split('T')[0];
+            const res = await fetch(`/api/courts/${courtId}/availability?date=${dateString}`, {
+                cache: "no-store",
+            });
+
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+
+            if (json.success && json.data) {
+                setSlots(json.data);
+            } else {
+                throw new Error(json.message || 'Failed to fetch availability');
+            }
+        } catch (error) {
+            console.error('Error fetching court availability:', error);
+            toast?.showError("ไม่สามารถโหลดข้อมูลช่วงเวลาได้", "กรุณาลองใหม่อีกครั้ง");
+            setSlots([]);
+        } finally {
+            setSlotsLoading(false);
+        }
+    };
+
     async function fetchCourtDetails(): Promise<CourtView | null> {
         try {
             const res = await fetch(`/api/court-details?courtId=${courtId}`, {
@@ -83,8 +90,11 @@ export default function CourtBookingContainer() {
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
+            console.log('Court details API response:', json); // Debug log
             if (!json?.data) return null;
-            return mapServerToView(json.data);
+            const mappedData = mapServerToView(json.data);
+            console.log('Mapped court data:', mappedData); // Debug log
+            return mappedData;
         } finally {
             setLoading(false);
         }
@@ -104,10 +114,15 @@ export default function CourtBookingContainer() {
             });
     }, [courtId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // เปลี่ยนวันแล้วให้ยกเลิกการเลือกช่วงเวลา
+    // เปลี่ยนวันแล้วให้ยกเลิกการเลือกช่วงเวลาและโหลดข้อมูลใหม่
     useEffect(() => {
         setSelectedSlot(null);
-    }, [selectedDate]);
+        if (selectedDate && courtId) {
+            fetchCourtAvailability(selectedDate);
+        } else {
+            setSlots([]);
+        }
+    }, [selectedDate, courtId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const getSlotStyle = (slot: Slot) => {
         const base =
@@ -129,10 +144,40 @@ export default function CourtBookingContainer() {
         return base;
     };
 
+    // Check authentication
+    useEffect(() => {
+        if (status === "loading") return; // Still loading session
+        
+        if (!session) {
+            toast?.showError("กรุณาเข้าสู่ระบบ", "คุณต้องเข้าสู่ระบบก่อนจองสนาม");
+            router.push("/login");
+            return;
+        }
+    }, [session, status, router, toast]);
+
     const handleSelectSlot = (slot: Slot) => {
         if (slot.status !== "available") return;
         setSelectedSlot(slot.id);
     };
+
+    // Show loading while checking authentication
+    if (status === "loading") {
+        return (
+            <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-emerald-50 tw-via-green-50 tw-to-teal-50 tw-flex tw-items-center tw-justify-center">
+                <Loading
+                    text="กำลังตรวจสอบการเข้าสู่ระบบ..."
+                    fullScreen={false}
+                    color="emerald"
+                    size="lg"
+                />
+            </div>
+        );
+    }
+
+    // Don't render anything if not authenticated (will redirect)
+    if (!session) {
+        return null;
+    }
 
     return (
         <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-emerald-50 tw-via-green-50 tw-to-teal-50 tw-py-10 tw-px-6">
@@ -184,36 +229,53 @@ export default function CourtBookingContainer() {
                         กรุณาเลือกเวลาที่ต้องการ
                     </label>
 
-                    <motion.div
-                        className="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-3 tw-gap-4"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4 }}
-                    >
-                        {slots.map((slot) => (
-                            <motion.div
-                                key={slot.id}
-                                className={getSlotStyle(slot)}
-                                onClick={() => handleSelectSlot(slot)}
-                                whileHover={slot.status === "available" ? { scale: 1.05 } : {}}
-                                whileTap={slot.status === "available" ? { scale: 0.98 } : {}}
-                                role="button"
-                                aria-disabled={slot.status !== "available"}
-                            >
-                                <span>{slot.label}</span>
-                                {slot.status === "reserved" && (
-                                    <div className="tw-text-sm tw-font-normal tw-text-red-600 tw-mt-1">
-                                        {slot.bookedBy}
-                                    </div>
-                                )}
-                                {slot.status === "pending" && (
-                                    <div className="tw-text-sm tw-font-normal tw-text-yellow-700 tw-mt-1">
-                                        {slot.bookedBy}
-                                    </div>
-                                )}
-                            </motion.div>
-                        ))}
-                    </motion.div>
+                    {!selectedDate ? (
+                        <div className="tw-text-center tw-py-12 tw-text-gray-500">
+                            <div className="tw-text-4xl tw-mb-4">📅</div>
+                            <p className="tw-text-lg">กรุณาเลือกวันที่ก่อน</p>
+                        </div>
+                    ) : slotsLoading ? (
+                        <div className="tw-text-center tw-py-12">
+                            <div className="tw-animate-spin tw-rounded-full tw-h-12 tw-w-12 tw-border-b-2 tw-border-emerald-600 tw-mx-auto tw-mb-4"></div>
+                            <p className="tw-text-gray-600">กำลังโหลดข้อมูลช่วงเวลา...</p>
+                        </div>
+                    ) : slots.length === 0 ? (
+                        <div className="tw-text-center tw-py-12 tw-text-gray-500">
+                            <div className="tw-text-4xl tw-mb-4">❌</div>
+                            <p className="tw-text-lg">ไม่มีช่วงเวลาให้จองในวันนี้</p>
+                        </div>
+                    ) : (
+                        <motion.div
+                            className="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-3 tw-gap-4"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4 }}
+                        >
+                            {slots.map((slot) => (
+                                <motion.div
+                                    key={slot.id}
+                                    className={getSlotStyle(slot)}
+                                    onClick={() => handleSelectSlot(slot)}
+                                    whileHover={slot.status === "available" ? { scale: 1.05 } : {}}
+                                    whileTap={slot.status === "available" ? { scale: 0.98 } : {}}
+                                    role="button"
+                                    aria-disabled={slot.status !== "available"}
+                                >
+                                    <span>{slot.label}</span>
+                                    {slot.status === "reserved" && (
+                                        <div className="tw-text-sm tw-font-normal tw-text-red-600 tw-mt-1">
+                                            {slot.bookedBy}
+                                        </div>
+                                    )}
+                                    {slot.status === "pending" && (
+                                        <div className="tw-text-sm tw-font-normal tw-text-yellow-700 tw-mt-1">
+                                            {slot.bookedBy}
+                                        </div>
+                                    )}
+                                </motion.div>
+                            ))}
+                        </motion.div>
+                    )}
                 </div>
 
                 {/* Legend */}
@@ -256,7 +318,7 @@ export default function CourtBookingContainer() {
                         className="tw-w-1/2 tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-60 disabled:tw-cursor-not-allowed"
                         colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
                         onClick={() => setVisible(true)}
-                        disabled={!selectedDate || !selectedSlot || !court || loading}
+                        disabled={!selectedDate || !selectedSlot || !court || loading || slotsLoading}
                     >
                         <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
                             จอง

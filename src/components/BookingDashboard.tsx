@@ -4,18 +4,10 @@ import { MapPin, Calendar, Clock } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import BookingTable from "./BookingTable";
 
-// Mock data for demo
-const mockBookings = [
-  { id: 1, court_number: 1, time_slot: '08:00', status: 'confirmed', user_name: 'สมชาย' },
-  { id: 2, court_number: 1, time_slot: '09:00', status: 'confirmed', user_name: 'สมชาย' },
-  { id: 3, court_number: 2, time_slot: '10:00', status: 'pending', user_name: 'สมหญิง' },
-  { id: 4, court_number: 3, time_slot: '14:00', status: 'confirmed', user_name: 'สมศักดิ์' },
-  { id: 5, court_number: 4, time_slot: '16:00', status: 'cancelled', user_name: 'สมใจ' },
-  { id: 6, court_number: 5, time_slot: '18:00', status: 'confirmed', user_name: 'สมพร' },
-];
+import { DashboardBooking, DashboardBookingResponse } from '@/types/booking';
 // Main Dashboard Component
 const BookingDashboard = () => {
-  const [bookings, setBookings] = useState(mockBookings);
+  const [bookings, setBookings] = useState<DashboardBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState(new Date());
@@ -30,16 +22,21 @@ const BookingDashboard = () => {
       setLoading(true);
       setError(null);
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Fetch from real API
+      const response = await fetch('/api/bookings/dashboard');
 
-      // In real app, fetch from API:
-      // const response = await fetch('/api/bookings/dashboard');
-      // const result = await response.json();
-      // setBookings(result.data);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-      setBookings(mockBookings);
-      setLastUpdate(new Date());
+      const result: DashboardBookingResponse = await response.json();
+
+      if (result.success) {
+        setBookings(result.data);
+        setLastUpdate(new Date());
+      } else {
+        throw new Error(result.message || 'Failed to fetch bookings');
+      }
     } catch (err) {
       console.error('Failed to fetch bookings:', err);
       setError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
@@ -121,9 +118,9 @@ const BookingDashboard = () => {
               <div className="tw-text-center">
                 <div className="tw-text-white/80 tw-text-sm tw-mb-1">อัปเดตข้อมูลใหม่ใน</div>
                 <div className="tw-flex tw-items-center tw-justify-center tw-gap-2">
-                 
-                    <div className="tw-text-2xl tw-font-bold tw-text-white">{countdown}</div>
-                    <div className="tw-text-xs tw-text-white/70">วินาที</div>
+
+                  <div className="tw-text-2xl tw-font-bold tw-text-white">{countdown}</div>
+                  <div className="tw-text-xs tw-text-white/70">วินาที</div>
                 </div>
                 <div className="tw-text-white/60 tw-text-xs tw-mt-2">
                   อัปเดตล่าสุด: {lastUpdate.toLocaleTimeString('th-TH', {
@@ -136,6 +133,16 @@ const BookingDashboard = () => {
             </div>
           </div>
         </div>
+
+        {error && (
+          <div className="tw-bg-red-50 tw-border tw-border-red-200 tw-rounded-xl tw-p-4 tw-mb-6">
+            <div className="tw-flex tw-items-center tw-gap-2 tw-text-red-700">
+              <Clock className="tw-w-5 tw-h-5" />
+              <span className="tw-font-medium">เกิดข้อผิดพลาด</span>
+            </div>
+            <p className="tw-text-red-600 tw-text-sm tw-mt-1">{error}</p>
+          </div>
+        )}
 
         <BookingTable
           bookings={bookings}
