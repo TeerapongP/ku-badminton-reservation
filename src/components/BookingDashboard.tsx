@@ -3,8 +3,6 @@
 import { MapPin, Calendar, Clock } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import BookingTable from "./BookingTable";
-import Footer from "./Footer";
-
 
 // Mock data for demo
 const mockBookings = [
@@ -143,8 +141,6 @@ const BookingDashboard = () => {
           bookings={bookings}
           loading={loading}
         />
-        
-        <Footer />
       </div>
     </div>
   );
