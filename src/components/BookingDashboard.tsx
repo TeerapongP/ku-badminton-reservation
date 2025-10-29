@@ -30,15 +30,15 @@ const BookingDashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // In real app, fetch from API:
       // const response = await fetch('/api/bookings/dashboard');
       // const result = await response.json();
       // setBookings(result.data);
-      
+
       setBookings(mockBookings);
       setLastUpdate(new Date());
     } catch (err) {
@@ -116,10 +116,29 @@ const BookingDashboard = () => {
                 </div>
               </div>
             </div>
+
+            {/* Countdown Section */}
+            <div className="tw-bg-white/10 tw-backdrop-blur-sm tw-rounded-xl tw-p-4 tw-border tw-border-white/20">
+              <div className="tw-text-center">
+                <div className="tw-text-white/80 tw-text-sm tw-mb-1">อัปเดตข้อมูลใหม่ใน</div>
+                <div className="tw-flex tw-items-center tw-justify-center tw-gap-2">
+                 
+                    <div className="tw-text-2xl tw-font-bold tw-text-white">{countdown}</div>
+                    <div className="tw-text-xs tw-text-white/70">วินาที</div>
+                </div>
+                <div className="tw-text-white/60 tw-text-xs tw-mt-2">
+                  อัปเดตล่าสุด: {lastUpdate.toLocaleTimeString('th-TH', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Asia/Bangkok'
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        
-        <BookingTable 
+
+        <BookingTable
           bookings={bookings}
           loading={loading}
         />

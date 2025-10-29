@@ -104,12 +104,6 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
                     color="blue"
                     size="lg"
                 />
-                <div className="tw-mt-4 tw-text-center">
-                    <p className="tw-text-sm tw-text-gray-500 tw-flex tw-items-center tw-justify-center tw-gap-2">
-                        <RefreshCw className="tw-w-4 tw-h-4" />
-                        <span>ดึงข้อมูลทุก 1 นาที</span>
-                    </p>
-                </div>
             </div>
         );
     }
