@@ -3,13 +3,13 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import crypto from 'crypto';
-import { 
-  withErrorHandler, 
-  validateRequired,
-  CustomApiError,
-  ERROR_CODES,
-  HTTP_STATUS,
-  successResponse
+import {
+    withErrorHandler,
+    validateRequired,
+    CustomApiError,
+    ERROR_CODES,
+    HTTP_STATUS,
+    successResponse
 } from "@/lib/error-handler";
 import { withMiddleware } from "@/lib/api-middleware";
 
@@ -66,12 +66,15 @@ async function uploadHandler(request: NextRequest) {
     }
 
     // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'profiles');
+    const baseUploadPath = process.env.IMAGE_PATH || '/home/remotepang1/ku-badminton-app/uploads';
+    const uploadsDir = join(baseUploadPath, 'profiles');
+
     try {
         if (!existsSync(uploadsDir)) {
             await mkdir(uploadsDir, { recursive: true });
         }
     } catch (error) {
+        console.error('Failed to create upload directory:', error);
         throw new CustomApiError(
             ERROR_CODES.INTERNAL_SERVER_ERROR,
             'ไม่สามารถสร้างโฟลเดอร์สำหรับเก็บไฟล์ได้',
@@ -97,7 +100,7 @@ async function uploadHandler(request: NextRequest) {
     // Convert file to buffer
     let bytes: ArrayBuffer;
     let buffer: Buffer;
-    
+
     try {
         bytes = await file.arrayBuffer();
         buffer = Buffer.from(bytes);
@@ -123,11 +126,11 @@ async function uploadHandler(request: NextRequest) {
 
     // Encrypt the response data
     const encryptionKey = process.env.UPLOAD_ENCRYPTION_KEY || 'default-key-change-in-production';
-    
+
     if (encryptionKey === 'default-key-change-in-production') {
         console.warn('Warning: Using default encryption key. Please set UPLOAD_ENCRYPTION_KEY in production.');
     }
-    
+
     const algorithm = 'aes-256-cbc';
 
     try {
@@ -145,8 +148,8 @@ async function uploadHandler(request: NextRequest) {
         // Prepend IV to encrypted filename
         encryptedFilenameResponse = iv.toString('hex') + ':' + encryptedFilenameResponse;
 
-        // Create cipher for image path
-        const publicPath = `/uploads/profiles/${encryptedFilename}`;
+        // Create cipher for image path (use API route instead of direct path)
+        const publicPath = `/api/images/profiles/${encryptedFilename}`;
         const pathIv = crypto.randomBytes(16);
         const pathCipher = crypto.createCipheriv(algorithm, keyHash, pathIv);
         let encryptedImagePath = pathCipher.update(publicPath, 'utf8', 'hex');

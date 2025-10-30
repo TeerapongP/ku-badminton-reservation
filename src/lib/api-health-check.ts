@@ -1,12 +1,8 @@
 // src/lib/api-health-check.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { 
-  withErrorHandler, 
-  CustomApiError,
-  ERROR_CODES,
-  HTTP_STATUS,
-  successResponse
+import {
+  withErrorHandler,
 } from "./error-handler";
 import { withMiddleware } from "./api-middleware";
 
@@ -18,7 +14,7 @@ interface HealthCheckResult {
   details?: any;
 }
 
-async function healthCheckHandler(req: NextRequest): Promise<NextResponse> {
+async function healthCheckHandler(): Promise<NextResponse> {
   const startTime = Date.now();
   const results: HealthCheckResult[] = [];
 
@@ -27,7 +23,7 @@ async function healthCheckHandler(req: NextRequest): Promise<NextResponse> {
     const dbStart = Date.now();
     await prisma.$queryRaw`SELECT 1 as health_check`;
     const dbTime = Date.now() - dbStart;
-    
+
     results.push({
       service: 'database',
       status: dbTime < 1000 ? 'healthy' : 'degraded',
@@ -76,12 +72,12 @@ async function healthCheckHandler(req: NextRequest): Promise<NextResponse> {
   ];
 
   const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
-  
+
   results.push({
     service: 'environment',
     status: missingEnvVars.length === 0 ? 'healthy' : 'unhealthy',
     responseTime: 0,
-    details: { 
+    details: {
       missing: missingEnvVars,
       total: requiredEnvVars.length,
       configured: requiredEnvVars.length - missingEnvVars.length
@@ -89,11 +85,11 @@ async function healthCheckHandler(req: NextRequest): Promise<NextResponse> {
   });
 
   // Overall health status
-  const overallStatus = results.every(r => r.status === 'healthy') 
-    ? 'healthy' 
-    : results.some(r => r.status === 'unhealthy') 
-    ? 'unhealthy' 
-    : 'degraded';
+  const overallStatus = results.every(r => r.status === 'healthy')
+    ? 'healthy'
+    : results.some(r => r.status === 'unhealthy')
+      ? 'unhealthy'
+      : 'degraded';
 
   const totalResponseTime = Date.now() - startTime;
 
@@ -108,8 +104,8 @@ async function healthCheckHandler(req: NextRequest): Promise<NextResponse> {
   };
 
   // Return appropriate status code
-  const statusCode = overallStatus === 'healthy' ? 200 : 
-                    overallStatus === 'degraded' ? 200 : 503;
+  const statusCode = overallStatus === 'healthy' ? 200 :
+    overallStatus === 'degraded' ? 200 : 503;
 
   return NextResponse.json(healthData, { status: statusCode });
 }
@@ -126,17 +122,17 @@ export const GET = withMiddleware(
 // API monitoring helper
 export async function checkApiEndpoint(url: string, method: string = 'GET'): Promise<HealthCheckResult> {
   const startTime = Date.now();
-  
+
   try {
-    const response = await fetch(url, { 
+    const response = await fetch(url, {
       method,
       headers: {
         'Content-Type': 'application/json',
       }
     });
-    
+
     const responseTime = Date.now() - startTime;
-    
+
     return {
       service: url,
       status: response.ok ? 'healthy' : 'unhealthy',
