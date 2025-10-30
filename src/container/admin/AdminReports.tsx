@@ -783,7 +783,7 @@ export default function AdminReportsContainer() {
                             </tr>
                         </thead>
                         <tbody>
-                            {reportData.userStats.topUsers.map((user, index) => (
+                            {reportData.userStats.topUsers?.map((user, index) => (
                                 <tr key={user.userId} className="tw-bg-white tw-border-b hover:tw-bg-gray-50">
                                     <td className="tw-px-6 tw-py-4 tw-font-medium tw-text-gray-900">
                                         #{index + 1}
