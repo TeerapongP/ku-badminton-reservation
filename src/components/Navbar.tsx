@@ -316,11 +316,7 @@ export default function Navbar() {
                       return "โปรไฟล์";
                     })()}
                   </span>
-                  {userProfile?.nickname && (session?.user as any)?.role !== "admin" && (
-                    <span className="tw-text-emerald-200/70 tw-text-xs">
-                      ({userProfile.nickname})
-                    </span>
-                  )}
+
                 </div>
               </Link>
 

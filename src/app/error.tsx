@@ -27,7 +27,7 @@ export default function Error({ error, reset }: ErrorProps) {
     };
 
     return (
-        <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-slate-50 tw-via-blue-50 tw-to-indigo-50 tw-flex tw-items-center tw-justify-center tw-px-6">
+        <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-slate-50 tw-via-blue-50 tw-to-indigo-50 tw-flex tw-items-center tw-justify-center tw-px-6 tw-mt-12">
             <div className="tw-text-center tw-max-w-md tw-mx-auto">
                 {/* Error Icon */}
                 <div className="tw-mb-8">

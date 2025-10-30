@@ -15,9 +15,7 @@ export interface UserProfile {
   title_en?: string;
   first_name: string;
   last_name: string;
-  nickname?: string;
-  gender?: Gender;
-  dob?: string;
+
   student_id?: string;
   staff_id?: string;
   profile_photo_url?: string;
