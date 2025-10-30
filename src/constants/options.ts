@@ -10,8 +10,7 @@ export type UserType = 'student' | 'staff' | 'guest';
 export type LevelOfStudy = 'bachelor' | 'master' | 'doctorate';
 export type StaffType = 'gov' | 'university' | 'contractor';
 export type PrefixTitle =
-  | 'mr' | 'ms' | 'mrs'
-  | 'dr' | 'prof' | 'asst'; // ปล. ถ้าต้องการ “รองศ.” เพิ่ม 'assoc'
+  | 'mr' | 'ms' | 'mrs'; // ปล. ถ้าต้องการ “รองศ.” เพิ่ม 'assoc'
 
 // ---- options ----
 export const userTypeOptions = [
@@ -24,12 +23,7 @@ export const prefixTitleOptions = [
   { label: 'นาย', value: { en: 'mr', th: 'นาย' } },
   { label: 'นางสาว', value: { en: 'ms', th: 'นางสาว' } },
   { label: 'นาง', value: { en: 'mrs', th: 'นาง' } },
-  { label: 'ดร.', value: { en: 'dr', th: 'ดร.' } },
-  { label: 'ศ.', value: { en: 'prof', th: 'ศ.' } },
-  { label: 'ผศ.', value: { en: 'asst', th: 'ผศ.' } },
 ] as const;
-
-
 
 export const levelStudyOptions = [
   { label: 'ปริญญาตรี', value: 'bachelor', name: 'bachelor' },
