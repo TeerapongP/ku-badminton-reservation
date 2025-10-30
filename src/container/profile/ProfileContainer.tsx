@@ -333,9 +333,7 @@ const ProfileContainer: React.FC = () => {
                                 <h2 className="tw-text-2xl tw-font-bold tw-text-gray-900">
                                     {userData.title_en} {userData.first_name} {userData.last_name}
                                 </h2>
-                                {userData.nickname && (
-                                    <p className="tw-text-gray-600 tw-mt-1">({userData.nickname})</p>
-                                )}
+
                                 <div className="tw-flex tw-flex-wrap tw-gap-2 tw-mt-3 tw-justify-center sm:tw-justify-start">
                                     <span
                                         className={`tw-px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-semibold ${getRoleBadgeColor(
@@ -501,39 +499,9 @@ const ProfileContainer: React.FC = () => {
                                         />
                                     </div>
 
-                                    <InputField
-                                        type="text"
-                                        placeholder="ชื่อเล่น"
-                                        value={formData.nickname ?? ""}
-                                        onChange={(value) => handleInputChange("nickname", value)}
-                                        disabled={!isEditing}
-                                    />
 
-                                    <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-3">
-                                        <DropdownField
-                                            placeholder="เลือกเพศ"
-                                            value={formData.gender ?? ""}
-                                            onChange={(value) => handleInputChange("gender", value)}
-                                            options={[
-                                                { label: "เลือก", value: "" },
-                                                { label: "ชาย", value: "M" },
-                                                { label: "หญิง", value: "F" },
-                                                { label: "ไม่ระบุ", value: "I" },
-                                                { label: "อื่นๆ", value: "Other" },
-                                            ]}
-                                            optionLabel="label"
-                                            disabled={!isEditing}
-                                        />
-                                        <DateField
-                                            value={formData.dob ? new Date(formData.dob) : null}
-                                            onChange={(value) =>
-                                                handleInputChange("dob", value ? value.toISOString().split("T")[0] : "")
-                                            }
-                                            showIcon={true}
-                                            placeholder="เลือกวันเกิด"
-                                            disabled={!isEditing}
-                                        />
-                                    </div>
+
+
                                 </div>
                             </div>
 

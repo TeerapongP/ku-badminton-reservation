@@ -128,7 +128,7 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
             <div className="tw-grid tw-grid-cols-2 md:tw-grid-cols-4 tw-gap-4">
                 <div className="tw-bg-white tw-rounded-2xl tw-p-5 tw-shadow-lg tw-border tw-border-slate-200 tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105">
                     <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
-                        <div className="tw-text-3xl tw-font-bold tw-text-slate-800">{summary.total}</div>
+                        <div className="tw-text-3xl tw-font-bold tw-text-slate-800">{summary.total} <span className="tw-text-lg tw-text-gray-600">ชั่วโมง</span></div>
                         <div className="tw-w-12 tw-h-12 tw-bg-gradient-to-br tw-from-blue-500 tw-to-blue-600 tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-shadow-lg">
                             <Calendar className="tw-w-6 tw-h-6 tw-text-white" />
                         </div>
@@ -139,18 +139,18 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
 
                 <div className="tw-bg-white tw-rounded-2xl tw-p-5 tw-shadow-lg tw-border tw-border-red-200 tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105">
                     <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
-                        <div className="tw-text-3xl tw-font-bold tw-text-red-600">{summary.confirmed}</div>
+                        <div className="tw-text-3xl tw-font-bold tw-text-red-600">{summary.confirmed} <span className="tw-text-lg tw-text-gray-600">คอร์ท</span></div>
                         <div className="tw-w-12 tw-h-12 tw-bg-gradient-to-br tw-from-red-500 tw-to-red-600 tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-shadow-lg">
                             <span className="tw-text-2xl tw-text-white">✓</span>
                         </div>
                     </div>
-                    <div className="tw-text-sm tw-font-medium tw-text-red-700">ไม่ว่าง</div>
+                    <div className="tw-text-sm tw-font-medium tw-text-red-700">คอร์ท</div>
                     <div className="tw-text-xs tw-text-red-500 tw-mt-1">Confirmed</div>
                 </div>
 
                 <div className="tw-bg-white tw-rounded-2xl tw-p-5 tw-shadow-lg tw-border tw-border-amber-200 tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105">
                     <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
-                        <div className="tw-text-3xl tw-font-bold tw-text-amber-600">{summary.pending}</div>
+                        <div className="tw-text-3xl tw-font-bold tw-text-amber-600">{summary.pending} <span className="tw-text-lg tw-text-gray-600">รายการ</span></div>
                         <div className="tw-w-12 tw-h-12 tw-bg-gradient-to-br tw-from-amber-400 tw-to-amber-500 tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-shadow-lg">
                             <Clock className="tw-w-6 tw-h-6 tw-text-white" />
                         </div>
@@ -161,7 +161,7 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
 
                 <div className="tw-bg-white tw-rounded-2xl tw-p-5 tw-shadow-lg tw-border tw-border-green-200 tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105">
                     <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
-                        <div className="tw-text-3xl tw-font-bold tw-text-green-600">{summary.available}</div>
+                        <div className="tw-text-3xl tw-font-bold tw-text-green-600">{summary.available} <span className="tw-text-lg tw-text-gray-600">ชั่วโมง</span></div>
                         <div className="tw-w-12 tw-h-12 tw-bg-gradient-to-br tw-from-green-500 tw-to-green-600 tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-shadow-lg">
                             <span className="tw-text-2xl tw-text-white">○</span>
                         </div>

@@ -18,228 +18,237 @@ import {
     CheckCircle,
     XCircle,
     FileText,
-    Settings,
-    Lock,
-    Unlock,
-    UserPlus,
-    Trash2,
     RefreshCw,
-    Edit
+    Filter,
+    Calendar,
+    TrendingUp,
+    TrendingDown,
+    BarChart3
 } from "lucide-react";
 import SearchInput from "@/components/SearchInput";
 import { DropdownField } from "@/components/DropdownField";
 import { DateField } from "@/components/DateField";
 
 interface AuditLog {
-    log_id: string;
-    user_id: string;
-    user_name: string;
-    user_role: string;
-    action: string;
-    resource_type: string;
-    resource_id: string;
-    details: string;
-    ip_address: string;
-    user_agent: string;
-    timestamp: string;
-    status: 'success' | 'failed' | 'warning';
-    severity: 'low' | 'medium' | 'high' | 'critical';
+    id: string;
+    userId: string | null;
+    usernameInput: string;
+    action: 'login_success' | 'login_fail' | 'logout';
+    ip: string | null;
+    userAgent: string | null;
+    createdAt: string;
+    user: {
+        id: string;
+        username: string;
+        name: string;
+        role: string;
+        email: string;
+    } | null;
 }
 
-const AUDIT_ACTIONS = {
-    'login': { icon: Lock, color: 'text-blue-600', bg: 'bg-blue-50' },
-    'logout': { icon: Unlock, color: 'text-gray-600', bg: 'bg-gray-50' },
-    'create': { icon: UserPlus, color: 'text-green-600', bg: 'bg-green-50' },
-    'update': { icon: Edit, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-    'delete': { icon: Trash2, color: 'text-red-600', bg: 'bg-red-50' },
-    'approve': { icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    'reject': { icon: XCircle, color: 'text-rose-600', bg: 'bg-rose-50' },
-    'view': { icon: Eye, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    'export': { icon: Download, color: 'text-purple-600', bg: 'bg-purple-50' },
-    'system': { icon: Settings, color: 'text-gray-700', bg: 'bg-gray-100' },
-} as const;
+interface AuditStats {
+    period: {
+        days: number;
+        startDate: string;
+        endDate: string;
+    };
+    loginStats: {
+        total: number;
+        successful: number;
+        failed: number;
+        logout: number;
+    };
+    dailyTrends: Array<{
+        date: string;
+        action: string;
+        count: number;
+    }>;
+    topFailedIPs: Array<{
+        ip: string;
+        failedAttempts: number;
+    }>;
+    suspiciousActivities: Array<{
+        username: string;
+        ip: string;
+        failedAttempts: number;
+        lastAttempt: string;
+    }>;
+    topUsers: Array<{
+        userId: string;
+        loginCount: number;
+        user: {
+            username: string;
+            name: string;
+            role: string;
+        } | null;
+    }>;
+}const ACTION_CONFIG = {
+    'login_success': {
+        icon: CheckCircle,
+        color: 'text-green-600',
+        bg: 'bg-green-50',
+        label: 'เข้าสู่ระบบสำเร็จ'
+    },
+    'login_fail': {
+        icon: XCircle,
+        color: 'text-red-600',
+        bg: 'bg-red-50',
+        label: 'เข้าสู่ระบบไม่สำเร็จ'
+    },
+    'logout': {
+        icon: ArrowLeft,
+        color: 'text-blue-600',
+        bg: 'bg-blue-50',
+        label: 'ออกจากระบบ'
+    }
+};
 
-export default function AdminAuditContainer() {
+export default function AdminAudit() {
     const router = useRouter();
     const { data: session, status } = useSession();
     const toast = useToast();
 
-    // Dropdown options
-    const actionOptions = [
-        { label: 'ทั้งหมด', value: 'all' },
-        { label: 'Login', value: 'login' },
-        { label: 'Logout', value: 'logout' },
-        { label: 'Create', value: 'create' },
-        { label: 'Update', value: 'update' },
-        { label: 'Delete', value: 'delete' },
-        { label: 'Approve', value: 'approve' },
-        { label: 'Reject', value: 'reject' },
-        { label: 'View', value: 'view' },
-        { label: 'Export', value: 'export' },
-        { label: 'System', value: 'system' },
-    ];
-
-    const severityOptions = [
-        { label: 'ทั้งหมด', value: 'all' },
-        { label: 'ต่ำ', value: 'low' },
-        { label: 'ปานกลาง', value: 'medium' },
-        { label: 'สูง', value: 'high' },
-        { label: 'วิกฤต', value: 'critical' },
-    ];
-
-    const statusOptions = [
-        { label: 'ทั้งหมด', value: 'all' },
-        { label: 'สำเร็จ', value: 'success' },
-        { label: 'ล้มเหลว', value: 'failed' },
-        { label: 'เตือน', value: 'warning' },
-    ];
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+    const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
     const [loading, setLoading] = useState(true);
+    const [statsLoading, setStatsLoading] = useState(true);
+
+    // Filters
     const [searchTerm, setSearchTerm] = useState("");
-    const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
-    const [showDetailModal, setShowDetailModal] = useState(false);
-    const [filterAction, setFilterAction] = useState<string>("all");
-    const [filterSeverity, setFilterSeverity] = useState<string>("all");
-    const [filterStatus, setFilterStatus] = useState<string>("all");
-    const [dateRange, setDateRange] = useState({
-        start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-        end: new Date()
-    });
+    const [actionFilter, setActionFilter] = useState("");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+
+    const pageSize = 20;
 
     useEffect(() => {
         if (status === "loading") return;
 
         if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super-admin")) {
-            toast.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
+            toast?.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
         }
 
         fetchAuditLogs();
-    }, [session, status, router, toast, dateRange]);
+        fetchAuditStats();
+    }, [session, status, router, toast, currentPage, actionFilter, startDate, endDate]);
+
+    useEffect(() => {
+        // Reset to first page when filters change
+        if (currentPage !== 1) {
+            setCurrentPage(1);
+        } else {
+            fetchAuditLogs();
+        }
+    }, [searchTerm, actionFilter, startDate, endDate]);
 
     const fetchAuditLogs = async () => {
         try {
             setLoading(true);
-            // Mock data - ในระบบจริงจะเรียก API
-            await new Promise(resolve => setTimeout(resolve, 1000));
 
+            const params = new URLSearchParams({
+                page: currentPage.toString(),
+                limit: pageSize.toString()
+            });
 
-            setAuditLogs([]);
+            if (actionFilter) params.append('action', actionFilter);
+            if (searchTerm) params.append('username', searchTerm);
+            if (startDate) params.append('startDate', startDate);
+            if (endDate) params.append('endDate', endDate);
+
+            const response = await fetch(`/api/admin/audit-logs?${params}`);
+            const data = await response.json();
+
+            if (data.success) {
+                setAuditLogs(data.data.logs);
+                setTotalPages(data.data.pagination.totalPages);
+                setTotalCount(data.data.pagination.totalCount);
+            } else {
+                toast?.showError("เกิดข้อผิดพลาด", data.message || "ไม่สามารถโหลดข้อมูลได้");
+            }
         } catch (error) {
-            toast.showError("ไม่สามารถโหลดข้อมูลได้", "กรุณาลองใหม่อีกครั้ง");
+            console.error('Fetch audit logs error:', error);
+            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
         } finally {
             setLoading(false);
         }
-    }; const
-        viewLogDetail = (log: AuditLog) => {
-            setSelectedLog(log);
-            setShowDetailModal(true);
-        };
+    };
 
-    const exportLogs = async () => {
+    const fetchAuditStats = async () => {
         try {
-            toast.showInfo("กำลังส่งออกข้อมูล", "กรุณารอสักครู่...");
+            setStatsLoading(true);
+            const response = await fetch('/api/admin/audit-stats?days=7');
+            const data = await response.json();
 
-            // Mock export - ในระบบจริงจะเรียก API
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            toast.showSuccess("ส่งออกข้อมูลสำเร็จ", "ไฟล์ได้ถูกดาวน์โหลดแล้ว");
+            if (data.success) {
+                setAuditStats(data.data);
+            } else {
+                console.error('Failed to fetch audit stats:', data.message);
+            }
         } catch (error) {
-            toast.showError("เกิดข้อผิดพลาด", "ไม่สามารถส่งออกข้อมูลได้");
+            console.error('Fetch audit stats error:', error);
+        } finally {
+            setStatsLoading(false);
         }
     };
 
-    const refreshLogs = () => {
-        fetchAuditLogs();
-        toast.showInfo("รีเฟรชข้อมูล", "กำลังโหลดข้อมูลใหม่...");
+    const handleExport = async () => {
+        try {
+            const params = new URLSearchParams({
+                limit: '1000' // Export more records
+            });
+
+            if (actionFilter) params.append('action', actionFilter);
+            if (searchTerm) params.append('username', searchTerm);
+            if (startDate) params.append('startDate', startDate);
+            if (endDate) params.append('endDate', endDate);
+
+            const response = await fetch(`/api/admin/audit-logs?${params}`);
+            const data = await response.json();
+
+            if (data.success) {
+                // Convert to CSV
+                const csvContent = convertToCSV(data.data.logs);
+                downloadCSV(csvContent, 'audit-logs.csv');
+                toast?.showSuccess("ส่งออกสำเร็จ", "ดาวน์โหลดไฟล์ audit logs แล้ว");
+            }
+        } catch (error) {
+            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถส่งออกข้อมูลได้");
+        }
     };
 
-    const filteredLogs = auditLogs.filter(log => {
-        const matchesSearch =
-            log.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            log.resource_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            log.details.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            log.ip_address.includes(searchTerm);
+    const convertToCSV = (logs: AuditLog[]) => {
+        const headers = ['วันที่', 'เวลา', 'การกระทำ', 'ผู้ใช้', 'ชื่อผู้ใช้', 'IP Address', 'สถานะ'];
+        const rows = logs.map(log => [
+            new Date(log.createdAt).toLocaleDateString('th-TH'),
+            new Date(log.createdAt).toLocaleTimeString('th-TH'),
+            ACTION_CONFIG[log.action]?.label || log.action,
+            log.user?.name || 'ไม่ระบุ',
+            log.usernameInput,
+            log.ip || 'ไม่ระบุ',
+            log.action === 'login_success' ? 'สำเร็จ' : log.action === 'login_fail' ? 'ไม่สำเร็จ' : 'ออกจากระบบ'
+        ]);
 
-        const matchesAction = filterAction === "all" || log.action === filterAction;
-        const matchesSeverity = filterSeverity === "all" || log.severity === filterSeverity;
-        const matchesStatus = filterStatus === "all" || log.status === filterStatus;
-
-        // Date range filtering
-        const logDate = new Date(log.timestamp);
-        const startDate = new Date(dateRange.start);
-        const endDate = new Date(dateRange.end);
-
-        // Set time to start/end of day for proper comparison
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
-
-        const matchesDateRange = logDate >= startDate && logDate <= endDate;
-
-        return matchesSearch && matchesAction && matchesSeverity && matchesStatus && matchesDateRange;
-    });
-
-    const getActionIcon = (action: string) => {
-        const actionConfig = AUDIT_ACTIONS[action as keyof typeof AUDIT_ACTIONS] || AUDIT_ACTIONS.system;
-        const IconComponent = actionConfig.icon;
-        return <IconComponent className={`tw-w-4 tw-h-4 ${actionConfig.color}`} />;
+        return [headers, ...rows].map(row => row.join(',')).join('\n');
     };
 
-    const getActionBadge = (action: string) => {
-        const actionConfig = AUDIT_ACTIONS[action as keyof typeof AUDIT_ACTIONS] || AUDIT_ACTIONS.system;
-        return (
-            <span className={`tw-inline-flex tw-items-center tw-px-2 tw-py-1 tw-rounded-full tw-text-xs tw-font-medium ${actionConfig.bg} ${actionConfig.color}`}>
-                {getActionIcon(action)}
-                <span className="tw-ml-1 tw-capitalize">{action}</span>
-            </span>
-        );
-    };
-
-    const getSeverityBadge = (severity: string) => {
-        const colors = {
-            low: 'tw-bg-gray-100 tw-text-gray-800',
-            medium: 'tw-bg-yellow-100 tw-text-yellow-800',
-            high: 'tw-bg-orange-100 tw-text-orange-800',
-            critical: 'tw-bg-red-100 tw-text-red-800'
-        };
-
-        return (
-            <span className={`tw-inline-flex tw-items-center tw-px-2 tw-py-1 tw-rounded-full tw-text-xs tw-font-medium ${colors[severity as keyof typeof colors]}`}>
-                {severity}
-            </span>
-        );
-    };
-
-    const getStatusBadge = (status: string) => {
-        const colors = {
-            success: 'tw-bg-green-100 tw-text-green-800',
-            failed: 'tw-bg-red-100 tw-text-red-800',
-            warning: 'tw-bg-yellow-100 tw-text-yellow-800'
-        };
-
-        const icons = {
-            success: CheckCircle,
-            failed: XCircle,
-            warning: AlertTriangle
-        };
-
-        const IconComponent = icons[status as keyof typeof icons] || CheckCircle;
-
-        return (
-            <span className={`tw-inline-flex tw-items-center tw-px-2 tw-py-1 tw-rounded-full tw-text-xs tw-font-medium ${colors[status as keyof typeof colors]}`}>
-                <IconComponent className="tw-w-3 tw-h-3 tw-mr-1" />
-                {status}
-            </span>
-        );
+    const downloadCSV = (content: string, filename: string) => {
+        const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
     };
 
     if (status === "loading" || loading) {
         return (
             <Loading
                 size="lg"
-                text="กำลังโหลดข้อมูล Audit Logs..."
+                text="กำลังโหลดข้อมูล audit logs..."
                 color="blue"
                 fullScreen={true}
             />
@@ -263,353 +272,317 @@ export default function AdminAuditContainer() {
                         กลับ
                     </Button>
 
-                    <div className="tw-mt-8">
-                        <h1 className="tw-text-3xl md:tw-text-4xl tw-font-bold tw-bg-gradient-to-r tw-from-purple-600 tw-via-blue-600 tw-to-indigo-600 tw-bg-clip-text tw-text-transparent tw-flex tw-items-center">
-                            <Shield className="tw-w-8 tw-h-8 tw-mr-3 tw-text-purple-600" />
+                    <div>
+                        <h1 className="tw-text-3xl md:tw-text-4xl tw-font-bold tw-bg-gradient-to-r tw-from-red-600 tw-via-purple-600 tw-to-blue-600 tw-bg-clip-text tw-text-transparent">
                             Audit Logs
                         </h1>
                         <p className="tw-text-gray-600 tw-mt-1">
-                            ตรวจสอบกิจกรรมและการเปลี่ยนแปลงในระบบ
+                            ตรวจสอบกิจกรรมและการเข้าถึงระบบ
                         </p>
                     </div>
                 </div>
-
-                <div className="tw-h-1 tw-w-32 tw-bg-gradient-to-r tw-from-purple-500 tw-via-blue-500 tw-to-indigo-500 tw-rounded-full" />
+                <div className="tw-h-1 tw-w-32 tw-bg-gradient-to-r tw-from-red-500 tw-via-purple-500 tw-to-blue-500 tw-rounded-full" />
             </div>
 
-            {/* Filters and Search */}
-            <div className="tw-bg-white tw-rounded-2xl tw-shadow-sm tw-p-6 tw-border tw-border-gray-100 tw-mb-6">
-                <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 tw-gap-6">
-                    {/* Search */}
-                    <div>
-                        <SearchInput
-                            value={searchTerm}
-                            onChange={setSearchTerm}
-                            placeholder="ค้นหา logs..."
-                            onSubmit={() => console.log("search:", searchTerm)}
-                        />
+            {/* Statistics Cards */}
+            {!statsLoading && auditStats && (
+                <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-4 tw-gap-6 tw-mb-8">
+                    <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
+                        <div className="tw-flex tw-items-center tw-justify-between">
+                            <div>
+                                <p className="tw-text-sm tw-font-medium tw-text-gray-600">รวมทั้งหมด</p>
+                                <p className="tw-text-3xl tw-font-bold tw-text-blue-600">{auditStats.loginStats.total}</p>
+                            </div>
+                            <div className="tw-w-12 tw-h-12 tw-bg-blue-100 tw-rounded-xl tw-flex tw-items-center tw-justify-center">
+                                <Activity className="tw-w-6 tw-h-6 tw-text-blue-600" />
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="tw-flex tw-items-end tw-justify-end tw-gap-3 tw-mt-4">
-                        <Button
-                            onClick={refreshLogs}
-                            className="tw-h-11 tw-px-5 tw-font-semibold tw-rounded-xl tw-transition-all tw-duration-300 tw-shadow-md hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
-                            colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
-                        >
-                            <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
-                                <RefreshCw className="tw-w-4 tw-h-4 tw-transition-transform group-hover:tw-rotate-180 tw-duration-300" />
-                                รีเฟรช
-                            </span>
-                        </Button>
-
-                        <Button
-                            onClick={exportLogs}
-                            className="tw-h-11 tw-px-5 tw-font-semibold tw-rounded-xl tw-transition-all tw-duration-300 tw-shadow-md hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
-                            colorClass="tw-bg-gradient-to-r tw-from-sky-500 tw-to-sky-600 hover:tw-from-sky-600 hover:tw-to-sky-700 tw-text-white focus:tw-ring-4 focus:tw-ring-sky-300"
-                        >
-                            <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
-                                <Download className="tw-w-4 tw-h-4" />
-                                พิมพ์รายงาน
-                            </span>
-                        </Button>
-
+                    <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
+                        <div className="tw-flex tw-items-center tw-justify-between">
+                            <div>
+                                <p className="tw-text-sm tw-font-medium tw-text-gray-600">เข้าสู่ระบบสำเร็จ</p>
+                                <p className="tw-text-3xl tw-font-bold tw-text-green-600">{auditStats.loginStats.successful}</p>
+                            </div>
+                            <div className="tw-w-12 tw-h-12 tw-bg-green-100 tw-rounded-xl tw-flex tw-items-center tw-justify-center">
+                                <CheckCircle className="tw-w-6 tw-h-6 tw-text-green-600" />
+                            </div>
+                        </div>
                     </div>
 
+                    <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
+                        <div className="tw-flex tw-items-center tw-justify-between">
+                            <div>
+                                <p className="tw-text-sm tw-font-medium tw-text-gray-600">เข้าสู่ระบบไม่สำเร็จ</p>
+                                <p className="tw-text-3xl tw-font-bold tw-text-red-600">{auditStats.loginStats.failed}</p>
+                            </div>
+                            <div className="tw-w-12 tw-h-12 tw-bg-red-100 tw-rounded-xl tw-flex tw-items-center tw-justify-center">
+                                <XCircle className="tw-w-6 tw-h-6 tw-text-red-600" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
+                        <div className="tw-flex tw-items-center tw-justify-between">
+                            <div>
+                                <p className="tw-text-sm tw-font-medium tw-text-gray-600">กิจกรรมน่าสงสัย</p>
+                                <p className="tw-text-3xl tw-font-bold tw-text-orange-600">{auditStats.suspiciousActivities.length}</p>
+                            </div>
+                            <div className="tw-w-12 tw-h-12 tw-bg-orange-100 tw-rounded-xl tw-flex tw-items-center tw-justify-center">
+                                <AlertTriangle className="tw-w-6 tw-h-6 tw-text-orange-600" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Suspicious Activities Alert */}
+            {!statsLoading && auditStats && auditStats.suspiciousActivities.length > 0 && (
+                <div className="tw-bg-orange-50 tw-border tw-border-orange-200 tw-rounded-2xl tw-p-6 tw-mb-8">
+                    <div className="tw-flex tw-items-start tw-gap-4">
+                        <AlertTriangle className="tw-w-6 tw-h-6 tw-text-orange-600 tw-flex-shrink-0 tw-mt-1" />
+                        <div className="tw-flex-1">
+                            <h3 className="tw-text-lg tw-font-bold tw-text-orange-800 tw-mb-2">
+                                ตรวจพบกิจกรรมน่าสงสัย
+                            </h3>
+                            <p className="tw-text-orange-700 tw-mb-4">
+                                พบการพยายามเข้าสู่ระบบที่ไม่สำเร็จหลายครั้งจาก IP หรือ username เดียวกัน
+                            </p>
+                            <div className="tw-space-y-2">
+                                {auditStats.suspiciousActivities.slice(0, 3).map((activity, index) => (
+                                    <div key={index} className="tw-bg-white tw-rounded-lg tw-p-3 tw-text-sm">
+                                        <span className="tw-font-medium tw-text-gray-800">
+                                            {activity.username}
+                                        </span>
+                                        <span className="tw-text-gray-600 tw-mx-2">จาก IP</span>
+                                        <span className="tw-font-mono tw-text-gray-800">
+                                            {activity.ip}
+                                        </span>
+                                        <span className="tw-text-gray-600 tw-mx-2">พยายาม</span>
+                                        <span className="tw-font-bold tw-text-red-600">
+                                            {activity.failedAttempts} ครั้ง
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Filters */}
+            <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100 tw-mb-8">
+                <div className="tw-flex tw-items-center tw-gap-4 tw-mb-4">
+                    <Filter className="tw-w-5 tw-h-5 tw-text-gray-600" />
+                    <h3 className="tw-text-lg tw-font-bold tw-text-gray-800">ตัวกรอง</h3>
                 </div>
 
-                {/* Filters */}
-                <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-4 tw-gap-4 tw-mt-6">
-                    {/* Action Filter */}
+                <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 lg:tw-grid-cols-4 tw-gap-4">
+                    <SearchInput
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        placeholder="ค้นหาชื่อผู้ใช้..."
+                        onSubmit={() => { }}
+                    />
+
                     <DropdownField
-                        label="การกระทำ"
-                        value={filterAction}
-                        onChange={(value) => setFilterAction(value)}
-                        options={actionOptions}
+                        label=""
+                        value={actionFilter}
+                        onChange={(value) => setActionFilter(value as string)}
+                        options={[
+                            { label: 'ทุกการกระทำ', value: '' },
+                            { label: 'เข้าสู่ระบบสำเร็จ', value: 'login_success' },
+                            { label: 'เข้าสู่ระบบไม่สำเร็จ', value: 'login_fail' },
+                            { label: 'ออกจากระบบ', value: 'logout' }
+                        ]}
                         placeholder="เลือกการกระทำ"
-                        className="tw-w-full"
                     />
 
-                    {/* Severity Filter */}
-                    <DropdownField
-                        label="ระดับความสำคัญ"
-                        value={filterSeverity}
-                        onChange={(value) => setFilterSeverity(value)}
-                        options={severityOptions}
-                        placeholder="เลือกระดับความสำคัญ"
-                        className="tw-w-full"
+                    <DateField
+                        label=""
+                        value={startDate ? new Date(startDate) : null}
+                        onChange={(value) => setStartDate(value ? value.toISOString().split('T')[0] : '')}
+                        placeholder="วันที่เริ่มต้น"
                     />
 
-                    {/* Status Filter */}
-                    <DropdownField
-                        label="สถานะ"
-                        value={filterStatus}
-                        onChange={(value) => setFilterStatus(value)}
-                        options={statusOptions}
-                        placeholder="เลือกสถานะ"
-                        className="tw-w-full"
+                    <DateField
+                        label=""
+                        value={endDate ? new Date(endDate) : null}
+                        onChange={(value) => setEndDate(value ? value.toISOString().split('T')[0] : '')}
+                        placeholder="วันที่สิ้นสุด"
                     />
+                </div>
 
-                    {/* Date Range */}
-                    <div>
-                        <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
-                            ช่วงวันที่
-                        </label>
-                        <div className="tw-flex tw-space-x-2">
-                            <DateField
-                                value={dateRange.start}
-                                onChange={(date) => setDateRange(prev => ({ ...prev, start: date || new Date() }))}
-                                placeholder="วันที่เริ่มต้น"
-                                className="tw-flex-1"
-                            />
-                            <DateField
-                                value={dateRange.end}
-                                onChange={(date) => setDateRange(prev => ({ ...prev, end: date || new Date() }))}
-                                placeholder="วันที่สิ้นสุด"
-                                className="tw-flex-1"
-                            />
-                        </div>
+                <div className="tw-flex tw-justify-between tw-items-center tw-mt-4">
+                    <p className="tw-text-sm tw-text-gray-600">
+                        พบ {totalCount} รายการ
+                    </p>
+                    <div className="tw-flex tw-gap-2">
+                        <Button
+                            onClick={fetchAuditLogs}
+                            variant="secondary"
+                            className="tw-px-4 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none"
+                        >
+                            <RefreshCw className="tw-w-4 tw-h-4 tw-mr-2" />
+                            รีเฟรช
+                        </Button>
+                        <Button
+                            onClick={handleExport}
+                            className="tw-px-4 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-blue-600 tw-text-white tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-blue-700 active:tw-bg-blue-800 focus:tw-ring-0 focus:tw-outline-none"
+                        >
+                            <Download className="tw-w-4 tw-h-4 tw-mr-2" />
+                            ส่งออก CSV
+                        </Button>
                     </div>
                 </div>
             </div>
             {/* Audit Logs Table */}
             <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-border tw-border-gray-100 tw-overflow-hidden">
-                <div className="tw-px-6 tw-py-4 tw-border-b tw-border-gray-100 tw-flex tw-items-center tw-justify-between">
+                <div className="tw-px-6 tw-py-4 tw-border-b tw-border-gray-100">
                     <h2 className="tw-text-xl tw-font-bold tw-text-gray-800 tw-flex tw-items-center">
-                        <Activity className="tw-w-5 tw-h-5 tw-mr-2 tw-text-blue-600" />
-                        Audit Logs ({filteredLogs.length} รายการ)
+                        <Shield className="tw-w-5 tw-h-5 tw-mr-2 tw-text-blue-600" />
+                        Audit Logs
                     </h2>
-
-                    <div className="tw-flex tw-items-center tw-space-x-2 tw-text-sm tw-text-gray-500">
-                        <Clock className="tw-w-4 tw-h-4" />
-                        <span>อัปเดตล่าสุด: {new Date().toLocaleString('th-TH')}</span>
-                    </div>
                 </div>
 
-                {filteredLogs.length === 0 ? (
-                    <div className="tw-text-center tw-py-12">
-                        <FileText className="tw-w-16 tw-h-16 tw-text-gray-300 tw-mx-auto tw-mb-4" />
-                        <p className="tw-text-gray-500 tw-text-lg">ไม่พบ Audit Logs</p>
-                        <p className="tw-text-gray-400 tw-text-sm tw-mt-2">ลองปรับเปลี่ยนตัวกรองหรือช่วงวันที่</p>
-                    </div>
-                ) : (
-                    <div className="tw-overflow-x-auto">
-                        <table className="tw-w-full">
-                            <thead className="tw-bg-gray-50">
-                                <tr>
-                                    <th className="tw-px-6 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider">
-                                        เวลา
-                                    </th>
-                                    <th className="tw-px-6 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider">
-                                        ผู้ใช้
-                                    </th>
-                                    <th className="tw-px-6 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider">
-                                        การกระทำ
-                                    </th>
-                                    <th className="tw-px-6 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider">
-                                        ทรัพยากร
-                                    </th>
-                                    <th className="tw-px-6 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider">
-                                        รายละเอียด
-                                    </th>
-                                    <th className="tw-px-6 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider">
-                                        สถานะ
-                                    </th>
-                                    <th className="tw-px-6 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider">
-                                        ความสำคัญ
-                                    </th>
-                                    <th className="tw-px-6 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider">
-                                        การดำเนินการ
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="tw-bg-white tw-divide-y tw-divide-gray-200">
-                                {filteredLogs.map((log) => (
-                                    <tr key={log.log_id} className="hover:tw-bg-gray-50 tw-transition-colors">
-                                        <td className="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">
-                                            <div className="tw-flex tw-items-center">
-                                                <Clock className="tw-w-4 tw-h-4 tw-text-gray-400 tw-mr-2" />
-                                                <div>
-                                                    <div className="tw-font-medium">
-                                                        {new Date(log.timestamp).toLocaleDateString('th-TH')}
-                                                    </div>
-                                                    <div className="tw-text-xs tw-text-gray-500">
-                                                        {new Date(log.timestamp).toLocaleTimeString('th-TH')}
-                                                    </div>
-                                                </div>
+                <div className="tw-overflow-x-auto">
+                    <table className="tw-w-full">
+                        <thead className="tw-bg-gray-50">
+                            <tr>
+                                <th className="tw-px-6 tw-py-4 tw-text-left tw-text-sm tw-font-medium tw-text-gray-500 tw-uppercase">
+                                    วันที่/เวลา
+                                </th>
+                                <th className="tw-px-6 tw-py-4 tw-text-left tw-text-sm tw-font-medium tw-text-gray-500 tw-uppercase">
+                                    การกระทำ
+                                </th>
+                                <th className="tw-px-6 tw-py-4 tw-text-left tw-text-sm tw-font-medium tw-text-gray-500 tw-uppercase">
+                                    ผู้ใช้
+                                </th>
+                                <th className="tw-px-6 tw-py-4 tw-text-left tw-text-sm tw-font-medium tw-text-gray-500 tw-uppercase">
+                                    IP Address
+                                </th>
+                                <th className="tw-px-6 tw-py-4 tw-text-left tw-text-sm tw-font-medium tw-text-gray-500 tw-uppercase">
+                                    User Agent
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="tw-divide-y tw-divide-gray-200">
+                            {auditLogs.map((log) => {
+                                const ActionIcon = ACTION_CONFIG[log.action]?.icon || Activity;
+                                const actionConfig = ACTION_CONFIG[log.action];
+
+                                return (
+                                    <tr key={log.id} className="hover:tw-bg-gray-50">
+                                        <td className="tw-px-6 tw-py-4 tw-whitespace-nowrap">
+                                            <div className="tw-text-sm tw-text-gray-900">
+                                                {new Date(log.createdAt).toLocaleDateString('th-TH', {
+                                                    year: 'numeric',
+                                                    month: 'short',
+                                                    day: 'numeric'
+                                                })}
                                             </div>
-                                        </td>
-                                        <td className="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">
-                                            <div className="tw-flex tw-items-center">
-                                                <User className="tw-w-4 tw-h-4 tw-text-gray-400 tw-mr-2" />
-                                                <div>
-                                                    <div className="tw-font-medium">{log.user_name}</div>
-                                                    <div className="tw-text-xs tw-text-gray-500 tw-capitalize">{log.user_role}</div>
-                                                </div>
+                                            <div className="tw-text-sm tw-text-gray-500">
+                                                {new Date(log.createdAt).toLocaleTimeString('th-TH')}
                                             </div>
                                         </td>
                                         <td className="tw-px-6 tw-py-4 tw-whitespace-nowrap">
-                                            {getActionBadge(log.action)}
-                                        </td>
-                                        <td className="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">
-                                            <div>
-                                                <div className="tw-font-medium tw-capitalize">{log.resource_type}</div>
-                                                <div className="tw-text-xs tw-text-gray-500">{log.resource_id}</div>
+                                            <div className={`tw-inline-flex tw-items-center tw-px-3 tw-py-1 tw-rounded-full tw-text-sm tw-font-medium ${actionConfig?.bg || 'tw-bg-gray-50'}`}>
+                                                <ActionIcon className={`tw-w-4 tw-h-4 tw-mr-2 ${actionConfig?.color || 'tw-text-gray-600'}`} />
+                                                {actionConfig?.label || log.action}
                                             </div>
                                         </td>
-                                        <td className="tw-px-6 tw-py-4 tw-text-sm tw-text-gray-900">
-                                            <div className="tw-max-w-xs tw-truncate" title={log.details}>
-                                                {log.details}
+                                        <td className="tw-px-6 tw-py-4">
+                                            <div className="tw-text-sm tw-text-gray-900">
+                                                {log.user ? (
+                                                    <>
+                                                        <div className="tw-font-medium">{log.user.name}</div>
+                                                        <div className="tw-text-gray-500">@{log.user.username}</div>
+                                                        <div className="tw-text-xs tw-text-gray-400">{log.user.role}</div>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <div className="tw-font-medium tw-text-gray-500">ไม่ระบุ</div>
+                                                        <div className="tw-text-gray-400">พยายามเข้าสู่ระบบด้วย: {log.usernameInput}</div>
+                                                    </>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="tw-px-6 tw-py-4 tw-whitespace-nowrap">
-                                            {getStatusBadge(log.status)}
+                                            <div className="tw-text-sm tw-font-mono tw-text-gray-900">
+                                                {log.ip || 'ไม่ระบุ'}
+                                            </div>
                                         </td>
-                                        <td className="tw-px-6 tw-py-4 tw-whitespace-nowrap">
-                                            {getSeverityBadge(log.severity)}
-                                        </td>
-                                        <td className="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-font-medium">
-                                            <Button
-                                                onClick={() => viewLogDetail(log)}
-                                                variant="secondary"
-                                                className="tw-px-3 tw-py-1 tw-text-xs tw-flex tw-items-center"
-                                            >
-                                                <Eye className="tw-w-3 tw-h-3 tw-mr-1" />
-                                                ดูรายละเอียด
-                                            </Button>
+                                        <td className="tw-px-6 tw-py-4">
+                                            <div className="tw-text-sm tw-text-gray-500 tw-max-w-xs tw-truncate" title={log.userAgent || ''}>
+                                                {log.userAgent || 'ไม่ระบุ'}
+                                            </div>
                                         </td>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+
+                {auditLogs.length === 0 && !loading && (
+                    <div className="tw-text-center tw-py-12">
+                        <FileText className="tw-w-16 tw-h-16 tw-text-gray-300 tw-mx-auto tw-mb-4" />
+                        <p className="tw-text-gray-500 tw-text-lg">ไม่พบข้อมูล audit logs</p>
+                    </div>
+                )}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="tw-px-6 tw-py-4 tw-border-t tw-border-gray-100 tw-flex tw-items-center tw-justify-between">
+                        <div className="tw-text-sm tw-text-gray-600">
+                            หน้า {currentPage} จาก {totalPages} ({totalCount} รายการ)
+                        </div>
+                        <div className="tw-flex tw-gap-2">
+                            <Button
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                variant="secondary"
+                                className="tw-px-3 tw-py-2 tw-font-medium tw-rounded-lg tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                            >
+                                ก่อนหน้า
+                            </Button>
+                            <Button
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                variant="secondary"
+                                className="tw-px-3 tw-py-2 tw-font-medium tw-rounded-lg tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                            >
+                                ถัดไป
+                            </Button>
+                        </div>
                     </div>
                 )}
             </div>
-            {/* Detail Modal */}
-            {showDetailModal && selectedLog && (
-                <div className="tw-fixed tw-inset-0 tw-bg-black tw-bg-opacity-50 tw-flex tw-items-center tw-justify-center tw-z-50 tw-p-4">
-                    <div className="tw-bg-white tw-rounded-2xl tw-max-w-2xl tw-w-full tw-max-h-[90vh] tw-overflow-y-auto">
-                        <div className="tw-p-6 tw-border-b tw-border-gray-200">
-                            <div className="tw-flex tw-items-center tw-justify-between">
-                                <h3 className="tw-text-xl tw-font-bold tw-text-gray-800 tw-flex tw-items-center">
-                                    <FileText className="tw-w-6 tw-h-6 tw-text-blue-600 tw-mr-2" />
-                                    รายละเอียด Audit Log
-                                </h3>
-                                <Button
-                                    onClick={() => setShowDetailModal(false)}
-                                    variant="secondary"
-                                    className="tw-px-3 tw-py-2"
-                                >
-                                    ✕
-                                </Button>
-                            </div>
-                        </div>
 
-                        <div className="tw-p-6">
-                            <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-6">
-                                {/* Basic Info */}
-                                <div className="tw-space-y-4">
-                                    <div>
-                                        <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-1">
-                                            Log ID
-                                        </label>
-                                        <p className="tw-text-sm tw-text-gray-900 tw-font-mono tw-bg-gray-50 tw-px-3 tw-py-2 tw-rounded">
-                                            {selectedLog.log_id}
-                                        </p>
-                                    </div>
-
-                                    <div>
-                                        <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-1">
-                                            ผู้ใช้
-                                        </label>
-                                        <div className="tw-flex tw-items-center tw-space-x-2">
-                                            <User className="tw-w-4 tw-h-4 tw-text-gray-400" />
-                                            <span className="tw-text-sm tw-text-gray-900">{selectedLog.user_name}</span>
-                                            <span className="tw-text-xs tw-text-gray-500 tw-capitalize">({selectedLog.user_role})</span>
+            {/* Top Failed IPs */}
+            {!statsLoading && auditStats && auditStats.topFailedIPs.length > 0 && (
+                <div className="tw-mt-8 tw-bg-white tw-rounded-2xl tw-shadow-lg tw-border tw-border-gray-100 tw-overflow-hidden">
+                    <div className="tw-px-6 tw-py-4 tw-border-b tw-border-gray-100">
+                        <h3 className="tw-text-lg tw-font-bold tw-text-gray-800 tw-flex tw-items-center">
+                            <AlertTriangle className="tw-w-5 tw-h-5 tw-mr-2 tw-text-red-600" />
+                            IP ที่มีการเข้าสู่ระบบไม่สำเร็จมากที่สุด
+                        </h3>
+                    </div>
+                    <div className="tw-p-6">
+                        <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 lg:tw-grid-cols-3 tw-gap-4">
+                            {auditStats.topFailedIPs.map((item, index) => (
+                                <div key={index} className="tw-bg-red-50 tw-border tw-border-red-200 tw-rounded-lg tw-p-4">
+                                    <div className="tw-flex tw-items-center tw-justify-between">
+                                        <div className="tw-font-mono tw-text-sm tw-text-gray-800">
+                                            {item.ip}
                                         </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-1">
-                                            การกระทำ
-                                        </label>
-                                        <div className="tw-flex tw-items-center tw-space-x-2">
-                                            {getActionBadge(selectedLog.action)}
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-1">
-                                            ทรัพยากร
-                                        </label>
-                                        <div className="tw-text-sm tw-text-gray-900">
-                                            <div className="tw-font-medium tw-capitalize">{selectedLog.resource_type}</div>
-                                            <div className="tw-text-xs tw-text-gray-500 tw-font-mono">{selectedLog.resource_id}</div>
+                                        <div className="tw-bg-red-100 tw-text-red-800 tw-px-2 tw-py-1 tw-rounded-full tw-text-xs tw-font-bold">
+                                            {item.failedAttempts} ครั้ง
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* Status & Time */}
-                                <div className="tw-space-y-4">
-                                    <div>
-                                        <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-1">
-                                            เวลา
-                                        </label>
-                                        <div className="tw-flex tw-items-center tw-space-x-2">
-                                            <Clock className="tw-w-4 tw-h-4 tw-text-gray-400" />
-                                            <div className="tw-text-sm tw-text-gray-900">
-                                                <div>{new Date(selectedLog.timestamp).toLocaleDateString('th-TH')}</div>
-                                                <div className="tw-text-xs tw-text-gray-500">
-                                                    {new Date(selectedLog.timestamp).toLocaleTimeString('th-TH')}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-1">
-                                            สถานะ
-                                        </label>
-                                        {getStatusBadge(selectedLog.status)}
-                                    </div>
-
-                                    <div>
-                                        <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-1">
-                                            ระดับความสำคัญ
-                                        </label>
-                                        {getSeverityBadge(selectedLog.severity)}
-                                    </div>
-
-                                    <div>
-                                        <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-1">
-                                            IP Address
-                                        </label>
-                                        <p className="tw-text-sm tw-text-gray-900 tw-font-mono tw-bg-gray-50 tw-px-3 tw-py-2 tw-rounded">
-                                            {selectedLog.ip_address}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Details */}
-                            <div className="tw-mt-6">
-                                <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
-                                    รายละเอียด
-                                </label>
-                                <div className="tw-bg-gray-50 tw-rounded-lg tw-p-4">
-                                    <p className="tw-text-sm tw-text-gray-900">{selectedLog.details}</p>
-                                </div>
-                            </div>
-
-                            {/* User Agent */}
-                            <div className="tw-mt-4">
-                                <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
-                                    User Agent
-                                </label>
-                                <div className="tw-bg-gray-50 tw-rounded-lg tw-p-4">
-                                    <p className="tw-text-xs tw-text-gray-600 tw-font-mono tw-break-all">{selectedLog.user_agent}</p>
-                                </div>
-                            </div>
+                            ))}
                         </div>
                     </div>
                 </div>

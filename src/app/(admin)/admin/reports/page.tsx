@@ -1,5 +1,5 @@
-import AdminReportsContainner from "@/container/admin/AdminReports";
+import AdminReportsContainer from "@/container/admin/AdminReports";
 
 export default function AdminReports() {
-    return <AdminReportsContainner />;
+    return <AdminReportsContainer />;
 }
