@@ -120,8 +120,10 @@ const ProfileContainer: React.FC = () => {
 
                 if (uploadResponse.ok) {
                     const uploadData = await uploadResponse.json();
-                    // Use original path for database storage
-                    finalImagePath = uploadData._originalPath ?? uploadData.imagePath;
+                    console.log('Upload response:', uploadData); // Debug log
+                    // Use imagePath from response (already encrypted)
+                    finalImagePath = uploadData.data?.imagePath;
+                    console.log('Final image path:', finalImagePath); // Debug log
                 } else {
                     const errorData = await uploadResponse.json();
                     toast.showError("เกิดข้อผิดพลาด", errorData.message ?? "ไม่สามารถอัปโหลดรูปภาพได้");
@@ -129,27 +131,8 @@ const ProfileContainer: React.FC = () => {
                 }
             }
 
-            // Encrypt image path before saving to database
-            let encryptedImagePath = finalImagePath;
-            if (finalImagePath && finalImagePath.startsWith('/uploads/')) {
-                try {
-                    const encryptResponse = await fetch('/api/encrypt/image-path', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ imagePath: finalImagePath }),
-                    });
-
-                    if (encryptResponse.ok) {
-                        const encryptData = await encryptResponse.json();
-                        encryptedImagePath = encryptData.encryptedPath;
-                    }
-                } catch (encryptError) {
-                    console.error('Encryption error:', encryptError);
-                    // Continue with unencrypted path if encryption fails
-                }
-            }
+            // Image path is already encrypted from upload API
+            const encryptedImagePath = finalImagePath;
 
             // Prepare data for profile update (remove temp file)
             const { _tempImageFile, ...profileData } = formData as any;

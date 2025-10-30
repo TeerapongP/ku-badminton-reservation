@@ -2,7 +2,7 @@
 const nextConfig = {
   // Enable standalone output for Docker
   output: 'standalone',
-  
+
   // Server external packages (moved from experimental)
   serverExternalPackages: ['@prisma/client'],
 
@@ -42,6 +42,19 @@ const nextConfig = {
           {
             key: 'Cache-Control',
             value: 'no-store, no-cache, must-revalidate',
+          },
+        ],
+      },
+      {
+        source: '/api/images/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
           },
         ],
       },
