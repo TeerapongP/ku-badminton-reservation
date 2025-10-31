@@ -534,5 +534,5 @@ enum users_role {
   staff
   admin
   guest
-  super_admin @map("super_admin")
+  super_admin @map("super-admin")
 }
