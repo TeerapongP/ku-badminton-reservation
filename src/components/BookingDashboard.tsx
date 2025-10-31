@@ -21,6 +21,7 @@ const BookingDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [countdown, setCountdown] = useState(60);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({
     isOpen: true,
     isBusinessHours: true,
@@ -92,9 +93,10 @@ const BookingDashboard = () => {
       setCountdown(60);
     }, 60000);
 
-    // Setup countdown every 1 second
+    // Setup countdown and time update every 1 second
     countdownInterval.current = setInterval(() => {
       setCountdown(prev => prev > 0 ? prev - 1 : 60);
+      setCurrentTime(new Date()); // Update current time every second
     }, 1000);
 
     // Cleanup
@@ -115,8 +117,7 @@ const BookingDashboard = () => {
   };
 
   const getCurrentTime = () => {
-    const today = new Date();
-    return today.toLocaleTimeString('th-TH', {
+    return currentTime.toLocaleTimeString('th-TH', {
       hour: '2-digit',
       minute: '2-digit',
       timeZone: 'Asia/Bangkok'
@@ -203,11 +204,11 @@ const BookingDashboard = () => {
               ) : !systemStatus.isBusinessHours ? (
                 <p className="tw-flex tw-items-center tw-justify-center tw-gap-2">
                   <Clock className="tw-w-4 tw-h-4 tw-text-blue-500" />
-                  นอกเวลาทำการ (เวลาทำการ: 6:00-22:00 น.)
+                  นอกเวลาทำการ (เวลาทำการ: 09:00-22:00 น.)
                 </p>
               ) : null}
               <p className="tw-text-sm tw-text-gray-500 tw-mt-4">
-                เวลาปัจจุบัน: {systemStatus.currentHour}:00 น.
+                เวลาปัจจุบัน: {getCurrentTime()}
               </p>
             </div>
           </div>

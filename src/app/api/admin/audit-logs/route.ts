@@ -37,7 +37,7 @@ async function auditLogsHandler(request: NextRequest) {
         const endDate = searchParams.get('endDate');
 
         // Validate pagination
-        if (page < 1 || limit < 1 || limit > 100) {
+        if (page < 1 || limit < 1 || limit > 1000) {
             throw new CustomApiError(
                 ERROR_CODES.VALIDATION_ERROR,
                 'ค่า page และ limit ไม่ถูกต้อง',

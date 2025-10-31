@@ -118,7 +118,7 @@ export default function LoginContainner() {
         <div>
           <InputField
             type="text"
-            placeholder="รหัสนิสิต / เลขบัตรประชาชน / Username (Admin)"
+            placeholder="รหัสนิสิต / เลขบัตรประชาชน / Username"
             value={identifier}
             maxLength={20}
             onChange={(val) => setIdentifier(val as string)}

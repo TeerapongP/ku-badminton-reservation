@@ -43,9 +43,6 @@ async function registerHandler(req: NextRequest) {
     phone,
     first_name,
     last_name,
-    nickname,
-    gender,
-    dob,
     role,
 
     // Student specific
@@ -151,9 +148,6 @@ async function registerHandler(req: NextRequest) {
         title_en: title_en || null,
         first_name,
         last_name,
-        nickname: nickname || null,
-        gender: (gender ?? null) as any,
-        dob: dob ? new Date(dob) : null,
         role: role as any,
         student_id: role === "student" ? student_id : null,
         staff_id: role === "staff" ? `STAFF_${Date.now()}` : null,

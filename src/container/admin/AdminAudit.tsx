@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ToastProvider";
@@ -9,80 +9,22 @@ import Loading from "@/components/Loading";
 import {
     Shield,
     Download,
-    Eye,
     ArrowLeft,
-    Clock,
-    User,
     Activity,
     AlertTriangle,
     CheckCircle,
     XCircle,
     FileText,
     RefreshCw,
-    Filter,
-    Calendar,
-    TrendingUp,
-    TrendingDown,
-    BarChart3
+    Filter
 } from "lucide-react";
 import SearchInput from "@/components/SearchInput";
 import { DropdownField } from "@/components/DropdownField";
 import { DateField } from "@/components/DateField";
+import { AuditLog, AuditStats } from "@/lib/AuditLog";
 
-interface AuditLog {
-    id: string;
-    userId: string | null;
-    usernameInput: string;
-    action: 'login_success' | 'login_fail' | 'logout';
-    ip: string | null;
-    userAgent: string | null;
-    createdAt: string;
-    user: {
-        id: string;
-        username: string;
-        name: string;
-        role: string;
-        email: string;
-    } | null;
-}
 
-interface AuditStats {
-    period: {
-        days: number;
-        startDate: string;
-        endDate: string;
-    };
-    loginStats: {
-        total: number;
-        successful: number;
-        failed: number;
-        logout: number;
-    };
-    dailyTrends: Array<{
-        date: string;
-        action: string;
-        count: number;
-    }>;
-    topFailedIPs: Array<{
-        ip: string;
-        failedAttempts: number;
-    }>;
-    suspiciousActivities: Array<{
-        username: string;
-        ip: string;
-        failedAttempts: number;
-        lastAttempt: string;
-    }>;
-    topUsers: Array<{
-        userId: string;
-        loginCount: number;
-        user: {
-            username: string;
-            name: string;
-            role: string;
-        } | null;
-    }>;
-}const ACTION_CONFIG = {
+const ACTION_CONFIG = {
     'login_success': {
         icon: CheckCircle,
         color: 'text-green-600',
@@ -196,9 +138,12 @@ export default function AdminAudit() {
         }
     };
 
-    const handleExport = async () => {
+    // Export functions
+    const handleExportReport = async () => {
         try {
+            // Fetch all data for export
             const params = new URLSearchParams({
+                page: '1',
                 limit: '1000' // Export more records
             });
 
@@ -211,18 +156,20 @@ export default function AdminAudit() {
             const data = await response.json();
 
             if (data.success) {
-                // Convert to CSV
-                const csvContent = convertToCSV(data.data.logs);
-                downloadCSV(csvContent, 'audit-logs.csv');
-                toast?.showSuccess("ส่งออกสำเร็จ", "ดาวน์โหลดไฟล์ audit logs แล้ว");
+                // Create CSV content
+                const csvContent = generateAuditCSV(data.data.logs);
+                downloadCSV(csvContent, `audit-logs-${new Date().toISOString().split('T')[0]}.csv`);
+                toast?.showSuccess("ส่งออกสำเร็จ", "ดาวน์โหลดรายงานแล้ว");
+            } else {
+                toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้");
             }
         } catch (error) {
-            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถส่งออกข้อมูลได้");
+            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถส่งออกรายงานได้");
         }
     };
 
-    const convertToCSV = (logs: AuditLog[]) => {
-        const headers = ['วันที่', 'เวลา', 'การกระทำ', 'ผู้ใช้', 'ชื่อผู้ใช้', 'IP Address', 'สถานะ'];
+    const generateAuditCSV = (logs: AuditLog[]) => {
+        const headers = ['วันที่', 'เวลา', 'การกระทำ', 'ผู้ใช้', 'ชื่อผู้ใช้', 'IP Address', 'User Agent', 'สถานะ'];
         const rows = logs.map(log => [
             new Date(log.createdAt).toLocaleDateString('th-TH'),
             new Date(log.createdAt).toLocaleTimeString('th-TH'),
@@ -230,6 +177,7 @@ export default function AdminAudit() {
             log.user?.name || 'ไม่ระบุ',
             log.usernameInput,
             log.ip || 'ไม่ระบุ',
+            log.userAgent || 'ไม่ระบุ',
             log.action === 'login_success' ? 'สำเร็จ' : log.action === 'login_fail' ? 'ไม่สำเร็จ' : 'ออกจากระบบ'
         ]);
 
@@ -428,16 +376,16 @@ export default function AdminAudit() {
                             รีเฟรช
                         </Button>
                         <Button
-                            onClick={handleExport}
+                            onClick={handleExportReport}
                             className="tw-px-4 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-blue-600 tw-text-white tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-blue-700 active:tw-bg-blue-800 focus:tw-ring-0 focus:tw-outline-none"
                         >
                             <Download className="tw-w-4 tw-h-4 tw-mr-2" />
-                            ส่งออก CSV
+                            พิมพ์รายงาน
                         </Button>
                     </div>
                 </div>
             </div>
-            {/* Audit Logs Table */}
+            {/* Audit Logs DataTable */}
             <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-border tw-border-gray-100 tw-overflow-hidden">
                 <div className="tw-px-6 tw-py-4 tw-border-b tw-border-gray-100">
                     <h2 className="tw-text-xl tw-font-bold tw-text-gray-800 tw-flex tw-items-center">
@@ -446,7 +394,7 @@ export default function AdminAudit() {
                     </h2>
                 </div>
 
-                <div className="tw-overflow-x-auto">
+                <div className="tw-p-6">
                     <table className="tw-w-full">
                         <thead className="tw-bg-gray-50">
                             <tr>

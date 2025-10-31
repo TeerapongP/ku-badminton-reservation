@@ -277,7 +277,7 @@ export default function AdminReportsContainer() {
                             className="tw-px-4 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-blue-600 tw-text-white tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-blue-700 active:tw-bg-blue-800 focus:tw-ring-0 focus:tw-outline-none"
                         >
                             <Download className="tw-w-4 tw-h-4 tw-mr-2" />
-                            ส่งออก CSV
+                            พิมพ์รายงาน
                         </Button>
                     </div>
                 </div>

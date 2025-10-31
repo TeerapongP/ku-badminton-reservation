@@ -49,10 +49,6 @@ export default function RegisterContainner() {
     const [subUnitOption, setSubUnitOptions] = useState<DropdownOption[]>([]);
 
 
-
-
-
-
     async function fetchUnits(): Promise<DropdownOption[]> {
         try {
             const res = await fetch(`/api/units`, {
@@ -83,10 +79,6 @@ export default function RegisterContainner() {
             value: x.value ?? String(x.id),
         }));
     }
-
-
-
-
 
     // state/ref ที่ใช้
     const loadedInitRef = useRef(false);
@@ -280,16 +272,17 @@ export default function RegisterContainner() {
                         required
                     />
                 </div>
-
-                <div className="tw-col-span-4 md:tw-col-span-12">
-                    <InputField
-                        type="text"
-                        placeholder="ชื่อผู้ใช้ (Username)"
-                        value={username}
-                        onChange={(val) => setUsername(val as string)}
-                        required
-                    />
-                </div>
+                {userType === "student" && (
+                    <div className="tw-col-span-4 md:tw-col-span-12">
+                        <InputField
+                            type="text"
+                            placeholder="ชื่อผู้ใช้ (Username)"
+                            value={username}
+                            onChange={(val) => setUsername(val as string)}
+                            required
+                        />
+                    </div>
+                )}
 
                 <div className="tw-col-span-4 md:tw-col-span-6">
                     <InputField
