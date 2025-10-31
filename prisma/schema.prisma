@@ -409,6 +409,7 @@ model users {
   last_login_ip                         String?           @db.VarChar(45)
   api_logs                              api_logs[]
   auth_log                              auth_log[]
+  banners                               banners[]
   daily_reset_log                       daily_reset_log[]
   reservations                          reservations[]
   staff_profile                         staff_profile?
@@ -526,4 +527,20 @@ enum users_role {
   admin
   guest
   super_admin @map("super-admin")
+}
+model banners {
+  banner_id     BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  title         String   @db.VarChar(255)
+  subtitle      String?  @db.VarChar(500)
+  image_path    String   @db.VarChar(500)
+  is_active     Boolean  @default(true)
+  display_order Int      @default(1) @db.UnsignedInt
+  created_by    BigInt   @db.UnsignedBigInt
+  created_at    DateTime @default(now()) @db.DateTime(0)
+  updated_at    DateTime @default(now()) @db.DateTime(0)
+  users         users    @relation(fields: [created_by], references: [user_id], onDelete: Restrict, map: "fk_banner_created_by")
+
+  @@index([is_active], map: "idx_banner_active")
+  @@index([display_order], map: "idx_banner_order")
+  @@index([created_by], map: "idx_banner_created_by")
 }
