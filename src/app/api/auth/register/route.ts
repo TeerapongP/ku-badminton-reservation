@@ -139,16 +139,7 @@ async function registerHandler(req: NextRequest) {
   const password_hash: string = password;
 
   // ---------- Transaction ----------
-  const result = await prisma.$transaction(async (tx: {
-    users: {
-      create: (arg0: {
-        data: {
-          username: any; password_hash: string; // ใช้ตัวแปรเดียว
-          email: any; phone: any; title_th: string | null; title_en: string | null; first_name: any; last_name: any; nickname: any; gender: any; dob: Date | null; role: any; student_id: any; staff_id: string | null; national_id: any; status: string;
-        }; select: { user_id: boolean; username: boolean; email: boolean; first_name: boolean; last_name: boolean; role: boolean; };
-      }) => any; update: (arg0: { where: { user_id: any; } | { user_id: any; }; data: { address_id: bigint | null; } | { address_id: bigint | null; }; }) => any;
-    }; addresses: { create: (arg0: { data: { user_id: any; house_number: any; street: any; subdistrict: any; district: any; province: any; postal_code: any; country: any; is_primary: boolean; }; select: { id: boolean; }; }) => any; findFirst: (arg0: { where: { user_id: any; is_primary: boolean; }; select: { id: boolean; }; orderBy: { id: string; }; }) => any; }; student_profile: { create: (arg0: { data: { user_id: any; student_id: any; national_id: any; faculty_id: bigint; department_id: bigint; level_of_study: any; student_status: string; }; }) => any; }; staff_profile: { create: (arg0: { data: { user_id: any; national_id: any; office_department: any; position: any; staff_type: any; unit_id: bigint | null; }; }) => any; }; auth_log: { create: (arg0: { data: { user_id: any; username_input: any; action: string; ip: string; user_agent: string; }; }) => any; };
-  }) => {
+  const result = await prisma.$transaction(async (tx) => {
     // 1) users (ยังไม่ใส่ address_id)
     const newUser = await tx.users.create({
       data: {
@@ -167,7 +158,7 @@ async function registerHandler(req: NextRequest) {
         student_id: role === "student" ? student_id : null,
         staff_id: role === "staff" ? `STAFF_${Date.now()}` : null,
         national_id: national_id || null,
-        status: "active",
+        status: "active" as any,
       },
       select: {
         user_id: true,
@@ -232,7 +223,7 @@ async function registerHandler(req: NextRequest) {
           faculty_id: BigInt(faculty_id),
           department_id: BigInt(department_id),
           level_of_study: level_of_study as any,
-          student_status: "enrolled",
+          student_status: "enrolled" as any,
         },
       });
     } else if (role === "staff") {
@@ -253,7 +244,7 @@ async function registerHandler(req: NextRequest) {
       data: {
         user_id: newUser.user_id,
         username_input: newUser.username,
-        action: "login_success",
+        action: "login_success" as any,
         ip: "unknown",
         user_agent: "unknown",
       },
