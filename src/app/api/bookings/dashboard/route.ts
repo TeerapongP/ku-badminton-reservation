@@ -29,11 +29,32 @@ export async function GET() {
             include: {
                 reservations: {
                     include: {
-                        users: true
+                        users: {
+                            select: {
+                                user_id: true,
+                                first_name: true,
+                                last_name: true,
+                                email: true,
+                                phone: true
+                            }
+                        }
                     }
                 },
-                courts: true,
-                time_slots: true
+                courts: {
+                    select: {
+                        court_id: true,
+                        court_code: true,
+                        name: true
+                    }
+                },
+                time_slots: {
+                    select: {
+                        slot_id: true,
+                        start_minute: true,
+                        end_minute: true,
+                        label: true
+                    }
+                }
             },
             where: {
                 play_date: {
@@ -73,11 +94,22 @@ export async function GET() {
 
         // Get all courts and time slots to fill in available slots
         const courts = await prisma.courts.findMany({
+            select: {
+                court_id: true,
+                court_code: true,
+                name: true
+            },
             where: { is_active: true },
             orderBy: { court_code: 'asc' }
         });
 
         const timeSlots = await prisma.time_slots.findMany({
+            select: {
+                slot_id: true,
+                start_minute: true,
+                end_minute: true,
+                label: true
+            },
             where: {
                 is_active: true,
                 weekday: thailandDate.getDay() // 0 = Sunday, 1 = Monday, etc.

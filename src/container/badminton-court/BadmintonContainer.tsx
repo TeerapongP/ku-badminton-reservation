@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -17,6 +17,7 @@ export default function BadmintonContainer() {
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState<string | null>(null);
+  const hasShownAuthError = useRef(false);
 
   async function fetchFacility(): Promise<Facility[]> {
     try {
@@ -32,8 +33,9 @@ export default function BadmintonContainer() {
   // Check authentication
   useEffect(() => {
     if (status === "loading") return; // Still loading session
-    
-    if (!session) {
+
+    if (!session && !hasShownAuthError.current) {
+      hasShownAuthError.current = true;
       toast?.showError("กรุณาเข้าสู่ระบบ", "คุณต้องเข้าสู่ระบบก่อนเข้าใช้งาน");
       router.push("/login");
       return;

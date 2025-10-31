@@ -102,9 +102,7 @@ export default function AdminDashboard() {
 
             if (data.success) {
                 setActivities(data.data.activities);
-            } else {
-                console.error('Failed to fetch activities:', data.message);
-            }
+            } 
         } catch (error) {
             console.error('Fetch activities error:', error);
         } finally {
