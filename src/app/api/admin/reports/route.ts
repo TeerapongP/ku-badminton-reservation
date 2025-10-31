@@ -215,7 +215,7 @@ async function reportsHandler(request: NextRequest) {
             return {
                 facilityId: stat.facility_id.toString(),
                 facilityName: facility?.name_th || 'ไม่ระบุ',
-                bookings: stat._count.facility_id,
+                bookings: Number(stat._count.facility_id),
                 revenue: Number(stat._sum.total_cents || 0) / 100
             };
         });
@@ -227,7 +227,7 @@ async function reportsHandler(request: NextRequest) {
                 username: user?.username || 'ไม่ระบุ',
                 name: user ? `${user.first_name} ${user.last_name}`.trim() : 'ไม่ระบุ',
                 role: user?.role || 'ไม่ระบุ',
-                bookings: stat._count.user_id,
+                bookings: Number(stat._count.user_id),
                 totalSpent: Number(stat._sum.total_cents || 0) / 100
             };
         });
@@ -253,24 +253,24 @@ async function reportsHandler(request: NextRequest) {
             bookingStats: {
                 total: totalBookings,
                 byStatus: bookingsByStatus.reduce((acc, item) => {
-                    acc[item.status] = item._count.status;
+                    acc[item.status] = Number(item._count.status);
                     return acc;
                 }, {} as Record<string, number>),
                 byPaymentStatus: bookingsByPaymentStatus.reduce((acc, item) => {
-                    acc[item.payment_status] = item._count.payment_status;
+                    acc[item.payment_status] = Number(item._count.payment_status);
                     return acc;
                 }, {} as Record<string, number>)
             },
             revenueStats: {
-                total: Number(revenueStats._sum.total_cents || 0) / 100,
-                average: Number(revenueStats._avg.total_cents || 0) / 100,
-                paidBookings: revenueStats._count.reservation_id
+                total: Number(revenueStats._sum.total_cents ?? 0) / 100,
+                average: Number(revenueStats._avg.total_cents ?? 0) / 100,
+                paidBookings: Number(revenueStats._count.reservation_id)
             },
             dailyTrends: formattedDailyBookings,
             facilityStats: formattedFacilityStats,
             userStats: {
                 byRole: userStats.reduce((acc, item) => {
-                    acc[item.role] = item._count.role;
+                    acc[item.role] = Number(item._count.role);
                     return acc;
                 }, {} as Record<string, number>),
                 activeUsers,

@@ -96,39 +96,15 @@ export function BookingConfirmationModal({
 
 
 
+    const [reservationId, setReservationId] = useState<string | null>(null);
+
     const handleConfirm = async () => {
-        // เปิด Payment Modal แทนการเรียก onConfirm ทันที
-        setShowPaymentModal(true);
-    };
-
-    const handlePaymentConfirm = async (slipFile: File) => {
         try {
-            // อัปโหลดสลิปการชำระเงิน
-            const formData = new FormData();
-            formData.append('file', slipFile);
-            formData.append('bookingId', 'temp-booking-id'); // TODO: ใช้ booking ID จริง
-
-            const response = await fetch('/api/upload/payment-slip', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error('Upload failed');
-            }
-
-            const result = await response.json();
-
-            if (!result.success) {
-                throw new Error(result.error || 'Upload failed');
-            }
-
-            // 2. สร้างการจองพร้อมข้อมูลสลิป
+            // 1. สร้างการจองก่อน
             const reservationData = {
-                courtId: bookingData.courtId, // ต้องเพิ่ม courtId ใน bookingData
-                slotId: bookingData.slotId,   // ต้องเพิ่ม slotId ใน bookingData
+                courtId: bookingData.courtId,
+                slotId: bookingData.slotId,
                 bookingDate: bookingData.date,
-                slipUrl: result.data.filePath
             };
 
             const reservationResponse = await fetch('/api/reservations', {
@@ -145,21 +121,40 @@ export function BookingConfirmationModal({
 
             const reservationResult = await reservationResponse.json();
 
-            if (reservationResult.success) {
-                toast?.showSuccess("จองสำเร็จ", "สร้างการจองและอัปโหลดสลิปเรียบร้อยแล้ว รอการอนุมัติจากแอดมิน");
-
-                // เรียก onConfirm callback พร้อมข้อมูลการจอง
-                await onConfirm?.(reservationResult.data);
-
-                // ปิด modal ทั้งหมด
-                setShowPaymentModal(false);
-                onHide?.();
-            } else {
+            if (!reservationResult.success) {
                 throw new Error(reservationResult.error || 'Reservation creation failed');
             }
+
+            // 2. เก็บ reservationId และเปิด Payment Modal
+            setReservationId(reservationResult.data.reservation_id);
+            setShowPaymentModal(true);
+
+        } catch (error) {
+            console.error('Reservation creation error:', error);
+            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถสร้างการจองได้");
+        }
+    };
+
+    const handlePaymentConfirm = async (slipFile: File) => {
+        if (!reservationId) {
+            toast?.showError("เกิดข้อผิดพลาด", "ไม่พบข้อมูลการจอง");
+            return;
+        }
+
+        try {
+            // เรียก onConfirm callback พร้อมข้อมูลการจอง
+            await onConfirm?.({ reservation_id: reservationId });
+
+            // แสดง toast เมื่อสำเร็จ
+            toast?.showSuccess("จองสำเร็จ", "สร้างการจองและอัปโหลดสลิปเรียบร้อยแล้ว รอการอนุมัติจากแอดมิน");
+
+            // ปิด modal ทั้งหมด
+            setShowPaymentModal(false);
+            onHide?.();
+
         } catch (error) {
             console.error('Payment confirmation error:', error);
-            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถอัปโหลดสลิปการชำระเงินได้");
+            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถยืนยันการชำระเงินได้");
         }
     };
 
@@ -339,6 +334,7 @@ export function BookingConfirmationModal({
                 visible={showPaymentModal}
                 onHide={() => setShowPaymentModal(false)}
                 paymentData={{
+                    reservationId: reservationId || undefined,
                     amount: bookingData.price,
                     courtName: bookingData.courtName,
                     facilityName: bookingData.facilityName,

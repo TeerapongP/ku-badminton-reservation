@@ -55,3 +55,15 @@ export interface RejectPaymentRequest {
   reason: string;
   notes?: string;
 }
+
+export interface RejectPaymentModalProps {
+  visible: boolean;
+  onHide: () => void;
+  selectedPayment?: {
+    user_name: string;
+    reservation_id: string;
+    amount_cents: number;
+    currency: string;
+  };
+  onConfirm?: (reason: string) => Promise<void>;
+}

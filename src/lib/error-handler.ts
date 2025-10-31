@@ -359,12 +359,40 @@ export function validateStudentId(studentId: string): void {
   }
 }
 
+// Helper function to convert BigInt to string for JSON serialization
+function convertBigIntToString(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (typeof obj === 'bigint') {
+    return obj.toString();
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(convertBigIntToString);
+  }
+
+  if (typeof obj === 'object') {
+    const converted: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        converted[key] = convertBigIntToString(obj[key]);
+      }
+    }
+    return converted;
+  }
+
+  return obj;
+}
+
 // Response helpers
 export function successResponse(data: any, message?: string): NextResponse {
+  const convertedData = convertBigIntToString(data);
   return NextResponse.json({
     success: true,
     message,
-    data,
+    data: convertedData,
   });
 }
 
