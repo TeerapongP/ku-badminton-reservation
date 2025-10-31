@@ -42,6 +42,15 @@ export default function AdminDashboard() {
     const [activities, setActivities] = useState<Activity[]>([]);
     const [activitiesLoading, setActivitiesLoading] = useState(false);
 
+    // System status
+    const [systemStatus, setSystemStatus] = useState({
+        isOpen: true,
+        isBusinessHours: true,
+        effectiveStatus: true,
+        currentHour: new Date().getHours()
+    });
+    const [systemLoading, setSystemLoading] = useState(false);
+
     useEffect(() => {
         if (status === "loading") return;
 
@@ -53,11 +62,13 @@ export default function AdminDashboard() {
 
         fetchDashboardStats();
         fetchRecentActivities();
+        fetchSystemStatus();
 
         // Auto refresh every 5 minutes
         const interval = setInterval(() => {
             fetchDashboardStats();
             fetchRecentActivities();
+            fetchSystemStatus();
         }, 5 * 60 * 1000);
         return () => clearInterval(interval);
     }, [session, status, router, toast]);
@@ -98,6 +109,54 @@ export default function AdminDashboard() {
             console.error('Fetch activities error:', error);
         } finally {
             setActivitiesLoading(false);
+        }
+    };
+
+    const fetchSystemStatus = async () => {
+        try {
+            const response = await fetch('/api/admin/booking-system');
+            const data = await response.json();
+
+            if (data.success) {
+                setSystemStatus(data.data);
+            } else {
+                console.error('Failed to fetch system status:', data.error);
+            }
+        } catch (error) {
+            console.error('Fetch system status error:', error);
+        }
+    };
+
+    const toggleSystemStatus = async () => {
+        try {
+            setSystemLoading(true);
+
+            const response = await fetch('/api/admin/booking-system', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    isOpen: !systemStatus.isOpen
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setSystemStatus(prev => ({ ...prev, ...data.data }));
+                toast?.showSuccess(
+                    "อัปเดตสำเร็จ",
+                    `${data.data.isOpen ? 'เปิด' : 'ปิด'}ระบบการจองแล้ว`
+                );
+            } else {
+                toast?.showError("เกิดข้อผิดพลาด", data.error || "ไม่สามารถอัปเดตสถานะระบบได้");
+            }
+        } catch (error) {
+            console.error('Toggle system status error:', error);
+            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถอัปเดตสถานะระบบได้");
+        } finally {
+            setSystemLoading(false);
         }
     };
 
@@ -274,6 +333,97 @@ export default function AdminDashboard() {
                         <div className="tw-w-12 tw-h-12 tw-bg-blue-100 tw-rounded-xl tw-flex tw-items-center tw-justify-center">
                             <BarChart3 className="tw-w-6 tw-h-6 tw-text-blue-600" />
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* System Control Panel */}
+            <div className="tw-mb-8">
+                <h2 className="tw-text-2xl tw-font-bold tw-text-gray-800 tw-mb-6">ควบคุมระบบ</h2>
+                <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
+                    <div className="tw-flex tw-items-center tw-justify-between tw-mb-4">
+                        <div className="tw-flex tw-items-center tw-space-x-4">
+                            <div className={`tw-w-12 tw-h-12 tw-rounded-xl tw-flex tw-items-center tw-justify-center ${systemStatus.effectiveStatus
+                                    ? 'tw-bg-green-100'
+                                    : 'tw-bg-red-100'
+                                }`}>
+                                {systemStatus.effectiveStatus ? (
+                                    <CheckCircle className="tw-w-6 tw-h-6 tw-text-green-600" />
+                                ) : (
+                                    <XCircle className="tw-w-6 tw-h-6 tw-text-red-600" />
+                                )}
+                            </div>
+                            <div>
+                                <h3 className="tw-text-lg tw-font-bold tw-text-gray-800">
+                                    สถานะระบบการจอง
+                                </h3>
+                                <p className={`tw-text-sm tw-font-medium ${systemStatus.effectiveStatus
+                                        ? 'tw-text-green-600'
+                                        : 'tw-text-red-600'
+                                    }`}>
+                                    {systemStatus.effectiveStatus ? 'เปิดให้บริการ' : 'ปิดให้บริการ'}
+                                </p>
+                            </div>
+                        </div>
+                        <Button
+                            onClick={toggleSystemStatus}
+                            disabled={systemLoading}
+                            className={`tw-px-6 tw-py-3 tw-font-semibold tw-rounded-xl tw-transition-all tw-duration-300 tw-shadow-lg hover:tw-shadow-xl tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed ${systemStatus.isOpen
+                                    ? 'tw-bg-gradient-to-r tw-from-red-500 tw-to-red-600 hover:tw-from-red-600 hover:tw-to-red-700 tw-text-white focus:tw-ring-4 focus:tw-ring-red-300'
+                                    : 'tw-bg-gradient-to-r tw-from-green-500 tw-to-green-600 hover:tw-from-green-600 hover:tw-to-green-700 tw-text-white focus:tw-ring-4 focus:tw-ring-green-300'
+                                }`}
+                        >
+                            {systemLoading ? (
+                                <div className="tw-flex tw-items-center tw-space-x-2">
+                                    <div className="tw-animate-spin tw-rounded-full tw-h-4 tw-w-4 tw-border-b-2 tw-border-white"></div>
+                                    <span>กำลังอัปเดต...</span>
+                                </div>
+                            ) : (
+                                systemStatus.isOpen ? 'ปิดระบบ' : 'เปิดระบบ'
+                            )}
+                        </Button>
+                    </div>
+
+                    <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-4 tw-pt-4 tw-border-t tw-border-gray-100">
+                        <div className="tw-text-center">
+                            <p className="tw-text-sm tw-text-gray-600 tw-mb-1">สถานะการตั้งค่า</p>
+                            <div className="tw-flex tw-items-center tw-justify-center tw-space-x-2">
+                                <div className={`tw-w-3 tw-h-3 tw-rounded-full ${systemStatus.isOpen ? 'tw-bg-green-500' : 'tw-bg-red-500'
+                                    }`}></div>
+                                <span className={`tw-text-sm tw-font-medium ${systemStatus.isOpen ? 'tw-text-green-600' : 'tw-text-red-600'
+                                    }`}>
+                                    {systemStatus.isOpen ? 'เปิด' : 'ปิด'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="tw-text-center">
+                            <p className="tw-text-sm tw-text-gray-600 tw-mb-1">เวลาทำการ</p>
+                            <div className="tw-flex tw-items-center tw-justify-center tw-space-x-2">
+                                <div className={`tw-w-3 tw-h-3 tw-rounded-full ${systemStatus.isBusinessHours ? 'tw-bg-green-500' : 'tw-bg-orange-500'
+                                    }`}></div>
+                                <span className={`tw-text-sm tw-font-medium ${systemStatus.isBusinessHours ? 'tw-text-green-600' : 'tw-text-orange-600'
+                                    }`}>
+                                    {systemStatus.isBusinessHours ? 'เวลาทำการ' : 'นอกเวลาทำการ'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="tw-text-center">
+                            <p className="tw-text-sm tw-text-gray-600 tw-mb-1">เวลาปัจจุบัน</p>
+                            <div className="tw-flex tw-items-center tw-justify-center tw-space-x-2">
+                                <Clock className="tw-w-4 tw-h-4 tw-text-gray-500" />
+                                <span className="tw-text-sm tw-font-medium tw-text-gray-700">
+                                    {systemStatus.currentHour}:00 น.
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="tw-mt-4 tw-p-3 tw-bg-gray-50 tw-rounded-lg">
+                        <p className="tw-text-xs tw-text-gray-600 tw-leading-relaxed">
+                            <strong>หมายเหตุ:</strong> ระบบจะเปิดให้บริการเฉพาะเมื่อ "สถานะการตั้งค่า" เป็น "เปิด" และอยู่ใน "เวลาทำการ" (6:00-22:00 น.) เท่านั้น
+                        </p>
                     </div>
                 </div>
             </div>

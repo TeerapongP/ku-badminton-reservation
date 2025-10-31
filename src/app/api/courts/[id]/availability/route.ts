@@ -51,8 +51,8 @@ export async function GET(
         });
 
         // Remove duplicates based on start_minute and end_minute
-        const timeSlots = allTimeSlots.filter((slot, index, self) => 
-            index === self.findIndex(s => 
+        const timeSlots = allTimeSlots.filter((slot, index, self) =>
+            index === self.findIndex(s =>
                 s.start_minute === slot.start_minute && s.end_minute === slot.end_minute
             )
         );
@@ -80,14 +80,14 @@ export async function GET(
         const slots = timeSlots.map((slot, index) => {
             // Check if this slot is reserved
             const reservation = reservations.find(r => r.slot_id === slot.slot_id);
-            
+
             let status: 'available' | 'reserved' | 'pending' | 'break' = 'available';
             let bookedBy = '';
 
             if (reservation) {
                 const reservationStatus = reservation.reservations.status;
                 const itemStatus = reservation.status;
-                
+
                 if (itemStatus === 'cancelled') {
                     status = 'available';
                 } else if (reservationStatus === 'confirmed') {
@@ -95,7 +95,7 @@ export async function GET(
                     bookedBy = `${reservation.reservations.users.first_name} ${reservation.reservations.users.last_name}`;
                 } else if (reservationStatus === 'pending') {
                     status = 'pending';
-                    bookedBy = 'รอชำระเงิน';
+                    bookedBy = 'รอตรวจสอบ';
                 }
             }
 

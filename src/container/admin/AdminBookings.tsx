@@ -322,7 +322,13 @@ export default function AdminBookingsContainer() {
     };
 
     const getStatusBadge = (status: string) => {
-        const statusConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
+        const statusConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || {
+            icon: AlertTriangle,
+            color: 'tw-text-gray-600',
+            bg: 'tw-bg-gray-50',
+            border: 'tw-border-gray-200',
+            label: 'ไม่ระบุ'
+        };
         const StatusIcon = statusConfig.icon;
         return (
             <span className={`tw-inline-flex tw-items-center tw-px-2.5 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-medium tw-border ${statusConfig.bg} ${statusConfig.color} ${statusConfig.border}`}>
@@ -333,7 +339,11 @@ export default function AdminBookingsContainer() {
     };
 
     const getPaymentStatusBadge = (paymentStatus: string) => {
-        const paymentConfig = PAYMENT_STATUS_CONFIG[paymentStatus as keyof typeof PAYMENT_STATUS_CONFIG];
+        const paymentConfig = PAYMENT_STATUS_CONFIG[paymentStatus as keyof typeof PAYMENT_STATUS_CONFIG] || {
+            color: 'tw-text-gray-600',
+            bg: 'tw-bg-gray-50',
+            label: 'ไม่ระบุ'
+        };
         return (
             <span className={`tw-inline-flex tw-items-center tw-px-2.5 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-medium ${paymentConfig.bg} ${paymentConfig.color}`}>
                 <CreditCard className="tw-w-3 tw-h-3 tw-mr-1" />
@@ -343,7 +353,11 @@ export default function AdminBookingsContainer() {
     };
 
     const getRoleBadge = (role: string) => {
-        const roleConfig = ROLE_CONFIG[role as keyof typeof ROLE_CONFIG];
+        const roleConfig = ROLE_CONFIG[role as keyof typeof ROLE_CONFIG] || {
+            label: 'ไม่ระบุ',
+            color: 'tw-text-gray-600',
+            bg: 'tw-bg-gray-50'
+        };
         return (
             <span className={`tw-inline-flex tw-items-center tw-px-2 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-medium ${roleConfig.bg} ${roleConfig.color}`}>
                 {roleConfig.label}
@@ -586,11 +600,28 @@ export default function AdminBookingsContainer() {
                                             <Button
                                                 onClick={() => viewBookingDetail(booking)}
                                                 variant="secondary"
-                                                className="tw-px-3 tw-py-1 tw-text-xs tw-flex tw-items-center"
+                                                className="
+    tw-px-4 tw-py-2 
+    tw-text-sm tw-font-medium 
+    tw-rounded-lg 
+    tw-flex tw-items-center tw-gap-2
+    tw-shadow-sm hover:tw-shadow-md 
+    hover:tw-scale-[1.03] active:tw-scale-[0.97]
+    tw-transition-all tw-duration-300 tw-ease-out
+    tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0
+  "
+                                                colorClass="
+    tw-bg-gradient-to-r 
+    tw-from-sky-500 tw-to-blue-600
+    hover:tw-from-sky-600 hover:tw-to-blue-700
+    tw-text-white
+    focus:tw-ring-4 focus:tw-ring-sky-300/50
+  "
                                             >
-                                                <Eye className="tw-w-3 tw-h-3 tw-mr-1" />
+                                                <Eye className="tw-w-4 tw-h-4" />
                                                 ดูรายละเอียด
                                             </Button>
+
                                         </td>
                                     </tr>
                                 ))}
@@ -642,13 +673,33 @@ export default function AdminBookingsContainer() {
                                     <Calendar className="tw-w-6 tw-h-6 tw-text-blue-600 tw-mr-2" />
                                     รายละเอียดการจอง #{selectedBooking.reservation_id}
                                 </h3>
-                                <Button
+                                {/* <Button
                                     onClick={() => setShowDetailModal(false)}
                                     variant="secondary"
                                     className="tw-px-3 tw-py-2"
                                 >
                                     <X className="tw-w-4 tw-h-4" />
-                                </Button>
+                                </Button> */}
+                                <button
+                                    onClick={() => setShowDetailModal(false)}
+                                    aria-label="ปิดหน้าต่างยืนยันการจอง"
+                                    className="tw-w-10 tw-h-10 tw-rounded-2xl tw-flex tw-items-center tw-justify-center tw-transition-all tw-duration-300 tw-shadow-[5px_5px_15px_#e0e0e0,-5px_-5px_15px_#ffffff] hover:tw-shadow-[inset_3px_3px_6px_#d1d1d1,inset_-3px_-3px_6px_#ffffff] active:tw-scale-95 tw-border tw-border-gray-200/60 tw-bg-white tw-text-gray-500 hover:tw-text-gray-700 focus:tw-ring-2 focus:tw-ring-emerald-300 focus:tw-outline-none"
+                                >
+                                    <svg
+                                        className="tw-w-5 tw-h-5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
+                                </button>
+
                             </div>
                         </div>
 
@@ -777,23 +828,77 @@ export default function AdminBookingsContainer() {
                             <div className="tw-flex tw-justify-end tw-gap-3 tw-mt-8 tw-pt-6 tw-border-t">
                                 <Button
                                     onClick={() => setShowDetailModal(false)}
+                                    className="
+    tw-px-6 tw-py-2.5 
+    tw-font-medium tw-text-base
+    tw-rounded-xl 
+    tw-shadow-sm hover:tw-shadow-md 
+    hover:tw-scale-[1.03] active:tw-scale-[0.97]
+    tw-transition-all tw-duration-300 tw-ease-out
+    tw-flex tw-items-center tw-justify-center tw-gap-2
+    tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0
+  "
+                                    colorClass="
+    tw-bg-gradient-to-r 
+    tw-from-gray-100 tw-to-gray-200
+    hover:tw-from-gray-200 hover:tw-to-gray-300
+    tw-text-gray-700
+    focus:tw-ring-4 focus:tw-ring-gray-300/50
+  "
                                 >
                                     ปิด
                                 </Button>
+
                                 {selectedBooking.status === 'pending' && (
                                     <>
                                         <Button
                                             onClick={() => handleBookingAction(selectedBooking.reservation_id, 'confirm')}
-                                            variant="primary"
+                                            className="
+    tw-px-6 tw-py-2.5 
+    tw-font-semibold tw-text-base
+    tw-rounded-xl 
+    tw-shadow-md hover:tw-shadow-lg 
+    hover:tw-scale-[1.03] active:tw-scale-[0.97]
+    tw-transition-all tw-duration-300 tw-ease-out
+    tw-flex tw-items-center tw-justify-center tw-gap-2
+    tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0
+  "
+                                            colorClass="
+    tw-bg-gradient-to-r 
+    tw-from-emerald-500 tw-to-green-600
+    hover:tw-from-emerald-600 hover:tw-to-green-700
+    tw-text-white
+    focus:tw-ring-4 focus:tw-ring-emerald-300/50
+  "
                                         >
+
                                             ยืนยันการจอง
                                         </Button>
+
                                         <Button
                                             onClick={() => handleBookingAction(selectedBooking.reservation_id, 'cancel')}
-                                            variant="danger"
+                                            className="
+    tw-px-6 tw-py-2.5 
+    tw-font-semibold tw-text-base
+    tw-rounded-xl 
+    tw-shadow-md hover:tw-shadow-lg 
+    hover:tw-scale-[1.03] active:tw-scale-[0.97]
+    tw-transition-all tw-duration-300 tw-ease-out
+    tw-flex tw-items-center tw-justify-center tw-gap-2
+    tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0
+  "
+                                            colorClass="
+    tw-bg-gradient-to-r 
+    tw-from-rose-500 tw-to-red-600
+    hover:tw-from-rose-600 hover:tw-to-red-700
+    tw-text-white
+    focus:tw-ring-4 focus:tw-ring-rose-300/50
+  "
                                         >
+
                                             ยกเลิกการจอง
                                         </Button>
+
                                     </>
                                 )}
                             </div>

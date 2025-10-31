@@ -1,116 +1,169 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/route';
-import { PrismaClient } from '@prisma/client';
-
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/Auth";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 // GET - ดึงสถานะระบบการจอง
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const systemStatus = await prisma.systemSettings.findFirst({
-      where: { key: 'booking_system_status' }
-    });
+    const session = await getServerSession(authOptions);
 
-    if (!systemStatus) {
-      // สร้างค่าเริ่มต้น
-      const defaultStatus = {
-        isOpen: false,
-        openedBy: 'admin',
-        openedAt: new Date(),
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, error: "ไม่ได้รับอนุญาต" },
+        { status: 401 }
+      );
+    }
+
+    // ตรวจสอบสิทธิ์ admin หรือ super_admin
+    if (!['admin', 'super_admin'].includes(session.user.role ?? "")) {
+      return NextResponse.json(
+        { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
+        { status: 403 }
+      );
+    }
+
+    try {
+      const systemStatus = await prisma.system_settings.findFirst({
+        where: { key: 'booking_system_status' }
+      });
+
+      let status = {
+        isOpen: true,
+        openedBy: 'system',
+        openedAt: new Date().toISOString(),
+        businessHours: { start: 9, end: 22 }
       };
 
-      await prisma.systemSettings.create({
+      if (systemStatus) {
+        try {
+          status = { ...status, ...JSON.parse(systemStatus.value) };
+        } catch (parseError) {
+          console.error('Error parsing system status:', parseError);
+        }
+      }
+
+      // เช็ค business hours
+      const now = new Date();
+      const hour = now.getHours();
+      const isBusinessHours = hour >= 9 && hour < 22;
+
+      return NextResponse.json({
+        success: true,
         data: {
-          key: 'booking_system_status',
-          value: JSON.stringify(defaultStatus),
+          ...status,
+          currentTime: now.toISOString(),
+          currentHour: hour,
+          isBusinessHours,
+          effectiveStatus: status.isOpen && isBusinessHours
         }
       });
 
-      return NextResponse.json(defaultStatus);
-    }
+    } catch (dbError) {
+      console.error('Database error:', dbError);
 
-    const status = JSON.parse(systemStatus.value);
+      // Fallback ถ้า table ยังไม่มี
+      const now = new Date();
+      const hour = now.getHours();
+      const isBusinessHours = hour >= 9 && hour < 22;
 
-    // เช็ค auto-open (เวลา 9:00)
-    const now = new Date();
-    const hour = now.getHours();
-
-    if (hour >= 9 && !status.isOpen) {
-      const autoOpenStatus = {
-        isOpen: true,
-        openedBy: 'auto',
-        openedAt: now,
-      };
-
-      // อัปเดตใน database
-      await prisma.systemSettings.update({
-        where: { key: 'booking_system_status' },
-        data: { value: JSON.stringify(autoOpenStatus) }
+      return NextResponse.json({
+        success: true,
+        data: {
+          isOpen: true,
+          openedBy: 'system',
+          openedAt: now.toISOString(),
+          businessHours: { start: 9, end: 22 },
+          currentTime: now.toISOString(),
+          currentHour: hour,
+          isBusinessHours,
+          effectiveStatus: isBusinessHours,
+          note: 'Using fallback status (database table not found)'
+        }
       });
-
-      return NextResponse.json(autoOpenStatus);
     }
 
-    return NextResponse.json(status);
   } catch (error) {
-    console.error('Error getting booking system status:', error);
+    console.error("Error fetching booking system status:", error);
     return NextResponse.json(
-      { error: 'Failed to get system status' },
+      { success: false, error: "เกิดข้อผิดพลาดในการดึงข้อมูลสถานะระบบ" },
       { status: 500 }
     );
   }
 }
 
-// POST - อัปเดตสถานะระบบการจอง
-export async function POST(request: NextRequest) {
+// PUT - อัปเดตสถานะระบบการจอง
+export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user || session.user.role !== 'ADMIN') {
+    if (!session?.user?.id) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: "ไม่ได้รับอนุญาต" },
         { status: 401 }
       );
     }
 
+    // ตรวจสอบสิทธิ์ admin หรือ super_admin
+    if (!['admin', 'super_admin'].includes(session.user.role ?? "")) {
+      return NextResponse.json(
+        { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
-    const { action } = body; // 'open' หรือ 'close'
+    const { isOpen } = body;
+
+    if (typeof isOpen !== 'boolean') {
+      return NextResponse.json(
+        { success: false, error: "ข้อมูลไม่ถูกต้อง" },
+        { status: 400 }
+      );
+    }
 
     const now = new Date();
-    const newStatus = {
-      isOpen: action === 'open',
-      openedBy: 'admin',
-      openedAt: now,
-      lastUpdatedBy: session.user.id,
+    const statusData = {
+      isOpen,
+      openedBy: session.user.username || session.user.id,
+      openedAt: now.toISOString(),
+      businessHours: { start: 9, end: 22 }
     };
 
-    // อัปเดตใน database
-    await prisma.systemSettings.upsert({
-      where: { key: 'booking_system_status' },
-      update: { value: JSON.stringify(newStatus) },
-      create: {
-        key: 'booking_system_status',
-        value: JSON.stringify(newStatus),
-      }
-    });
+    try {
+      // อัปเดตหรือสร้างใหม่
+      await prisma.system_settings.upsert({
+        where: { key: 'booking_system_status' },
+        update: {
+          value: JSON.stringify(statusData),
+          updated_at: now
+        },
+        create: {
+          key: 'booking_system_status',
+          value: JSON.stringify(statusData)
+        }
+      });
 
-    // บันทึก log
-    await prisma.adminLog.create({
-      data: {
-        adminId: session.user.id,
-        action: `BOOKING_SYSTEM_${action.toUpperCase()}`,
-        details: `Booking system ${action}ed by admin`,
-        ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-      }
-    });
+      return NextResponse.json({
+        success: true,
+        message: `${isOpen ? 'เปิด' : 'ปิด'}ระบบการจองสำเร็จ`,
+        data: statusData
+      });
 
-    return NextResponse.json(newStatus);
+    } catch (dbError) {
+      console.error('Database error:', dbError);
+      return NextResponse.json(
+        { success: false, error: "ไม่สามารถอัปเดตสถานะระบบได้ (ตาราง system_settings อาจยังไม่ถูกสร้าง)" },
+        { status: 500 }
+      );
+    }
+
   } catch (error) {
-    console.error('Error updating booking system status:', error);
+    console.error("Error updating booking system status:", error);
     return NextResponse.json(
-      { error: 'Failed to update system status' },
+      { success: false, error: "เกิดข้อผิดพลาดในการอัปเดตสถานะระบบ" },
       { status: 500 }
     );
   }

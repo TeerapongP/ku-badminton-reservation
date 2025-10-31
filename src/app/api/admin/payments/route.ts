@@ -128,18 +128,22 @@ async function paymentsHandler(request: NextRequest) {
                     `${Math.floor(item.time_slots.end_minute / 60).toString().padStart(2, '0')}:${(item.time_slots.end_minute % 60).toString().padStart(2, '0')}` : '';
 
                 return {
+                    facility_id: item.courts?.facilities?.facility_id?.toString() || '',
                     facility_name: item.courts?.facilities?.name_th || 'ไม่ระบุ',
+                    court_id: item.courts?.court_id?.toString() || '',
                     court_name: item.courts?.name || 'ไม่ระบุ',
+                    slot_id: item.time_slots?.slot_id?.toString() || '',
                     play_date: item.play_date?.toISOString().split('T')[0] || '',
                     start_time: startTime,
-                    end_time: endTime
+                    end_time: endTime,
+                    price_cents: item.price_cents || 0
                 };
             });
 
             return {
                 payment_id: payment.payment_id.toString(),
-                reservation_id: reservation?.reservation_id || '',
-                user_id: user?.user_id.toString() || '',
+                reservation_id: reservation?.reservation_id?.toString() || '',
+                user_id: user?.user_id?.toString() || '',
                 user_name: user ? `${user.first_name} ${user.last_name}`.trim() : 'ไม่ระบุ',
                 user_email: user?.email || '',
                 username: user?.username || '',
@@ -154,7 +158,7 @@ async function paymentsHandler(request: NextRequest) {
                 booking_details: {
                     facilities: facilities,
                     total_amount: reservation?.total_cents || 0,
-                    booking_date: reservation?.created_at.toISOString() || '',
+                    booking_date: reservation?.created_at?.toISOString() || '',
                     reservation_status: reservation?.status || ''
                 }
             };

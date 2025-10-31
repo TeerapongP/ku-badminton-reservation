@@ -9,6 +9,7 @@ export type PaymentModalProps = {
 
 type PaymentData = {
     bookingId?: string;
+    reservationId?: string | number;
     amount: number | string;
     courtName?: string;
     facilityName?: string;
