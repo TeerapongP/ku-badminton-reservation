@@ -16,11 +16,11 @@ import {
     ArrowLeft,
     Calendar,
     RefreshCw,
-    Filter
 } from "lucide-react";
 import SearchInput from "@/components/SearchInput";
 import { PaymentData, PaymentResponse } from "@/lib/PaymentData";
 import { DropdownField } from "@/components/DropdownField";
+import Image from "next/image";
 
 export default function AdminPaymentsContainer() {
     const router = useRouter();
@@ -535,17 +535,26 @@ export default function AdminPaymentsContainer() {
                                 </p>
                             </div>
 
-                            <div className="tw-bg-gray-100 tw-rounded-lg tw-p-4 tw-text-center">
-                                <p className="tw-text-gray-600 tw-mb-4">รูปภาพสลิป</p>
-                                <div className="tw-bg-white tw-rounded-lg tw-p-8 tw-border-2 tw-border-dashed tw-border-gray-300">
-                                    <CreditCard className="tw-w-16 tw-h-16 tw-text-gray-400 tw-mx-auto tw-mb-4" />
-                                    <p className="tw-text-gray-500">
-                                        ในระบบจริงจะแสดงรูปภาพสลิปที่นี่
-                                    </p>
-                                    <p className="tw-text-xs tw-text-gray-400 tw-mt-2">
-                                        URL: {selectedPayment.slip_url}
-                                    </p>
-                                </div>
+                            <div className="tw-bg-white tw-rounded-lg tw-p-8 tw-border-2 tw-border-dashed tw-border-gray-300 tw-text-center">
+                                {selectedPayment?.slip_url ? (
+                                    <div className="tw-relative tw-w-full tw-max-w-md tw-mx-auto tw-aspect-[3/2] tw-rounded-lg tw-overflow-hidden tw-shadow-md">
+                                        <Image
+                                            src={selectedPayment.slip_url}
+                                            alt="สลิปการชำระเงิน"
+                                            fill
+                                            className="tw-object-contain tw-rounded-lg"
+                                            sizes="(max-width: 768px) 100vw, 50vw"
+                                        />
+                                    </div>
+                                ) : (
+                                    <>
+                                        <CreditCard className="tw-w-16 tw-h-16 tw-text-gray-400 tw-mx-auto tw-mb-4" />
+                                        <p className="tw-text-gray-500">
+                                            ยังไม่มีสลิปการชำระเงิน
+                                        </p>
+                                    </>
+                                )}
+
                             </div>
 
                             <div className="tw-flex tw-space-x-4 tw-mt-6">

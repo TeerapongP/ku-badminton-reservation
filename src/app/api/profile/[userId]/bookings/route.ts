@@ -102,29 +102,42 @@ export async function GET(
         ]);
 
         // แปลงข้อมูลสำหรับ response
-        const formattedBookings = reservations.flatMap(reservation =>
-            reservation.reservation_items.map(item => ({
-                id: Number(reservation.reservation_id),
-                item_id: Number(item.item_id),
-                booking_date: item.play_date.toISOString().split('T')[0],
-                court: {
-                    id: Number(item.courts.court_id),
-                    name: item.courts.name || item.courts.court_code,
-                    number: item.courts.court_code,
-                    facility_name: reservation.facilities.name_th || reservation.facilities.name_en || 'ไม่ระบุ'
-                },
-                time_slot: {
-                    id: Number(item.time_slots.slot_id),
-                    start_time: `${Math.floor(item.time_slots.start_minute / 60).toString().padStart(2, '0')}:${(item.time_slots.start_minute % 60).toString().padStart(2, '0')}`,
-                    end_time: `${Math.floor(item.time_slots.end_minute / 60).toString().padStart(2, '0')}:${(item.time_slots.end_minute % 60).toString().padStart(2, '0')}`,
-                    display: item.time_slots.label || `${Math.floor(item.time_slots.start_minute / 60).toString().padStart(2, '0')}:${(item.time_slots.start_minute % 60).toString().padStart(2, '0')} - ${Math.floor(item.time_slots.end_minute / 60).toString().padStart(2, '0')}:${(item.time_slots.end_minute % 60).toString().padStart(2, '0')}`
-                },
-                status: reservation.status,
-                total_price: Number(reservation.total_cents) / 100, // แปลงจาก cents เป็น baht
-                created_at: reservation.created_at.toISOString(),
-                updated_at: reservation.updated_at.toISOString()
-            }))
-        );
+        const formattedBookings = reservations.flatMap(reservation => {
+            // ตรวจสอบว่ามี reservation_items หรือไม่
+            if (!reservation.reservation_items || reservation.reservation_items.length === 0) {
+                return [];
+            }
+
+            return reservation.reservation_items.map(item => {
+                // ตรวจสอบข้อมูลที่จำเป็น
+                if (!item.courts || !item.time_slots) {
+                    console.warn('Missing court or time slot data for item:', item.item_id);
+                    return null;
+                }
+
+                return {
+                    id: Number(reservation.reservation_id),
+                    item_id: Number(item.item_id),
+                    booking_date: item.play_date.toISOString().split('T')[0],
+                    court: {
+                        id: Number(item.courts.court_id),
+                        name: item.courts.name || item.courts.court_code,
+                        number: item.courts.court_code,
+                        facility_name: reservation.facilities?.name_th || reservation.facilities?.name_en || 'ไม่ระบุ'
+                    },
+                    time_slot: {
+                        id: Number(item.time_slots.slot_id),
+                        start_time: `${Math.floor(item.time_slots.start_minute / 60).toString().padStart(2, '0')}:${(item.time_slots.start_minute % 60).toString().padStart(2, '0')}`,
+                        end_time: `${Math.floor(item.time_slots.end_minute / 60).toString().padStart(2, '0')}:${(item.time_slots.end_minute % 60).toString().padStart(2, '0')}`,
+                        display: item.time_slots.label || `${Math.floor(item.time_slots.start_minute / 60).toString().padStart(2, '0')}:${(item.time_slots.start_minute % 60).toString().padStart(2, '0')} - ${Math.floor(item.time_slots.end_minute / 60).toString().padStart(2, '0')}:${(item.time_slots.end_minute % 60).toString().padStart(2, '0')}`
+                    },
+                    status: reservation.status,
+                    total_price: Number(reservation.total_cents) / 100, // แปลงจาก cents เป็น baht
+                    created_at: reservation.created_at.toISOString(),
+                    updated_at: reservation.updated_at.toISOString()
+                };
+            }).filter(Boolean); // กรองค่า null ออก
+        });
 
         const totalPages = Math.ceil(totalCount / limit);
 
