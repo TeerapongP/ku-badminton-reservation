@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // ตรวจสอบสิทธิ์ admin หรือ super-admin
-        if (!['admin', 'super-admin'].includes(session.user.role)) {
+        // ตรวจสอบสิทธิ์ admin หรือ super_admin
+        if (!['admin', 'super_admin'].includes(session.user.role)) {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
@@ -30,23 +30,42 @@ export async function GET(request: NextRequest) {
 
         const whereCondition = activeOnly ? { is_active: true } : {};
 
-        const banners = await prisma.banners.findMany({
-            where: whereCondition,
-            orderBy: [
-                { display_order: 'asc' },
-                { created_at: 'desc' }
-            ],
-            select: {
-                banner_id: true,
-                title: true,
-                subtitle: true,
-                image_path: true,
-                is_active: true,
-                display_order: true,
-                created_at: true,
-                updated_at: true
+        let banners;
+        try {
+            banners = await prisma.banners.findMany({
+                where: whereCondition,
+                orderBy: [
+                    { display_order: 'asc' },
+                    { created_at: 'desc' }
+                ],
+                select: {
+                    banner_id: true,
+                    title: true,
+                    subtitle: true,
+                    image_path: true,
+                    is_active: true,
+                    display_order: true,
+                    created_at: true,
+                    updated_at: true
+                }
+            });
+        } catch (dbError: any) {
+            console.error("Database error:", dbError);
+
+            // ตรวจสอบว่าเป็น error เรื่อง table ไม่มีหรือไม่
+            if (dbError.code === 'P2021' || dbError.message?.includes("doesn't exist")) {
+                return NextResponse.json({
+                    success: false,
+                    error: "ตาราง banners ยังไม่ถูกสร้าง กรุณารัน database migration ก่อน",
+                    debug: {
+                        errorCode: dbError.code,
+                        errorMessage: dbError.message
+                    }
+                }, { status: 500 });
             }
-        });
+
+            throw dbError;
+        }
 
         const formattedBanners = banners.map(banner => ({
             id: Number(banner.banner_id),
@@ -85,8 +104,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // ตรวจสอบสิทธิ์ admin หรือ super-admin
-        if (!['admin', 'super-admin'].includes(session.user.role)) {
+        // ตรวจสอบสิทธิ์ admin หรือ super_admin
+        if (!['admin', 'super_admin'].includes(session.user.role)) {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }

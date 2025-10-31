@@ -1,11 +1,11 @@
 # ระบบจัดการ Banner
 
 ## ภาพรวม
-ระบบจัดการ Banner ช่วยให้ admin และ super-admin สามารถจัดการ banner ที่แสดงบนหน้าแรกของเว็บไซต์ได้
+ระบบจัดการ Banner ช่วยให้ admin และ super_admin สามารถจัดการ banner ที่แสดงบนหน้าแรกของเว็บไซต์ได้
 
 ## คุณสมบัติ
 
-### สำหรับ Admin และ Super-Admin
+### สำหรับ Admin และ super_admin
 - ✅ อัปโหลดรูปภาพ banner
 - ✅ เพิ่ม/แก้ไข/ลบ banner
 - ✅ เปิด/ปิดการแสดงผล banner
@@ -41,7 +41,7 @@
 ## การใช้งาน
 
 ### สำหรับ Admin
-1. เข้าสู่ระบบด้วยบัญชี admin หรือ super-admin
+1. เข้าสู่ระบบด้วยบัญชี admin หรือ super_admin
 2. ไปที่ Admin Dashboard
 3. คลิก "จัดการ Banner"
 4. คลิก "เพิ่ม Banner" เพื่อสร้าง banner ใหม่
@@ -114,7 +114,7 @@ CREATE TABLE `banners` (
 อัปโหลดรูปภาพ banner (admin only)
 
 ## การรักษาความปลอดภัย
-- ✅ ตรวจสอบสิทธิ์ admin/super-admin
+- ✅ ตรวจสอบสิทธิ์ admin/super_admin
 - ✅ ตรวจสอบประเภทไฟล์
 - ✅ จำกัดขนาดไฟล์
 - ✅ ป้องกัน path traversal
@@ -140,5 +140,5 @@ CREATE TABLE `banners` (
 3. ตรวจสอบสิทธิ์การเขียนไฟล์ในโฟลเดอร์ uploads
 
 ### ไม่มีสิทธิ์เข้าถึง
-1. ตรวจสอบว่าเข้าสู่ระบบด้วยบัญชี admin หรือ super-admin
+1. ตรวจสอบว่าเข้าสู่ระบบด้วยบัญชี admin หรือ super_admin
 2. ตรวจสอบ session และ authentication

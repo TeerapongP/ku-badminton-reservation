@@ -17,7 +17,7 @@ async function auditLogsHandler(request: NextRequest) {
         const session = await getServerSession(authOptions);
 
         // ตรวจสอบสิทธิ์ admin
-        if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'super_admin' && session.user.role !== 'super-admin')) {
+        if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'super_admin' && session.user.role !== 'super_admin')) {
             throw new CustomApiError(
                 ERROR_CODES.UNAUTHORIZED,
                 'ไม่มีสิทธิ์เข้าถึง',

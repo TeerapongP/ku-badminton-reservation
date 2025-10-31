@@ -92,20 +92,6 @@ export default function Banner() {
         <div className="tw-absolute tw-inset-0 tw-bg-black tw-bg-opacity-40"></div>
       </div>
 
-      {/* Content */}
-      <div className="tw-relative tw-h-full tw-flex tw-items-center tw-justify-center tw-text-center">
-        <div className="tw-container tw-mx-auto tw-px-4">
-          <h1 className="tw-text-4xl md:tw-text-5xl tw-font-bold tw-text-white tw-mb-4 tw-drop-shadow-lg tw-animate-fade-in">
-            {currentBanner.title}
-          </h1>
-          {currentBanner.subtitle && (
-            <p className="tw-text-xl md:tw-text-2xl tw-text-white tw-drop-shadow-md tw-animate-fade-in tw-animation-delay-300">
-              {currentBanner.subtitle}
-            </p>
-          )}
-        </div>
-      </div>
-
       {/* Pagination Dots */}
       {banners.length > 1 && (
         <div className="tw-absolute tw-bottom-6 tw-left-1/2 tw-transform tw--translate-x-1/2 tw-flex tw-space-x-3">
@@ -113,8 +99,8 @@ export default function Banner() {
             <button
               key={index}
               className={`tw-w-3 tw-h-3 tw-rounded-full tw-transition-all tw-duration-300 tw-border-2 tw-border-white ${index === currentSlide
-                  ? 'tw-bg-white tw-scale-125'
-                  : 'tw-bg-transparent hover:tw-bg-white hover:tw-bg-opacity-50'
+                ? 'tw-bg-white tw-scale-125'
+                : 'tw-bg-transparent hover:tw-bg-white hover:tw-bg-opacity-50'
                 }`}
               onClick={() => setCurrentSlide(index)}
               aria-label={`Go to slide ${index + 1}`}

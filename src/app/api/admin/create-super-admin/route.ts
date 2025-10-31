@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         // Hash password
         const password_hash = await bcrypt.hash(password, 12);
 
-        // สร้าง super-admin user
+        // สร้าง super_admin user
         const superAdminUser = await prisma.users.create({
             data: {
                 username,
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
                 email,
                 first_name,
                 last_name,
-                role: 'super-admin',
+                role: 'super_admin',
                 status: 'active',
                 membership: 'member'
             }
@@ -73,11 +73,11 @@ export async function POST(req: NextRequest) {
     }
 }
 
-// GET method สำหรับตรวจสอบว่ามี super-admin อยู่แล้วหรือไม่
+// GET method สำหรับตรวจสอบว่ามี super_admin อยู่แล้วหรือไม่
 export async function GET() {
     try {
         const superAdminCount = await prisma.users.count({
-            where: { role: 'super-admin' }
+            where: { role: 'super_admin' }
         });
 
         const adminCount = await prisma.users.count({

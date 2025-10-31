@@ -8,7 +8,7 @@
     "build:prod": "next build",
     "start": "next start",
     "lint": "eslint",
-    "create-super-admin": "node scripts/create-super-admin.js"
+    "create-super_admin": "node scripts/create-super_admin.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.0",

@@ -52,7 +52,7 @@ export default function AdminPaymentsContainer() {
     useEffect(() => {
         if (status === "loading") return;
 
-        if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super-admin")) {
+        if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super_admin")) {
             toast.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
@@ -219,7 +219,7 @@ export default function AdminPaymentsContainer() {
         );
     }
 
-    if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super-admin")) {
+    if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super_admin")) {
         return null;
     }
 

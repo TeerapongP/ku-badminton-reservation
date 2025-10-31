@@ -47,22 +47,30 @@ const BannerManagementContainer: React.FC = () => {
     const fetchBanners = useCallback(async () => {
         try {
             setIsLoading(true);
+            console.log("Fetching banners...");
+
             const response = await fetch('/api/admin/banners');
+            console.log("Response status:", response.status);
 
             if (!response.ok) {
-                throw new Error('Failed to fetch banners');
+                const errorText = await response.text();
+                console.error("Response error:", errorText);
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
 
             const data: BannerResponse = await response.json();
+            console.log("Response data:", data);
 
             if (data.success && Array.isArray(data.data)) {
                 setBanners(data.data);
+                console.log("Banners loaded:", data.data.length);
             } else {
+                console.error("API returned error:", data.error);
                 toast.showError("เกิดข้อผิดพลาด", data.error || "ไม่สามารถโหลดข้อมูล banner ได้");
             }
         } catch (error) {
             console.error("Error fetching banners:", error);
-            toast.showError("เกิดข้อผิดพลาด", "ไม่สามารถโหลดข้อมูล banner ได้");
+            toast.showError("เกิดข้อผิดพลาด", `ไม่สามารถโหลดข้อมูล banner ได้: ${error instanceof Error ? error.message : String(error)}`);
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
@@ -303,20 +311,40 @@ const BannerManagementContainer: React.FC = () => {
                         <div className="tw-flex tw-gap-2">
                             <Button
                                 onClick={handleRefresh}
-                                disabled={isRefreshing}
-                                className="tw-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-bg-gray-100 hover:tw-bg-gray-200 tw-text-gray-700 tw-rounded-lg tw-transition-colors"
+                                className="tw-h-11 tw-px-5 tw-font-semibold tw-rounded-xl tw-transition-all tw-duration-300 tw-shadow-md hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                                colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
                             >
-                                <RefreshCw size={16} className={isRefreshing ? 'tw-animate-spin' : ''} />
-                                รีเฟรช
+                                <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
+                                    <RefreshCw className="tw-w-4 tw-h-4 tw-transition-transform group-hover:tw-rotate-180 tw-duration-300" />
+                                    รีเฟรช
+                                </span>
                             </Button>
 
                             <Button
                                 onClick={handleCreateNew}
-                                className="tw-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-bg-blue-600 hover:tw-bg-blue-700 tw-text-white tw-rounded-lg tw-transition-colors"
+                                className="
+    tw-flex tw-items-center tw-gap-2 
+    tw-h-11 tw-px-5 tw-font-semibold 
+    tw-rounded-xl 
+    tw-shadow-md hover:tw-shadow-lg 
+    hover:tw-scale-[1.03] active:tw-scale-[0.97]
+    tw-transition-all tw-duration-300 tw-ease-out
+    tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0
+    tw-appearance-none tw-touch-manipulation
+    tw-[-webkit-tap-highlight-color:transparent]
+  "
+                                colorClass="
+    tw-bg-gradient-to-r 
+    tw-from-indigo-500 tw-to-blue-600
+    hover:tw-from-indigo-600 hover:tw-to-blue-700
+    tw-text-white
+    focus:tw-ring-4 focus:tw-ring-indigo-300/50
+  "
                             >
-                                <Plus size={16} />
+                                <Plus className="tw-w-4 tw-h-4" />
                                 เพิ่ม Banner
                             </Button>
+
                         </div>
                     </div>
                 </div>
@@ -334,11 +362,30 @@ const BannerManagementContainer: React.FC = () => {
                             </p>
                             <Button
                                 onClick={handleCreateNew}
-                                className="tw-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-bg-blue-600 hover:tw-bg-blue-700 tw-text-white tw-rounded-lg tw-transition-colors tw-mx-auto"
+                                className="
+    tw-flex tw-items-center tw-gap-2 
+    tw-h-11 tw-px-6 tw-font-semibold 
+    tw-rounded-xl 
+    tw-shadow-md hover:tw-shadow-lg 
+    hover:tw-scale-[1.03] active:tw-scale-[0.97]
+    tw-transition-all tw-duration-300 tw-ease-out
+    tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0
+    tw-appearance-none tw-touch-manipulation
+    tw-[-webkit-tap-highlight-color:transparent]
+    tw-mx-auto
+  "
+                                colorClass="
+    tw-bg-gradient-to-r 
+    tw-from-indigo-500 tw-to-blue-600
+    hover:tw-from-indigo-600 hover:tw-to-blue-700
+    tw-text-white
+    focus:tw-ring-4 focus:tw-ring-indigo-300/50
+  "
                             >
-                                <Plus size={16} />
+                                <Plus className="tw-w-4 tw-h-4" />
                                 เพิ่ม Banner
                             </Button>
+
                         </div>
                     ) : (
                         banners.map((banner) => (
@@ -361,8 +408,8 @@ const BannerManagementContainer: React.FC = () => {
                                     <div className="tw-absolute tw-top-2 tw-right-2">
                                         <span
                                             className={`tw-px-2 tw-py-1 tw-rounded-full tw-text-xs tw-font-medium ${banner.is_active
-                                                    ? 'tw-bg-green-100 tw-text-green-800'
-                                                    : 'tw-bg-red-100 tw-text-red-800'
+                                                ? 'tw-bg-green-100 tw-text-green-800'
+                                                : 'tw-bg-red-100 tw-text-red-800'
                                                 }`}
                                         >
                                             {banner.is_active ? 'แสดง' : 'ซ่อน'}
@@ -389,34 +436,73 @@ const BannerManagementContainer: React.FC = () => {
                                     )}
 
                                     {/* Actions */}
-                                    <div className="tw-flex tw-gap-2 tw-flex-wrap">
+                                    <div className="tw-flex tw-gap-2 tw-flex-wrap tw-justify-end">
+                                        {/* ✏️ Edit */}
                                         <Button
                                             onClick={() => handleEdit(banner)}
-                                            className="tw-flex tw-items-center tw-gap-1 tw-px-3 tw-py-1 tw-text-sm tw-bg-blue-100 hover:tw-bg-blue-200 tw-text-blue-700 tw-rounded tw-transition-colors"
+                                            className="
+      tw-flex tw-items-center tw-gap-1 tw-px-3.5 tw-py-1.5 tw-text-sm 
+      tw-rounded-lg tw-font-medium
+      tw-shadow-sm hover:tw-shadow-md 
+      hover:tw-scale-[1.03] active:tw-scale-[0.97]
+      tw-transition-all tw-duration-200 tw-ease-out
+      tw-border-0 focus:tw-ring-0
+    "
+                                            colorClass="
+      tw-bg-gradient-to-r tw-from-blue-500 tw-to-indigo-500
+      hover:tw-from-blue-600 hover:tw-to-indigo-600
+      tw-text-white
+      focus:tw-ring-4 focus:tw-ring-blue-300/40
+    "
                                         >
-                                            <Edit2 size={14} />
+                                            <Edit2 className="tw-w-4 tw-h-4" />
                                             แก้ไข
                                         </Button>
 
+                                        {/* 👁 Toggle Active */}
                                         <Button
                                             onClick={() => handleToggleActive(banner)}
-                                            className={`tw-flex tw-items-center tw-gap-1 tw-px-3 tw-py-1 tw-text-sm tw-rounded tw-transition-colors ${banner.is_active
-                                                    ? 'tw-bg-yellow-100 hover:tw-bg-yellow-200 tw-text-yellow-700'
-                                                    : 'tw-bg-green-100 hover:tw-bg-green-200 tw-text-green-700'
-                                                }`}
+                                            className="
+      tw-flex tw-items-center tw-gap-1 tw-px-3.5 tw-py-1.5 tw-text-sm 
+      tw-rounded-lg tw-font-medium
+      tw-shadow-sm hover:tw-shadow-md 
+      hover:tw-scale-[1.03] active:tw-scale-[0.97]
+      tw-transition-all tw-duration-200 tw-ease-out
+      tw-border-0 focus:tw-ring-0
+    "
+                                            colorClass={
+                                                banner.is_active
+                                                    ? "tw-bg-gradient-to-r tw-from-amber-400 tw-to-yellow-500 hover:tw-from-amber-500 hover:tw-to-yellow-600 tw-text-white focus:tw-ring-4 focus:tw-ring-amber-300/40"
+                                                    : "tw-bg-gradient-to-r tw-from-emerald-500 tw-to-green-600 hover:tw-from-emerald-600 hover:tw-to-green-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300/40"
+                                            }
                                         >
-                                            {banner.is_active ? <EyeOff size={14} /> : <Eye size={14} />}
+                                            {banner.is_active ? <EyeOff className="tw-w-4 tw-h-4" /> : <Eye className="tw-w-4 tw-h-4" />}
                                             {banner.is_active ? 'ซ่อน' : 'แสดง'}
                                         </Button>
 
+                                        {/* 🗑 Delete */}
                                         <Button
                                             onClick={() => handleDelete(banner)}
-                                            className="tw-flex tw-items-center tw-gap-1 tw-px-3 tw-py-1 tw-text-sm tw-bg-red-100 hover:tw-bg-red-200 tw-text-red-700 tw-rounded tw-transition-colors"
+                                            className="
+      tw-flex tw-items-center tw-gap-1 tw-px-3.5 tw-py-1.5 tw-text-sm 
+      tw-rounded-lg tw-font-medium
+      tw-shadow-sm hover:tw-shadow-md 
+      hover:tw-scale-[1.03] active:tw-scale-[0.97]
+      tw-transition-all tw-duration-200 tw-ease-out
+      tw-border-0 focus:tw-ring-0
+    "
+                                            colorClass="
+      tw-bg-gradient-to-r tw-from-rose-500 tw-to-red-600
+      hover:tw-from-rose-600 hover:tw-to-red-700
+      tw-text-white
+      focus:tw-ring-4 focus:tw-ring-rose-300/40
+    "
                                         >
-                                            <Trash2 size={14} />
+                                            <Trash2 className="tw-w-4 tw-h-4" />
                                             ลบ
                                         </Button>
                                     </div>
+
                                 </div>
                             </div>
                         ))
@@ -541,27 +627,67 @@ const BannerManagementContainer: React.FC = () => {
 
                                     {/* Actions */}
                                     <div className="tw-flex tw-gap-3 tw-pt-4">
-                                        <Button
-                                            type="submit"
-                                            disabled={isSubmitting || isUploading || !formData.title || !formData.image_path}
-                                            className="tw-flex tw-items-center tw-gap-2 tw-px-6 tw-py-2 tw-bg-green-600 hover:tw-bg-green-700 tw-text-white tw-rounded-lg tw-transition-colors disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
-                                        >
-                                            {isSubmitting ? (
-                                                <div className="tw-animate-spin tw-w-4 tw-h-4 tw-border-2 tw-border-white tw-border-t-transparent tw-rounded-full"></div>
-                                            ) : (
-                                                <Save size={16} />
-                                            )}
-                                            {isSubmitting ? 'กำลังบันทึก...' : 'บันทึก'}
-                                        </Button>
+                                        <div className="tw-flex tw-justify-end tw-gap-3 tw-mt-6">
+                                            {/* Save Button */}
+                                            <Button
+                                                type="submit"
+                                                disabled={isSubmitting || isUploading || !formData.title || !formData.image_path}
+                                                className="
+      tw-flex tw-items-center tw-gap-2 
+      tw-h-11 tw-px-6 tw-font-semibold
+      tw-rounded-xl
+      tw-shadow-md hover:tw-shadow-lg
+      hover:tw-scale-[1.03] active:tw-scale-[0.97]
+      tw-transition-all tw-duration-300 tw-ease-out
+      tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0
+      disabled:tw-opacity-50 disabled:tw-cursor-not-allowed
+    "
+                                                colorClass="
+      tw-bg-gradient-to-r 
+      tw-from-emerald-500 tw-to-green-600 
+      hover:tw-from-emerald-600 hover:tw-to-green-700 
+      tw-text-white
+      focus:tw-ring-4 focus:tw-ring-emerald-300/50
+    "
+                                            >
+                                                {isSubmitting ? (
+                                                    <div className="tw-animate-spin tw-w-4 tw-h-4 tw-border-2 tw-border-white tw-border-t-transparent tw-rounded-full"></div>
+                                                ) : (
+                                                    <Save className="tw-w-4 tw-h-4" />
+                                                )}
+                                                {isSubmitting ? 'กำลังบันทึก...' : 'บันทึก'}
+                                            </Button>
 
-                                        <Button
-                                            type="button"
-                                            onClick={handleCloseModal}
-                                            className="tw-flex tw-items-center tw-gap-2 tw-px-6 tw-py-2 tw-bg-gray-500 hover:tw-bg-gray-600 tw-text-white tw-rounded-lg tw-transition-colors"
-                                        >
-                                            <X size={16} />
-                                            ยกเลิก
-                                        </Button>
+                                            {/* Cancel Button */}
+                                            {/* <Button
+                                                type="button"
+                                                onClick={handleCloseModal}
+                                                className="
+      tw-flex tw-items-center tw-gap-2 
+      tw-h-11 tw-px-6 tw-font-semibold 
+      tw-rounded-xl 
+      tw-shadow-sm hover:tw-shadow-md
+      hover:tw-scale-[1.03] active:tw-scale-[0.97]
+      tw-transition-all tw-duration-300 tw-ease-out
+      tw-border tw-border-gray-200 tw-bg-white hover:tw-bg-gray-50
+      focus:tw-ring-4 focus:tw-ring-gray-200/50
+      tw-text-black
+    "
+                                            >
+                                                <X className="tw-w-4 tw-h-4 tw-text-gray-600" />
+                                                ยกเลิก
+                                            </Button> */}
+                                            <Button
+                                                className="tw-flex-1 tw-h-12 tw-text-base tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none"
+                                                colorClass="tw-bg-gradient-to-r tw-from-red-500 tw-to-red-600 hover:tw-from-red-600 hover:tw-to-red-700 tw-text-white focus:tw-ring-4 focus:tw-ring-red-300"
+                                                onClick={handleCloseModal}
+                                            >
+                                                <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
+                                                    ยกเลิก
+                                                </span>
+                                            </Button>
+                                        </div>
+
                                     </div>
                                 </form>
                             </div>
@@ -569,7 +695,7 @@ const BannerManagementContainer: React.FC = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 

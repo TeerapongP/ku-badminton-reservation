@@ -45,7 +45,7 @@ export default function AdminDashboard() {
     useEffect(() => {
         if (status === "loading") return;
 
-        if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super-admin")) {
+        if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super_admin")) {
             toast?.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
@@ -112,7 +112,7 @@ export default function AdminDashboard() {
         );
     }
 
-    if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super-admin")) {
+    if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super_admin")) {
         return null;
     }
 
@@ -161,8 +161,8 @@ export default function AdminDashboard() {
         }
     ];
 
-    // เพิ่ม action สำหรับ super-admin
-    if ((session.user as any)?.role === "super_admin" || (session.user as any)?.role === "super-admin") {
+    // เพิ่ม action สำหรับ super_admin
+    if ((session.user as any)?.role === "super_admin" || (session.user as any)?.role === "super_admin") {
         quickActions.push({
             title: "จัดการ Admin",
             description: "จัดการบัญชี Admin และ Super Admin",
