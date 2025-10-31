@@ -64,7 +64,6 @@ export async function GET(
     const userData = {
       ...user,
       user_id: Number(user.user_id),
-      dob: user.dob ? user.dob.toISOString().split('T')[0] : null,
       registered_at: user.registered_at.toISOString(),
       last_login_at: user.last_login_at ? user.last_login_at.toISOString() : null,
     };
@@ -118,9 +117,6 @@ export async function PUT(
       title_en,
       first_name,
       last_name,
-      nickname,
-      gender,
-      dob,
       profile_photo_url
     } = body;
 
@@ -169,9 +165,6 @@ export async function PUT(
         title_en: title_en || null,
         first_name,
         last_name,
-        nickname: nickname || null,
-        gender: gender as any || null,
-        dob: dob ? new Date(dob) : null,
         profile_photo_url: profile_photo_url || null,
       },
       select: {
@@ -198,7 +191,6 @@ export async function PUT(
     const userData = {
       ...updatedUser,
       user_id: Number(updatedUser.user_id),
-      dob: updatedUser.dob ? updatedUser.dob.toISOString().split('T')[0] : null,
       registered_at: updatedUser.registered_at.toISOString(),
       last_login_at: updatedUser.last_login_at ? updatedUser.last_login_at.toISOString() : null,
     };

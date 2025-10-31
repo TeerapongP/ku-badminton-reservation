@@ -51,8 +51,12 @@ UPLOADS_DIR="${APP_DIR}/uploads"
 echo "📁 Ensuring base directories and permissions..."
 echo "$SUDO_PASS" | sudo -S mkdir -p "${UPLOADS_DIR}"/{profiles,facilities,courts,payments,banners,temp}
 echo "$SUDO_PASS" | sudo -S chown -R remotepang1:remotepang1 "${UPLOADS_DIR}" || true
-echo "$SUDO_PASS" | sudo -S chmod -R 775 "${UPLOADS_DIR}" || true
-echo "$SUDO_PASS" | sudo -S find "${UPLOADS_DIR}" -type d -exec chmod 2775 {} \; || true
+echo "$SUDO_PASS" | sudo -S chmod -R 777 "${UPLOADS_DIR}" || true
+echo "$SUDO_PASS" | sudo -S find "${UPLOADS_DIR}" -type d -exec chmod 2777 {} \; || true
+
+echo "🔍 Checking upload directory permissions:"
+ls -la "${UPLOADS_DIR}"
+ls -la "${UPLOADS_DIR}/banners" 2>/dev/null || echo "banners directory will be created"
 
 
 
@@ -84,6 +88,13 @@ docker run -d --name "${APP_NAME}" \
 
 echo "🔍 App environment snapshot:"
 docker exec "${APP_NAME}" /bin/sh -lc 'env | grep -E "DATABASE_URL|PORT|HOST|IMAGE_PATH" || true'
+
+echo "🔧 Setting up container permissions..."
+docker exec "${APP_NAME}" /bin/sh -c 'mkdir -p /app/uploads/banners /app/uploads/profiles && chmod -R 777 /app/uploads' || true
+
+echo "🔍 Checking container permissions:"
+docker exec "${APP_NAME}" /bin/sh -c 'ls -la /app/uploads && ls -la /app/uploads/banners 2>/dev/null || echo "banners dir not found"' || true
+docker exec "${APP_NAME}" /bin/sh -c 'whoami && id' || true
 
 echo "⏳ Waiting for app to start..."
 sleep 5
