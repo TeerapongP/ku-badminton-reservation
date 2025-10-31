@@ -24,6 +24,7 @@ import {
     BookingHistoryFilters,
     BookingStatus
 } from "@/types/profile/booking-history";
+import { DateField } from "@/components/DateField";
 
 const BookingHistoryContainer: React.FC = () => {
     const { data: session } = useSession();
@@ -271,11 +272,11 @@ const BookingHistoryContainer: React.FC = () => {
                                 <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
                                     วันที่เริ่มต้น
                                 </label>
-                                <input
-                                    type="date"
-                                    value={filters.startDate || ''}
-                                    onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                                    className="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-blue-500"
+                                <DateField
+                                    label=""
+                                    value={filters.startDate ? new Date(filters.startDate) : null}
+                                    onChange={(date) => handleFilterChange('startDate', date ? date.toISOString().split('T')[0] : '')}
+                                    placeholder="วันที่เริ่มต้น"
                                 />
                             </div>
 
@@ -283,11 +284,11 @@ const BookingHistoryContainer: React.FC = () => {
                                 <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
                                     วันที่สิ้นสุด
                                 </label>
-                                <input
-                                    type="date"
-                                    value={filters.endDate || ''}
-                                    onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                                    className="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-blue-500"
+                                <DateField
+                                    label=""
+                                    value={filters.endDate ? new Date(filters.endDate) : null}
+                                    onChange={(date) => handleFilterChange('endDate', date ? date.toISOString().split('T')[0] : '')}
+                                    placeholder="วันที่สิ้นสุด"
                                 />
                             </div>
                         </div>
