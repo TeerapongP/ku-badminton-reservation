@@ -49,7 +49,7 @@ UPLOADS_DIR="${APP_DIR}/uploads"
 
 # ---- Folders & permissions ----
 echo "📁 Ensuring base directories and permissions..."
-echo "$SUDO_PASS" | sudo -S mkdir -p "${APP_DIR}/nginx" "${UPLOADS_DIR}"/{profiles,facilities,courts,payments,temp}
+echo "$SUDO_PASS" | sudo -S mkdir -p "${APP_DIR}/nginx" "${UPLOADS_DIR}"/{profiles,facilities,courts,payments,temp,banners}
 echo "$SUDO_PASS" | sudo -S chown -R remotepang1:remotepang1 "${UPLOADS_DIR}" || true
 echo "$SUDO_PASS" | sudo -S chmod -R 775 "${UPLOADS_DIR}" || true
 echo "$SUDO_PASS" | sudo -S find  "${UPLOADS_DIR}" -type d -exec chmod 2775 {} \; || true
