@@ -127,7 +127,7 @@ async function uploadHandler(request: NextRequest) {
     }
 
     // Encrypt the response data
-    const encryptionKey = process.env.UPLOAD_ENCRYPTION_KEY || 'default-key-change-in-production';
+    const encryptionKey = process.env.UPLOAD_ENCRYPTION_KEY;
 
     if (encryptionKey === 'default-key-change-in-production') {
         console.warn('Warning: Using default encryption key. Please set UPLOAD_ENCRYPTION_KEY in production.');
@@ -140,7 +140,7 @@ async function uploadHandler(request: NextRequest) {
         const iv = crypto.randomBytes(16);
 
         // Create key hash (32 bytes for aes-256)
-        const keyHash = crypto.createHash('sha256').update(encryptionKey).digest();
+        const keyHash = crypto.createHash('sha256').update(encryptionKey ?? "").digest();
 
         // Create cipher for filename
         const filenameCipher = crypto.createCipheriv(algorithm, keyHash, iv);
@@ -150,8 +150,8 @@ async function uploadHandler(request: NextRequest) {
         // Prepend IV to encrypted filename
         encryptedFilenameResponse = iv.toString('hex') + ':' + encryptedFilenameResponse;
 
-        // Create cipher for image path (use API route instead of direct path)
-        const publicPath = `/api/images/profiles/${encryptedFilename}`;
+        // Create cipher for image path (use direct path like banner)
+        const publicPath = `/uploads/profiles/${encryptedFilename}`;
         const pathIv = crypto.randomBytes(16);
         const pathCipher = crypto.createCipheriv(algorithm, keyHash, pathIv);
         let encryptedImagePath = pathCipher.update(publicPath, 'utf8', 'hex');
