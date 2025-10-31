@@ -19,3 +19,28 @@ export interface Booking {
     cancelled_at?: string;
     notes?: string;
 }
+
+export interface BookingsResponse {
+    bookings: Booking[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+        hasNext: boolean;
+        hasPrev: boolean;
+    };
+    summary: {
+        total: number;
+        pending: number;
+        confirmed: number;
+        cancelled: number;
+        completed: number;
+        no_show: number;
+    };
+}
+
+export interface BookingActionRequest {
+    action: 'confirm' | 'cancel';
+    notes?: string;
+}

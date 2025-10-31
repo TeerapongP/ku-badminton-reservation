@@ -10,20 +10,16 @@ import {
     Users,
     CreditCard,
     Calendar,
-    Settings,
     BarChart3,
     Shield,
     Clock,
+    AlertTriangle,
     CheckCircle,
     XCircle,
-    AlertTriangle
 } from "lucide-react";
 
-interface DashboardStats {
-    pendingPayments: number;
-    todayBookings: number;
-    activeUsers: number;
-}
+import { DashboardStats } from "@/lib/DashboardData";
+import { Activity } from "@/lib/ActivityData";
 
 export default function AdminDashboard() {
     const router = useRouter();
@@ -33,35 +29,74 @@ export default function AdminDashboard() {
     const [stats, setStats] = useState<DashboardStats>({
         pendingPayments: 0,
         todayBookings: 0,
-        activeUsers: 0
+        activeUsers: 0,
+        totalUsers: 0,
+        totalBookings: 0,
+        totalRevenue: 0,
+        pendingBookings: 0,
+        cancelledBookings: 0,
+        lastUpdated: ''
     });
     const [loading, setLoading] = useState(true);
+    const [activities, setActivities] = useState<Activity[]>([]);
+    const [activitiesLoading, setActivitiesLoading] = useState(false);
 
     useEffect(() => {
         if (status === "loading") return;
 
         if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super-admin")) {
-            toast.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
+            toast?.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
         }
 
         fetchDashboardStats();
+        fetchRecentActivities();
+
+        // Auto refresh every 5 minutes
+        const interval = setInterval(() => {
+            fetchDashboardStats();
+            fetchRecentActivities();
+        }, 5 * 60 * 1000);
+        return () => clearInterval(interval);
     }, [session, status, router, toast]);
 
     const fetchDashboardStats = async () => {
         try {
-            // Mock data for now - will be replaced with actual API calls
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            setStats({
-                pendingPayments: 12,
-                todayBookings: 28,
-                activeUsers: 156
-            });
+            setLoading(true);
+
+            const response = await fetch('/api/admin/dashboard');
+            const data = await response.json();
+
+            if (data.success) {
+                setStats(data.data);
+            } else {
+                toast?.showError("เกิดข้อผิดพลาด", data.message || "ไม่สามารถโหลดข้อมูลได้");
+            }
         } catch (error) {
-            toast.showError("ไม่สามารถโหลดข้อมูลได้", "กรุณาลองใหม่อีกครั้ง");
+            console.error('Fetch dashboard stats error:', error);
+            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchRecentActivities = async () => {
+        try {
+            setActivitiesLoading(true);
+
+            const response = await fetch('/api/admin/activities?limit=10');
+            const data = await response.json();
+
+            if (data.success) {
+                setActivities(data.data.activities);
+            } else {
+                console.error('Failed to fetch activities:', data.message);
+            }
+        } catch (error) {
+            console.error('Fetch activities error:', error);
+        } finally {
+            setActivitiesLoading(false);
         }
     };
 
@@ -96,7 +131,7 @@ export default function AdminDashboard() {
             icon: Calendar,
             color: "tw-from-purple-500 tw-to-purple-600",
             hoverColor: "hover:tw-from-purple-600 hover:tw-to-purple-700",
-            count: stats.todayBookings,
+            count: stats.pendingBookings > 0 ? stats.pendingBookings : undefined,
             href: "/admin/bookings"
         },
         {
@@ -129,30 +164,17 @@ export default function AdminDashboard() {
         });
     }
 
-    const recentActivities = [
-
-        {
-            type: "payment_rejection",
-            message: "ปฏิเสธการชำระเงิน: สลิปไม่ชัดเจน",
-            time: "15 นาทีที่แล้ว",
-            icon: XCircle,
-            color: "tw-text-red-600"
-        },
-        {
-            type: "booking_created",
-            message: "สร้างการจองสำหรับกิจกรรมพิเศษ",
-            time: "1 ชั่วโมงที่แล้ว",
-            icon: Calendar,
-            color: "tw-text-blue-600"
-        },
-        {
-            type: "system_alert",
-            message: "ระบบตรวจพบการเข้าสู่ระบบผิดปกติ",
-            time: "2 ชั่วโมงที่แล้ว",
-            icon: AlertTriangle,
-            color: "tw-text-yellow-600"
+    // Helper function สำหรับแปลง icon string เป็น component
+    const getIconComponent = (iconName: string) => {
+        switch (iconName) {
+            case 'CheckCircle': return CheckCircle;
+            case 'XCircle': return XCircle;
+            case 'Calendar': return Calendar;
+            case 'Users': return Users;
+            case 'AlertTriangle': return AlertTriangle;
+            default: return Clock;
         }
-    ];
+    };
 
     return (
         <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-slate-50 tw-via-blue-50 tw-to-indigo-50 tw-px-6 tw-py-8">
@@ -167,26 +189,35 @@ export default function AdminDashboard() {
                             ยินดีต้อนรับ  {session.user?.username}
                         </p>
                     </div>
-                    <div className="tw-text-right">
-                        <p className="tw-text-sm tw-text-gray-500">
-                            เข้าสู่ระบบล่าสุด
-                        </p>
-                        <p className="tw-text-sm tw-font-medium tw-text-gray-700">
-                            {new Date().toLocaleDateString('th-TH', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            })}
-                        </p>
+                    <div className="tw-text-right tw-flex tw-flex-col tw-items-end tw-gap-2">
+                        <Button
+                            onClick={fetchDashboardStats}
+                            variant="secondary"
+                            className="tw-px-4 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none"
+                        >
+                            รีเฟรชข้อมูล
+                        </Button>
+                        <div>
+                            <p className="tw-text-sm tw-text-gray-500">
+                                อัปเดตล่าสุด
+                            </p>
+                            <p className="tw-text-sm tw-font-medium tw-text-gray-700">
+                                {stats.lastUpdated ? new Date(stats.lastUpdated).toLocaleDateString('th-TH', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                }) : 'กำลังโหลด...'}
+                            </p>
+                        </div>
                     </div>
                 </div>
                 <div className="tw-h-1 tw-w-32 tw-bg-gradient-to-r tw-from-blue-500 tw-via-indigo-500 tw-to-purple-500 tw-rounded-full" />
             </div>
 
             {/* Stats Overview */}
-            <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-6 tw-mb-8">
+            <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 lg:tw-grid-cols-4 tw-gap-6 tw-mb-8">
                 <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
                     <div className="tw-flex tw-items-center tw-justify-between">
                         <div>
@@ -219,6 +250,20 @@ export default function AdminDashboard() {
                         </div>
                         <div className="tw-w-12 tw-h-12 tw-bg-teal-100 tw-rounded-xl tw-flex tw-items-center tw-justify-center">
                             <Users className="tw-w-6 tw-h-6 tw-text-teal-600" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
+                    <div className="tw-flex tw-items-center tw-justify-between">
+                        <div>
+                            <p className="tw-text-sm tw-font-medium tw-text-gray-600">รายได้รวม</p>
+                            <p className="tw-text-3xl tw-font-bold tw-text-blue-600">
+                                ฿{stats.totalRevenue.toLocaleString()}
+                            </p>
+                        </div>
+                        <div className="tw-w-12 tw-h-12 tw-bg-blue-100 tw-rounded-xl tw-flex tw-items-center tw-justify-center">
+                            <BarChart3 className="tw-w-6 tw-h-6 tw-text-blue-600" />
                         </div>
                     </div>
                 </div>
@@ -259,40 +304,62 @@ export default function AdminDashboard() {
 
                 {/* Recent Activities */}
                 <div>
-                    <h2 className="tw-text-2xl tw-font-bold tw-text-gray-800 tw-mb-6">กิจกรรมล่าสุด</h2>
+                    <div className="tw-flex tw-items-center tw-justify-between tw-mb-6">
+                        <h2 className="tw-text-2xl tw-font-bold tw-text-gray-800">กิจกรรมล่าสุด</h2>
+                        <Button
+                            onClick={fetchRecentActivities}
+                            variant="secondary"
+                            disabled={activitiesLoading}
+                            className="tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-rounded-lg tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none disabled:tw-opacity-50"
+                        >
+                            รีเฟรช
+                        </Button>
+                    </div>
                     <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
-                        <div className="tw-space-y-4">
-                            {recentActivities.map((activity, index) => {
-                                const IconComponent = activity.icon;
-                                return (
-                                    <div key={index} className="tw-flex tw-items-start tw-space-x-3 tw-p-3 tw-rounded-lg hover:tw-bg-gray-50 tw-transition-colors">
-                                        <div className={`tw-w-8 tw-h-8 tw-rounded-full tw-bg-gray-100 tw-flex tw-items-center tw-justify-center tw-flex-shrink-0`}>
-                                            <IconComponent className={`tw-w-4 tw-h-4 ${activity.color}`} />
+                        {activitiesLoading ? (
+                            <div className="tw-flex tw-items-center tw-justify-center tw-py-8">
+                                <div className="tw-animate-spin tw-rounded-full tw-h-8 tw-w-8 tw-border-b-2 tw-border-blue-600"></div>
+                                <span className="tw-ml-2 tw-text-gray-600">กำลังโหลดกิจกรรม...</span>
+                            </div>
+                        ) : activities.length > 0 ? (
+                            <div className="tw-space-y-4">
+                                {activities.map((activity, index) => {
+                                    const IconComponent = getIconComponent(activity.icon);
+                                    return (
+                                        <div key={index} className="tw-flex tw-items-start tw-space-x-3 tw-p-3 tw-rounded-lg hover:tw-bg-gray-50 tw-transition-colors">
+                                            <div className={`tw-w-8 tw-h-8 tw-rounded-full tw-bg-gray-100 tw-flex tw-items-center tw-justify-center tw-flex-shrink-0`}>
+                                                <IconComponent className={`tw-w-4 tw-h-4 ${activity.color}`} />
+                                            </div>
+                                            <div className="tw-flex-1 tw-min-w-0">
+                                                <p className="tw-text-sm tw-font-medium tw-text-gray-800 tw-leading-5">
+                                                    {activity.message}
+                                                </p>
+                                                <p className="tw-text-xs tw-text-gray-500 tw-mt-1 tw-flex tw-items-center">
+                                                    <Clock className="tw-w-3 tw-h-3 tw-mr-1" />
+                                                    {activity.timeAgo}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="tw-flex-1 tw-min-w-0">
-                                            <p className="tw-text-sm tw-font-medium tw-text-gray-800 tw-leading-5">
-                                                {activity.message}
-                                            </p>
-                                            <p className="tw-text-xs tw-text-gray-500 tw-mt-1 tw-flex tw-items-center">
-                                                <Clock className="tw-w-3 tw-h-3 tw-mr-1" />
-                                                {activity.time}
-                                            </p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="tw-mt-6 tw-pt-4 tw-border-t tw-border-gray-100">
-                            <Button
-                                onClick={() => router.push("/admin/audit")}
-                                className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
-                                colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
-                            >
-                                <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
-                                    ดูกิจกรรมทั้งหมด
-                                </span>
-                            </Button>
-                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="tw-text-center tw-py-8">
+                                <AlertTriangle className="tw-w-12 tw-h-12 tw-text-gray-300 tw-mx-auto tw-mb-4" />
+                                <p className="tw-text-gray-500">ไม่มีกิจกรรมล่าสุด</p>
+                            </div>
+                        )}
+                    </div>
+                    <div className="tw-mt-6 tw-pt-4 tw-border-t tw-border-gray-100">
+                        <Button
+                            onClick={() => router.push("/admin/audit")}
+                            className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
+                            colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
+                        >
+                            <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
+                                ดูกิจกรรมทั้งหมด
+                            </span>
+                        </Button>
                     </div>
                 </div>
             </div>
