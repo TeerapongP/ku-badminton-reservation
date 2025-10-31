@@ -57,7 +57,9 @@ export async function POST(request: NextRequest) {
         const fileName = `banner_${Date.now()}_${crypto.randomBytes(8).toString('hex')}${fileExtension}`;
 
         // สร้างโฟลเดอร์ถ้ายังไม่มี
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'banners');
+        const uploadDir = process.env.IMAGE_PATH
+            ? path.join(process.env.IMAGE_PATH, 'banners')
+            : path.join(process.cwd(), 'public', 'uploads', 'banners');
         await mkdir(uploadDir, { recursive: true });
 
         // บันทึกไฟล์
