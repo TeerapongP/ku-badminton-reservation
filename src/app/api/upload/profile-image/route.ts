@@ -66,7 +66,9 @@ async function uploadHandler(request: NextRequest) {
     }
 
     // Create uploads directory if it doesn't exist
-    const baseUploadPath = process.env.IMAGE_PATH || '/home/remotepang1/ku-badminton-app/uploads';
+    const baseUploadPath = process.env.IMAGE_PATH
+        ? '/app/uploads'
+        : join(process.cwd(), 'public', 'uploads');
     const uploadsDir = join(baseUploadPath, 'profiles');
 
     try {

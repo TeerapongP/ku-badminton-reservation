@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
         // สร้างโฟลเดอร์ถ้ายังไม่มี
         const uploadDir = process.env.IMAGE_PATH
-            ? path.join(process.env.IMAGE_PATH, 'banners')
+            ? path.join('/app/uploads', 'banners')
             : path.join(process.cwd(), 'public', 'uploads', 'banners');
         await mkdir(uploadDir, { recursive: true });
 
