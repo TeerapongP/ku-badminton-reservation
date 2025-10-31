@@ -61,7 +61,7 @@ export function PaymentModal({
         };
         reader.readAsDataURL(file);
 
-        toast?.showSuccess("เลือกไฟล์สำเร็จ", "กรุณากดยืนยันการชำระเงิน");
+        // ไม่แสดง toast เมื่อเลือกไฟล์ เพื่อลดความซ้ำซ้อน
     }, [toast]);
 
     // Handle payment confirmation
@@ -81,8 +81,8 @@ export function PaymentModal({
 
             // Step 1: Upload slip file
             const formData = new FormData();
-            formData.append('slip', selectedFile);
-            formData.append('reservationId', paymentData.reservationId.toString());
+            formData.append('file', selectedFile);
+            formData.append('bookingId', paymentData.reservationId.toString());
 
             const uploadResponse = await fetch('/api/upload/payment-slip', {
                 method: 'POST',
@@ -115,12 +115,7 @@ export function PaymentModal({
                 throw new Error(paymentResult.message || 'Failed to create payment record');
             }
 
-            toast?.showSuccess(
-                "อัปโหลดสลิปสำเร็จ",
-                "รอการตรวจสอบจากเจ้าหน้าที่ ประมาณ 5-10 นาที"
-            );
-
-            // Call parent callback if provided
+            // Call parent callback if provided (parent จะแสดง toast)
             await onConfirm?.(selectedFile);
 
             // Close modal

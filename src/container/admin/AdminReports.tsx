@@ -189,18 +189,47 @@ export default function AdminReportsContainer() {
 
     if (!reportData) {
         return (
-            <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-slate-50 tw-via-blue-50 tw-to-indigo-50 tw-px-6 tw-py-8">
-                <div className="tw-text-center tw-py-12">
-                    <FileText className="tw-w-16 tw-h-16 tw-text-gray-300 tw-mx-auto tw-mb-4" />
-                    <p className="tw-text-gray-500 tw-text-lg">ไม่พบข้อมูลรายงาน</p>
-                    <Button
-                        onClick={fetchReportData}
-                        className="tw-mt-4 tw-px-6 tw-py-2 tw-bg-blue-600 tw-text-white tw-rounded-xl"
+            <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-slate-50 tw-via-blue-50 tw-to-indigo-50 tw-px-6 tw-py-8 tw-flex tw-flex-col tw-items-center tw-justify-center tw-text-center">
+                <FileText className="tw-w-16 tw-h-16 tw-text-gray-300 tw-mb-4" />
+                <p className="tw-text-gray-500 tw-text-lg">ไม่พบข้อมูลรายงาน</p>
+
+                <Button
+                    onClick={fetchReportData}
+                    className="
+      tw-mt-6 tw-px-6 tw-py-3 
+      tw-font-semibold tw-text-base
+      tw-rounded-xl 
+      tw-shadow-md hover:tw-shadow-lg
+      hover:tw-scale-[1.03] active:tw-scale-[0.97]
+      tw-transition-all tw-duration-300 tw-ease-out
+      tw-flex tw-items-center tw-justify-center tw-gap-2
+      tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0
+    "
+                    colorClass="
+      tw-bg-gradient-to-r 
+      tw-from-blue-500 tw-to-indigo-600
+      hover:tw-from-blue-600 hover:tw-to-indigo-700
+      tw-text-white
+      focus:tw-ring-4 focus:tw-ring-blue-300/50
+    "
+                >
+                    <svg
+                        className="tw-w-5 tw-h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                     >
-                        โหลดข้อมูลใหม่
-                    </Button>
-                </div>
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 4v5h.582M20 20v-5h-.581M5 9a9 9 0 0114.32-4.906M19 15a9 9 0 01-14.32 4.906"
+                        />
+                    </svg>
+                    โหลดข้อมูลใหม่
+                </Button>
             </div>
+
         );
     }
 
