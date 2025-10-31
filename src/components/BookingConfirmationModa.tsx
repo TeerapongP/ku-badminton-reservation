@@ -1,5 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/Button";
+import { PaymentModal } from "@/components/PaymentModal";
+import { useToast } from "@/components/ToastProvider";
 
 /** Util เล็ก ๆ สำหรับฟอร์แมตค่าเงินบาท */
 function formatBaht(v: number | string) {
@@ -11,13 +14,20 @@ function formatBaht(v: number | string) {
     }
 }
 
-type BookingData = {
+/** ข้อมูล user จาก session */
+type UserData = {
     name: string;
     phone: string;
     email: string;
+    role: string;
+};
+
+type BookingData = {
     date: string;
     time: string;
     price: string | number;
+    courtName?: string;
+    facilityName?: string;
 };
 
 type ModalProps = {
@@ -25,9 +35,9 @@ type ModalProps = {
     onHide?: () => void;
     bookingData: BookingData;
     onCancel?: () => void;
-    onEdit?: () => void;
     onConfirm?: () => Promise<void> | void;
     isProcessing?: boolean;
+    useSessionData?: boolean; // เพิ่ม option ให้เลือกใช้ session data หรือไม่
 };
 
 export function BookingConfirmationModal({
@@ -35,13 +45,24 @@ export function BookingConfirmationModal({
     onHide,
     bookingData,
     onCancel,
-    onEdit,
     onConfirm,
     isProcessing = false,
+    useSessionData = true,
 }: ModalProps) {
+    const { data: session } = useSession();
+    const toast = useToast();
     const dialogRef = useRef<HTMLDivElement | null>(null);
     const firstFocusableRef = useRef<HTMLButtonElement | null>(null);
-    const lastFocusableRef = useRef<HTMLButtonElement | null>(null);
+
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+    // ดึงข้อมูล user จาก session หรือใช้ข้อมูลที่ส่งมา
+    const userData = useSessionData && session?.user ? {
+        name: `${session.user.first_name || ''} ${session.user.last_name || ''}`.trim() || session.user.username || 'ไม่ระบุ',
+        phone: session.user.phone || 'ไม่ระบุ',
+        email: session.user.email || 'ไม่ระบุ',
+        role: session.user.role || 'guest'
+    } : null;
 
     // ปิดด้วย ESC
     useEffect(() => {
@@ -98,11 +119,47 @@ export function BookingConfirmationModal({
         onHide?.();
     };
 
-    const handleEdit = () => onEdit?.();
+
 
     const handleConfirm = async () => {
-        await onConfirm?.();
-        onHide?.();
+        // เปิด Payment Modal แทนการเรียก onConfirm ทันที
+        setShowPaymentModal(true);
+    };
+
+    const handlePaymentConfirm = async (slipFile: File) => {
+        try {
+            // อัปโหลดสลิปการชำระเงิน
+            const formData = new FormData();
+            formData.append('file', slipFile);
+            formData.append('bookingId', 'temp-booking-id'); // TODO: ใช้ booking ID จริง
+
+            const response = await fetch('/api/upload/payment-slip', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error('Upload failed');
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                toast?.showSuccess("ชำระเงินสำเร็จ", "อัปโหลดสลิปการชำระเงินเรียบร้อยแล้ว");
+
+                // เรียก onConfirm callback พร้อมข้อมูลสลิป
+                await onConfirm?.();
+
+                // ปิด modal ทั้งหมด
+                setShowPaymentModal(false);
+                onHide?.();
+            } else {
+                throw new Error(result.error || 'Upload failed');
+            }
+        } catch (error) {
+            console.error('Payment confirmation error:', error);
+            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถอัปโหลดสลิปการชำระเงินได้");
+        }
     };
 
     if (!visible) return null;
@@ -167,20 +224,53 @@ export function BookingConfirmationModal({
                 {/* Content */}
                 <div className="tw-px-8 tw-py-6">
                     <div className="tw-space-y-4 tw-mb-6">
-                        <div className="tw-pb-4 tw-border-b tw-border-gray-200">
-                            <div className="tw-text-sm tw-text-gray-500 tw-mb-1">ชื่อ-นามสกุล :</div>
-                            <div className="tw-text-base tw-text-gray-800 tw-font-medium">{bookingData.name}</div>
-                        </div>
+                        {/* ข้อมูลผู้จอง */}
+                        {userData && (
+                            <>
+                                <div className="tw-pb-4 tw-border-b tw-border-gray-200">
+                                    <div className="tw-text-sm tw-text-gray-500 tw-mb-1">ชื่อ-นามสกุล :</div>
+                                    <div className="tw-text-base tw-text-gray-800 tw-font-medium">{userData.name}</div>
+                                </div>
 
-                        <div className="tw-pb-4 tw-border-b tw-border-gray-200">
-                            <div className="tw-text-sm tw-text-gray-500 tw-mb-1">เบอร์โทรศัพท์ :</div>
-                            <div className="tw-text-base tw-text-gray-800 tw-font-medium">{bookingData.phone}</div>
-                        </div>
+                                <div className="tw-pb-4 tw-border-b tw-border-gray-200">
+                                    <div className="tw-text-sm tw-text-gray-500 tw-mb-1">เบอร์โทรศัพท์ :</div>
+                                    <div className="tw-text-base tw-text-gray-800 tw-font-medium">{userData.phone}</div>
+                                </div>
 
-                        <div className="tw-pb-4 tw-border-b tw-border-gray-200">
-                            <div className="tw-text-sm tw-text-gray-500 tw-mb-1">อีเมล :</div>
-                            <div className="tw-text-base tw-text-gray-800 tw-font-medium">{bookingData.email}</div>
-                        </div>
+                                <div className="tw-pb-4 tw-border-b tw-border-gray-200">
+                                    <div className="tw-text-sm tw-text-gray-500 tw-mb-1">อีเมล :</div>
+                                    <div className="tw-text-base tw-text-gray-800 tw-font-medium">{userData.email}</div>
+                                </div>
+
+                                <div className="tw-pb-4 tw-border-b tw-border-gray-200">
+                                    <div className="tw-text-sm tw-text-gray-500 tw-mb-1">สถานะ :</div>
+                                    <div className="tw-text-base tw-text-gray-800 tw-font-medium">
+                                        <span className={`tw-px-2 tw-py-1 tw-rounded-full tw-text-xs tw-font-semibold ${userData.role === 'admin' ? 'tw-bg-purple-100 tw-text-purple-800' :
+                                            userData.role === 'staff' ? 'tw-bg-blue-100 tw-text-blue-800' :
+                                                userData.role === 'student' ? 'tw-bg-green-100 tw-text-green-800' :
+                                                    'tw-bg-gray-100 tw-text-gray-800'
+                                            }`}>
+                                            {userData.role.toUpperCase()}
+                                        </span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* ข้อมูลการจอง */}
+                        {bookingData.facilityName && (
+                            <div className="tw-pb-4 tw-border-b tw-border-gray-200">
+                                <div className="tw-text-sm tw-text-gray-500 tw-mb-1">สถานที่ :</div>
+                                <div className="tw-text-base tw-text-gray-800 tw-font-medium">{bookingData.facilityName}</div>
+                            </div>
+                        )}
+
+                        {bookingData.courtName && (
+                            <div className="tw-pb-4 tw-border-b tw-border-gray-200">
+                                <div className="tw-text-sm tw-text-gray-500 tw-mb-1">สนาม :</div>
+                                <div className="tw-text-base tw-text-gray-800 tw-font-medium">{bookingData.courtName}</div>
+                            </div>
+                        )}
 
                         <div className="tw-pb-4 tw-border-b tw-border-gray-200">
                             <div className="tw-text-sm tw-text-gray-500 tw-mb-1">วันที่จอง :</div>
@@ -194,11 +284,24 @@ export function BookingConfirmationModal({
                     </div>
 
                     {/* Price */}
-                    <div className="tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100 tw-p-5 tw-rounded-xl tw-mb-2">
+                    <div className="tw-bg-gradient-to-r tw-from-emerald-50 tw-to-green-50 tw-p-5 tw-rounded-xl tw-mb-2 tw-border tw-border-emerald-200">
                         <div className="tw-flex tw-justify-between tw-items-center">
                             <div className="tw-text-lg tw-text-gray-700 tw-font-semibold">อัตราค่าบริการ:</div>
-                            <div className="tw-text-2xl tw-font-bold tw-text-purple-600">
-                                {formatBaht(bookingData.price)} บาท
+                            <div className="tw-text-2xl tw-font-bold tw-text-emerald-600">
+                                ฿{formatBaht(bookingData.price)}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* คำเตือน */}
+                    <div className="tw-bg-yellow-50 tw-border tw-border-yellow-200 tw-rounded-lg tw-p-4 tw-mb-4">
+                        <div className="tw-flex tw-items-start tw-gap-3">
+                            <svg className="tw-w-5 tw-h-5 tw-text-yellow-600 tw-mt-0.5 tw-flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            <div className="tw-text-sm tw-text-yellow-800">
+                                <p className="tw-font-medium tw-mb-1">กรุณาตรวจสอบข้อมูลให้ถูกต้อง</p>
+                                <p>เมื่อยืนยันการจองแล้ว จะไม่สามารถแก้ไขข้อมูลได้</p>
                             </div>
                         </div>
                     </div>
@@ -229,6 +332,22 @@ export function BookingConfirmationModal({
                     </Button>
                 </div>
             </div>
+
+            {/* Payment Modal */}
+            <PaymentModal
+                visible={showPaymentModal}
+                onHide={() => setShowPaymentModal(false)}
+                paymentData={{
+                    amount: bookingData.price,
+                    courtName: bookingData.courtName,
+                    facilityName: bookingData.facilityName,
+                    date: bookingData.date,
+                    time: bookingData.time,
+                }}
+                onCancel={() => setShowPaymentModal(false)}
+                onConfirm={handlePaymentConfirm}
+                isProcessing={isProcessing}
+            />
         </div>
     );
 }

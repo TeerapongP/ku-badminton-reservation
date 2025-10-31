@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { DateField } from "@/components/DateField";
@@ -16,9 +16,13 @@ import { Slot } from "@/types/Slot";
 
 export default function CourtBookingContainer() {
     const params = useParams<{ id?: string }>();
+    const searchParams = useSearchParams();
     const router = useRouter();
     const { data: session, status } = useSession();
     const toast = useToast();
+
+    // ดึง time_slot parameter จาก URL
+    const timeSlotParam = searchParams.get('time_slot');
 
     // รองรับ /courts/[id]
     const courtId = useMemo(() => {
@@ -27,7 +31,10 @@ export default function CourtBookingContainer() {
         return id?.trim() || null;
     }, [params]);
 
-    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [selectedDate, setSelectedDate] = useState<Date | null>(
+        // ถ้ามี time_slot parameter ให้ตั้งวันที่เป็นวันนี้โดยอัตโนมัติ
+        timeSlotParam ? new Date() : null
+    );
     const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [slotsLoading, setSlotsLoading] = useState(false);
@@ -124,6 +131,33 @@ export default function CourtBookingContainer() {
         }
     }, [selectedDate, courtId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Auto-select time slot จาก URL parameter
+    useEffect(() => {
+        if (!timeSlotParam || slots.length === 0) return;
+
+        // หา slot ที่ตรงกับ time parameter
+        const matchingSlot = slots.find(slot => {
+            // ตรวจสอบทั้ง label และ time format
+            const slotTime = slot.label; // เช่น "11:00-12:00" หรือ "11:00"
+
+            // ตรวจสอบว่า slot time ขึ้นต้นด้วย time parameter หรือไม่
+            return slotTime.startsWith(timeSlotParam) && slot.status === 'available';
+        });
+
+        if (matchingSlot) {
+            setSelectedSlot(matchingSlot.id);
+            toast?.showSuccess("เลือกเวลาอัตโนมัติ", `เลือกช่วงเวลา ${matchingSlot.label} แล้ว`);
+        } else {
+            // หากไม่พบ slot ที่ตรงกัน หรือ slot ไม่ว่าง
+            const foundSlot = slots.find(slot => slot.label.startsWith(timeSlotParam));
+            if (foundSlot) {
+                toast?.showWarning("ช่วงเวลาไม่ว่าง", `ช่วงเวลา ${foundSlot.label} ถูกจองแล้ว`);
+            } else {
+                toast?.showWarning("ไม่พบช่วงเวลา", `ไม่พบช่วงเวลา ${timeSlotParam} ในวันที่เลือก`);
+            }
+        }
+    }, [slots, timeSlotParam, toast]);
+
     const getSlotStyle = (slot: Slot) => {
         const base =
             "tw-w-full tw-py-5 tw-rounded-2xl tw-text-center tw-font-bold tw-text-lg tw-transition-all tw-duration-300 tw-border-2 tw-shadow-lg tw-cursor-pointer hover:tw-scale-105";
@@ -147,7 +181,7 @@ export default function CourtBookingContainer() {
     // Check authentication
     useEffect(() => {
         if (status === "loading") return; // Still loading session
-        
+
         if (!session) {
             toast?.showError("กรุณาเข้าสู่ระบบ", "คุณต้องเข้าสู่ระบบก่อนจองสนาม");
             router.push("/login");
@@ -211,6 +245,11 @@ export default function CourtBookingContainer() {
                             1
                         </span>
                         กรุณาเลือกวันที่ต้องการจอง
+                        {timeSlotParam && (
+                            <span className="tw-ml-2 tw-px-3 tw-py-1 tw-bg-blue-100 tw-text-blue-800 tw-rounded-full tw-text-sm tw-font-medium">
+                                เวลา: {timeSlotParam}
+                            </span>
+                        )}
                     </label>
                     <DateField
                         value={selectedDate}
@@ -220,6 +259,18 @@ export default function CourtBookingContainer() {
                         placeholder="เลือกวันที่ต้องการจอง"
                         required
                     />
+                    {timeSlotParam && (
+                        <div className="tw-mt-3 tw-p-3 tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg">
+                            <div className="tw-flex tw-items-center tw-gap-2 tw-text-blue-800">
+                                <svg className="tw-w-4 tw-h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                </svg>
+                                <span className="tw-text-sm tw-font-medium">
+                                    ระบบจะเลือกช่วงเวลา {timeSlotParam} โดยอัตโนมัติ (หากว่าง)
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div className="tw-bg-gradient-to-r tw-from-teal-50 tw-to-emerald-50 tw-p-6 tw-rounded-2xl tw-border tw-border-teal-200">
                     <label className="tw-font-bold tw-text-emerald-800 tw-block tw-mb-5 tw-flex tw-items-center tw-gap-2">
@@ -330,15 +381,14 @@ export default function CourtBookingContainer() {
                 visible={visible}
                 onHide={() => setVisible(false)}
                 bookingData={{
-                    name: "นายจอง สนาม",
-                    phone: "012-2587896",
-                    email: "booking@example.com",
                     date: selectedDate?.toLocaleDateString("th-TH") ?? "-",
                     time: slots.find(s => s.id === selectedSlot)?.label ?? "-",
                     price: court?.pricePerHour?.toString() ?? "100",
+                    courtName: court?.name ?? "-",
+                    facilityName: court?.building ?? "-",
                 }}
+                useSessionData={true}
                 onCancel={() => alert("ยกเลิกการจองเรียบร้อย")}
-                onEdit={() => alert("กลับไปแก้ไขข้อมูล")}
                 onConfirm={() => alert("ดำเนินการชำระเงิน")}
             />
         </div>
