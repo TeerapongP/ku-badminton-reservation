@@ -3,8 +3,8 @@
 import React from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import BannerManagementContainer from "@/container/admin/BannerManagementContainer";
 import Loading from "@/components/Loading";
+import BannerManagementContainer from "@/container/admin/BannerManagementContainer";
 
 export default function BannerManagementPage() {
     const { data: session, status } = useSession();
@@ -24,8 +24,8 @@ export default function BannerManagementPage() {
         redirect("/auth/login");
     }
 
-    // ตรวจสอบสิทธิ์ admin หรือ super-admin
-    if (!['admin', 'super-admin'].includes(session.user.role)) {
+    // ตรวจสอบสิทธิ์ admin หรือ super_admin
+    if (!['admin', 'super_admin'].includes(session.user.role ?? "")) {
         redirect("/");
     }
 

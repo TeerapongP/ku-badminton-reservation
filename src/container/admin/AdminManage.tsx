@@ -48,7 +48,7 @@ export default function AdminManage() {
     useEffect(() => {
         if (status === "loading") return;
 
-        if (!session || (session.user.role !== "super_admin" && session.user.role !== "super-admin")) {
+        if (!session || (session.user.role !== "super_admin" && session.user.role !== "super_admin")) {
             toast.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
@@ -189,16 +189,16 @@ export default function AdminManage() {
         );
     }
 
-    if (!session || (session.user.role !== "super_admin" && session.user.role !== "super-admin")) {
+    if (!session || (session.user.role !== "super_admin" && session.user.role !== "super_admin")) {
         return null;
     }
 
     const getRoleIcon = (role: string) => {
-        return role === 'super-admin' ? ShieldCheck : Shield;
+        return role === 'super_admin' ? ShieldCheck : Shield;
     };
 
     const getRoleColor = (role: string) => {
-        return role === 'super-admin' ? 'tw-text-red-600' : 'tw-text-blue-600';
+        return role === 'super_admin' ? 'tw-text-red-600' : 'tw-text-blue-600';
     };
 
     const getStatusColor = (status: string) => {
@@ -440,7 +440,7 @@ export default function AdminManage() {
                                             <div className="tw-flex tw-items-center tw-gap-2">
                                                 <RoleIcon className={`tw-w-5 tw-h-5 ${getRoleColor(admin.role)}`} />
                                                 <span className={`tw-font-medium ${getRoleColor(admin.role)}`}>
-                                                    {admin.role === 'super-admin' ? 'Super Admin' : 'Admin'}
+                                                    {admin.role === 'super_admin' ? 'Super Admin' : 'Admin'}
                                                 </span>
                                             </div>
                                         </td>

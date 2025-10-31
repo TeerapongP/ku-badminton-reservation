@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        if (session.user.role !== 'super_admin' && session.user.role !== 'super-admin') {
+        if (session.user.role !== 'super_admin' && session.user.role !== 'super_admin') {
             console.log("❌ Invalid role:", session.user.role);
             return NextResponse.json(
                 { success: false, error: `ไม่มีสิทธิ์เข้าถึง - role: ${session.user.role}` },
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session?.user || (session.user.role !== 'super_admin' && session.user.role !== 'super-admin')) {
+        if (!session?.user || (session.user.role !== 'super_admin' && session.user.role !== 'super_admin')) {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
         }
 
         // ตรวจสอบ role ที่อนุญาต
-        if (!['admin', 'super-admin', 'super_admin'].includes(role)) {
+        if (!['admin', 'super_admin', 'super_admin'].includes(role)) {
             return NextResponse.json(
                 { success: false, error: "Role ไม่ถูกต้อง" },
                 { status: 400 }
@@ -184,7 +184,7 @@ export async function PUT(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session?.user || (session.user.role !== 'super_admin' && session.user.role !== 'super-admin')) {
+        if (!session?.user || (session.user.role !== 'super_admin' && session.user.role !== 'super_admin')) {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
@@ -215,7 +215,7 @@ export async function PUT(req: NextRequest) {
         if (email) updateData.email = email;
         if (first_name) updateData.first_name = first_name;
         if (last_name) updateData.last_name = last_name;
-        if (role && ['admin', 'super-admin', 'super_admin'].includes(role)) updateData.role = role;
+        if (role && ['admin', 'super_admin', 'super_admin'].includes(role)) updateData.role = role;
         if (status && ['active', 'inactive', 'suspended'].includes(status)) updateData.status = status;
 
         if (password) {
@@ -263,7 +263,7 @@ export async function DELETE(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session?.user || (session.user.role !== 'super_admin' && session.user.role !== 'super-admin')) {
+        if (!session?.user || (session.user.role !== 'super_admin' && session.user.role !== 'super_admin')) {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }

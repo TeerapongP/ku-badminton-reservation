@@ -70,7 +70,7 @@ export const authOptions: NextAuthOptions = {
                   { role: 'staff' },
                   { role: 'guest' },
                   { role: 'admin' },
-                  { role: 'super-admin' }
+                  { role: 'super_admin' }
                 ]
               },
               select: {

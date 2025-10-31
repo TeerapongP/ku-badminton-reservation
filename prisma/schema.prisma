@@ -4,12 +4,10 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
-
-
 
 model api_logs {
   log_id           BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
@@ -151,7 +149,6 @@ model departments {
   @@index([faculty_id], map: "idx_dept_faculty")
 }
 
-
 model facilities {
   facility_id            BigInt                   @id @default(autoincrement()) @db.UnsignedBigInt
   facility_code          String                   @unique(map: "uq_facility_code") @db.VarChar(50)
@@ -224,7 +221,6 @@ model payments {
   @@index([status], map: "idx_pay_status")
 }
 
-
 model pricing_rules {
   pricing_id     BigInt                    @id @default(autoincrement()) @db.UnsignedBigInt
   facility_id    BigInt                    @db.UnsignedBigInt
@@ -253,7 +249,6 @@ model pricing_rules {
   @@index([slot_id, user_role, membership, active, effective_from, effective_to], map: "idx_pr_slot_role_mem_eff")
   @@index([facility_id, court_id, slot_id, user_role, active, effective_from, effective_to], map: "idx_price_role")
 }
-
 
 model reservation_items {
   item_id        BigInt                   @id @default(autoincrement()) @db.UnsignedBigInt
@@ -350,7 +345,6 @@ model sub_units {
   @@index([unit_id], map: "idx_sub_units_unit")
 }
 
-
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model time_slots {
   slot_id           BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
@@ -384,37 +378,53 @@ model units {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model users {
-  user_id                               BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
-  role                                  users_role
-  username                              String            @unique(map: "uq_users_username") @db.VarChar(50)
-  password_hash                         String            @db.VarChar(255)
-  email                                 String
-  email_lc                              String?           @unique(map: "uq_users_email_lc")
-  phone                                 String?           @unique(map: "uq_users_phone") @db.VarChar(20)
-  title_th                              String?           @db.VarChar(50)
-  title_en                              String?           @db.VarChar(50)
-  first_name                            String            @db.VarChar(100)
-  last_name                             String            @db.VarChar(100)
+  user_id           BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  role              users_role
+  username          String            @unique(map: "uq_users_username") @db.VarChar(50)
+  password_hash     String            @db.VarChar(255)
+  email             String
+  email_lc          String?           @unique(map: "uq_users_email_lc")
+  phone             String?           @unique(map: "uq_users_phone") @db.VarChar(20)
+  title_th          String?           @db.VarChar(50)
+  title_en          String?           @db.VarChar(50)
+  first_name        String            @db.VarChar(100)
+  last_name         String            @db.VarChar(100)
+  student_id        String?           @unique(map: "student_id") @db.VarChar(10)
+  staff_id          String?           @unique(map: "staff_id") @db.VarChar(50)
+  national_id       String?           @db.VarChar(255)
+  profile_photo_url String?           @db.VarChar(255)
+  status            users_status      @default(active)
+  membership        users_membership? @default(non_member)
+  registered_at     DateTime          @default(now()) @db.DateTime(0)
+  updated_at        DateTime          @default(now()) @db.DateTime(0)
+  last_login_at     DateTime?         @db.DateTime(0)
+  last_login_ip     String?           @db.VarChar(45)
+  api_logs          api_logs[]
+  auth_log          auth_log[]
+  banners           banners[]
+  daily_reset_log   daily_reset_log[]
+  reservations      reservations[]
+  staff_profile     staff_profile?
+  student_profile   student_profile?
 
-  student_id                            String?           @unique(map: "student_id") @db.VarChar(10)
-  staff_id                              String?           @unique(map: "staff_id") @db.VarChar(50)
-  national_id                           String?           @db.VarChar(255)
-
-  profile_photo_url                     String?           @db.VarChar(255)
-  status                                users_status      @default(active)
-  membership                            users_membership? @default(non_member)
-  registered_at                         DateTime          @default(now()) @db.DateTime(0)
-  updated_at                            DateTime          @default(now()) @db.DateTime(0)
-  last_login_at                         DateTime?         @db.DateTime(0)
-  last_login_ip                         String?           @db.VarChar(45)
-  api_logs                              api_logs[]
-  auth_log                              auth_log[]
-  banners                               banners[]
-  daily_reset_log                       daily_reset_log[]
-  reservations                          reservations[]
-  staff_profile                         staff_profile?
-  student_profile                       student_profile?
   @@index([role], map: "idx_users_role")
+}
+
+model banners {
+  banner_id     BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  title         String   @db.VarChar(255)
+  subtitle      String?  @db.VarChar(500)
+  image_path    String   @db.VarChar(500)
+  is_active     Boolean  @default(true)
+  display_order Int      @default(1) @db.UnsignedInt
+  created_by    BigInt   @db.UnsignedBigInt
+  created_at    DateTime @default(now()) @db.DateTime(0)
+  updated_at    DateTime @default(now()) @db.DateTime(0)
+  users         users    @relation(fields: [created_by], references: [user_id], map: "fk_banner_created_by")
+
+  @@index([is_active], map: "idx_banner_active")
+  @@index([display_order], map: "idx_banner_order")
+  @@index([created_by], map: "idx_banner_created_by")
 }
 
 enum auth_log_action {
@@ -496,8 +506,6 @@ enum reservation_items_status {
   played
 }
 
-
-
 enum users_status {
   active
   inactive
@@ -526,21 +534,5 @@ enum users_role {
   staff
   admin
   guest
-  super_admin @map("super-admin")
-}
-model banners {
-  banner_id     BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
-  title         String   @db.VarChar(255)
-  subtitle      String?  @db.VarChar(500)
-  image_path    String   @db.VarChar(500)
-  is_active     Boolean  @default(true)
-  display_order Int      @default(1) @db.UnsignedInt
-  created_by    BigInt   @db.UnsignedBigInt
-  created_at    DateTime @default(now()) @db.DateTime(0)
-  updated_at    DateTime @default(now()) @db.DateTime(0)
-  users         users    @relation(fields: [created_by], references: [user_id], onDelete: Restrict, map: "fk_banner_created_by")
-
-  @@index([is_active], map: "idx_banner_active")
-  @@index([display_order], map: "idx_banner_order")
-  @@index([created_by], map: "idx_banner_created_by")
+  super_admin @map("super_admin")
 }
