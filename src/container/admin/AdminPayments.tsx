@@ -14,38 +14,40 @@ import {
     Clock,
     Eye,
     ArrowLeft,
-    Calendar
+    Calendar,
+    RefreshCw,
+    Filter
 } from "lucide-react";
 import SearchInput from "@/components/SearchInput";
+import { PaymentData, PaymentResponse } from "@/lib/PaymentData";
+import { DropdownField } from "@/components/DropdownField";
 
-interface PendingPayment {
-    payment_id: string;
-    reservation_id: string;
-    user_name: string;
-    user_email: string;
-    amount_cents: number;
-    currency: string;
-    uploaded_at: string;
-    slip_url: string;
-    booking_details: {
-        facility_name: string;
-        court_name: string;
-        play_date: string;
-        time_slot: string;
-    };
-}
-
-export default function AdminPaymentsContainner() {
+export default function AdminPaymentsContainer() {
     const router = useRouter();
     const { data: session, status } = useSession();
     const toast = useToast();
 
-    const [payments, setPayments] = useState<PendingPayment[]>([]);
+    const [payments, setPayments] = useState<PaymentData[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-    const [selectedPayment, setSelectedPayment] = useState<PendingPayment | null>(null);
+    const [selectedPayment, setSelectedPayment] = useState<PaymentData | null>(null);
     const [showSlipModal, setShowSlipModal] = useState(false);
     const [showRejectModal, setShowRejectModal] = useState(false);
+    const [statusFilter, setStatusFilter] = useState("pending");
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 20,
+        total: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrev: false
+    });
+    const [summary, setSummary] = useState({
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+        total: 0
+    });
 
     useEffect(() => {
         if (status === "loading") return;
@@ -56,88 +58,123 @@ export default function AdminPaymentsContainner() {
             return;
         }
 
-        fetchPendingPayments();
+        fetchPayments();
     }, [session, status, router, toast]);
 
-    const fetchPendingPayments = async () => {
+    // Fetch payments when filters change
+    useEffect(() => {
+        if (session) {
+            fetchPayments();
+        }
+    }, [statusFilter, pagination.page, searchTerm, session]);
+
+    const fetchPayments = async () => {
         try {
-            // Mock data for now - will be replaced with actual API calls
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            setLoading(true);
 
-            const mockPayments: PendingPayment[] = [
-                {
-                    payment_id: "1",
-                    reservation_id: "R001",
-                    user_name: "สมชาย ใจดี",
-                    user_email: "somchai@ku.th",
-                    amount_cents: 10000,
-                    currency: "THB",
-                    uploaded_at: "2024-01-16T14:30:00Z",
-                    slip_url: "/images/slip1.jpg",
-                    booking_details: {
-                        facility_name: "อาคารพลศึกษา 1",
-                        court_name: "คอร์ท 3",
-                        play_date: "2024-01-17",
-                        time_slot: "13:00-14:00"
-                    }
-                },
-                {
-                    payment_id: "2",
-                    reservation_id: "R002",
-                    user_name: "วิชัย เรียนดี",
-                    user_email: "wichai@ku.th",
-                    amount_cents: 15000,
-                    currency: "THB",
-                    uploaded_at: "2024-01-16T15:45:00Z",
-                    slip_url: "/images/slip2.jpg",
-                    booking_details: {
-                        facility_name: "อาคารพลศึกษา 3",
-                        court_name: "คอร์ท 5",
-                        play_date: "2024-01-18",
-                        time_slot: "16:00-18:00"
-                    }
-                }
-            ];
+            const params = new URLSearchParams({
+                status: statusFilter,
+                page: pagination.page.toString(),
+                limit: pagination.limit.toString(),
+                ...(searchTerm && { search: searchTerm })
+            });
 
-            setPayments(mockPayments);
+            const response = await fetch(`/api/admin/payments?${params}`);
+            const data = await response.json();
+
+            if (data.success) {
+                setPayments(data.data.payments);
+                setPagination(data.data.pagination);
+                setSummary(data.data.summary);
+            } else {
+                toast?.showError("เกิดข้อผิดพลาด", data.message || "ไม่สามารถโหลดข้อมูลได้");
+            }
         } catch (error) {
-            toast.showError("ไม่สามารถโหลดข้อมูลได้", "กรุณาลองใหม่อีกครั้ง");
+            console.error('Fetch payments error:', error);
+            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
         } finally {
             setLoading(false);
         }
     };
 
-    const handleApprovePayment = async (paymentId: string) => {
+    const handleApprovePayment = async (paymentId: string, notes?: string) => {
         try {
-            // Mock API call
-            await new Promise(resolve => setTimeout(resolve, 500));
+            const response = await fetch('/api/admin/payments/approve', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    payment_id: paymentId,
+                    notes
+                })
+            });
 
-            setPayments(prev => prev.filter(payment => payment.payment_id !== paymentId));
+            const data = await response.json();
 
-            toast.showSuccess("อนุมัติการชำระเงินสำเร็จ", "การจองได้รับการยืนยันแล้ว");
+            if (data.success) {
+                // Remove from current list or refresh data
+                setPayments(prev => prev.filter(payment => payment.payment_id !== paymentId));
+
+                // Update summary
+                setSummary(prev => ({
+                    ...prev,
+                    pending: prev.pending - 1,
+                    approved: prev.approved + 1
+                }));
+
+                toast?.showSuccess("อนุมัติการชำระเงินสำเร็จ", "การจองได้รับการยืนยันแล้ว");
+            } else {
+                toast?.showError("เกิดข้อผิดพลาด", data.message || "ไม่สามารถอนุมัติการชำระเงินได้");
+            }
         } catch (error) {
-            toast.showError("เกิดข้อผิดพลาด", "ไม่สามารถอนุมัติการชำระเงินได้");
+            console.error('Approve payment error:', error);
+            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถอนุมัติการชำระเงินได้");
         }
     };
 
-    const handleRejectPayment = async (paymentId: string, reason: string) => {
+    const handleRejectPayment = async (paymentId: string, reason: string, notes?: string) => {
         try {
-            // Mock API call - ในระบบจริงจะส่ง reason ไปด้วย
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const response = await fetch('/api/admin/payments/reject', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    payment_id: paymentId,
+                    reason,
+                    notes
+                })
+            });
 
-            setPayments(prev => prev.filter(payment => payment.payment_id !== paymentId));
+            const data = await response.json();
 
-            toast.showSuccess("ปฏิเสธการชำระเงินสำเร็จ", `เหตุผล: ${reason}`);
+            if (data.success) {
+                // Remove from current list or refresh data
+                setPayments(prev => prev.filter(payment => payment.payment_id !== paymentId));
 
-            // Reset modal state
-            setShowRejectModal(false);
-            setSelectedPayment(null);
+                // Update summary
+                setSummary(prev => ({
+                    ...prev,
+                    pending: prev.pending - 1,
+                    rejected: prev.rejected + 1
+                }));
+
+                toast?.showSuccess("ปฏิเสธการชำระเงินสำเร็จ", `เหตุผล: ${reason}`);
+
+                // Reset modal state
+                setShowRejectModal(false);
+                setSelectedPayment(null);
+            } else {
+                toast?.showError("เกิดข้อผิดพลาด", data.message || "ไม่สามารถปฏิเสธการชำระเงินได้");
+            }
         } catch (error) {
-            toast.showError("เกิดข้อผิดพลาด", "ไม่สามารถปฏิเสธการชำระเงินได้");
+            console.error('Reject payment error:', error);
+            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถปฏิเสธการชำระเงินได้");
         }
     };
 
-    const openRejectModal = (payment: PendingPayment) => {
+    const openRejectModal = (payment: PaymentData) => {
         setSelectedPayment(payment);
         setShowRejectModal(true);
     };
@@ -147,17 +184,25 @@ export default function AdminPaymentsContainner() {
         setSelectedPayment(null);
     };
 
-    const viewSlip = (payment: PendingPayment) => {
+    const viewSlip = (payment: PaymentData) => {
         setSelectedPayment(payment);
         setShowSlipModal(true);
     };
 
-    const filteredPayments = payments.filter(payment =>
-        payment.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.user_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.reservation_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.booking_details.facility_name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const handleSearch = (term: string) => {
+        setSearchTerm(term);
+        setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page
+    };
+
+    const handlePageChange = (newPage: number) => {
+        setPagination(prev => ({ ...prev, page: newPage }));
+    };
+
+    const statusOptions = [
+        { label: 'รอตรวจสอบ', value: 'pending' },
+        { label: 'อนุมัติแล้ว', value: 'succeeded' },
+        { label: 'ปฏิเสธแล้ว', value: 'failed' }
+    ];
 
     const formatAmount = (cents: number, currency: string) => {
         return `${(cents / 100).toLocaleString()} ${currency}`;
@@ -205,120 +250,261 @@ export default function AdminPaymentsContainner() {
                 <div className="tw-h-1 tw-w-32 tw-bg-gradient-to-r tw-from-emerald-500 tw-via-teal-500 tw-to-cyan-500 tw-rounded-full" />
             </div>
 
-            {/* Search */}
-            <div className="tw-bg-white tw-rounded-2xl tw-shadow-sm tw-p-5 tw-border tw-border-gray-100">
-                <SearchInput
-                    value={searchTerm}
-                    onChange={setSearchTerm}
-                    placeholder="ค้นหาการชำระเงิน..."
-                    onSubmit={() => console.log("search:", searchTerm)}
-                />
+            {/* Summary Cards */}
+            <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-4 tw-gap-6 tw-mb-8">
+                <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
+                    <div className="tw-flex tw-items-center tw-justify-between">
+                        <div>
+                            <p className="tw-text-sm tw-font-medium tw-text-gray-600">รอตรวจสอบ</p>
+                            <p className="tw-text-3xl tw-font-bold tw-text-orange-600">{summary.pending}</p>
+                        </div>
+                        <div className="tw-w-12 tw-h-12 tw-bg-orange-100 tw-rounded-xl tw-flex tw-items-center tw-justify-center">
+                            <Clock className="tw-w-6 tw-h-6 tw-text-orange-600" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
+                    <div className="tw-flex tw-items-center tw-justify-between">
+                        <div>
+                            <p className="tw-text-sm tw-font-medium tw-text-gray-600">อนุมัติแล้ว</p>
+                            <p className="tw-text-3xl tw-font-bold tw-text-green-600">{summary.approved}</p>
+                        </div>
+                        <div className="tw-w-12 tw-h-12 tw-bg-green-100 tw-rounded-xl tw-flex tw-items-center tw-justify-center">
+                            <CheckCircle className="tw-w-6 tw-h-6 tw-text-green-600" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
+                    <div className="tw-flex tw-items-center tw-justify-between">
+                        <div>
+                            <p className="tw-text-sm tw-font-medium tw-text-gray-600">ปฏิเสธแล้ว</p>
+                            <p className="tw-text-3xl tw-font-bold tw-text-red-600">{summary.rejected}</p>
+                        </div>
+                        <div className="tw-w-12 tw-h-12 tw-bg-red-100 tw-rounded-xl tw-flex tw-items-center tw-justify-center">
+                            <XCircle className="tw-w-6 tw-h-6 tw-text-red-600" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-gray-100">
+                    <div className="tw-flex tw-items-center tw-justify-between">
+                        <div>
+                            <p className="tw-text-sm tw-font-medium tw-text-gray-600">ทั้งหมด</p>
+                            <p className="tw-text-3xl tw-font-bold tw-text-blue-600">{summary.total}</p>
+                        </div>
+                        <div className="tw-w-12 tw-h-12 tw-bg-blue-100 tw-rounded-xl tw-flex tw-items-center tw-justify-center">
+                            <CreditCard className="tw-w-6 tw-h-6 tw-text-blue-600" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Filters and Search */}
+            <div className="tw-bg-white tw-rounded-2xl tw-shadow-sm tw-p-6 tw-border tw-border-gray-100 tw-mb-8">
+                <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-4 tw-items-end">
+                    <div>
+                        <DropdownField
+                            label="สถานะ"
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            options={statusOptions}
+                            placeholder="เลือกสถานะ"
+                        />
+                    </div>
+
+                    <div className="md:tw-col-span-2">
+                        <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
+                            ค้นหา
+                        </label>
+                        <SearchInput
+                            value={searchTerm}
+                            onChange={setSearchTerm}
+                            placeholder="ค้นหาชื่อ, อีเมล, รหัสการจอง..."
+                            onSubmit={() => handleSearch(searchTerm)}
+                        />
+                    </div>
+                </div>
+
+                <div className="tw-flex tw-justify-end tw-gap-3 tw-mt-4 tw-pt-4 tw-border-t tw-border-gray-100">
+                    <Button
+                        onClick={fetchPayments}
+                        variant="secondary"
+                        className="tw-px-4 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none"
+                    >
+                        <RefreshCw className="tw-w-4 tw-h-4 tw-mr-2" />
+                        รีเฟรช
+                    </Button>
+                </div>
             </div>
 
 
             {/* Payments List */}
             <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-border tw-border-gray-100 tw-overflow-hidden">
                 <div className="tw-px-6 tw-py-4 tw-border-b tw-border-gray-100">
-                    <h2 className="tw-text-xl tw-font-bold tw-text-gray-800">
-                        รายการรอตรวจสอบ ({filteredPayments.length} รายการ)
-                    </h2>
+                    <div className="tw-flex tw-items-center tw-justify-between">
+                        <h2 className="tw-text-xl tw-font-bold tw-text-gray-800">
+                            รายการการชำระเงิน ({pagination.total} รายการ)
+                        </h2>
+                        <div className="tw-text-sm tw-text-gray-600">
+                            หน้า {pagination.page} จาก {pagination.totalPages}
+                        </div>
+                    </div>
                 </div>
 
-                {filteredPayments.length === 0 ? (
+                {payments.length === 0 ? (
                     <div className="tw-text-center tw-py-12">
                         <CreditCard className="tw-w-16 tw-h-16 tw-text-gray-300 tw-mx-auto tw-mb-4" />
                         <p className="tw-text-gray-500 tw-text-lg">ไม่มีการชำระเงินรอตรวจสอบ</p>
                     </div>
                 ) : (
-                    <div className="tw-space-y-4 tw-p-6">
-                        {filteredPayments.map((payment) => (
-                            <div key={payment.payment_id} className="tw-bg-gray-50 tw-rounded-xl tw-p-6 tw-border tw-border-gray-200">
-                                <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-3 tw-gap-6">
-                                    {/* Payment Info */}
-                                    <div className="lg:tw-col-span-2">
-                                        <div className="tw-flex tw-items-start tw-justify-between tw-mb-4">
-                                            <div>
-                                                <h3 className="tw-text-lg tw-font-bold tw-text-gray-800">
-                                                    {payment.user_name}
-                                                </h3>
-                                                <p className="tw-text-sm tw-text-gray-600">{payment.user_email}</p>
-                                                <p className="tw-text-xs tw-text-gray-500">
-                                                    รหัสการจอง: {payment.reservation_id}
-                                                </p>
+                    <>
+                        <div className="tw-space-y-4 tw-p-6">
+                            {payments.map((payment) => (
+                                <div key={payment.payment_id} className="tw-bg-gray-50 tw-rounded-xl tw-p-6 tw-border tw-border-gray-200">
+                                    <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-3 tw-gap-6">
+                                        {/* Payment Info */}
+                                        <div className="lg:tw-col-span-2">
+                                            <div className="tw-flex tw-items-start tw-justify-between tw-mb-4">
+                                                <div>
+                                                    <h3 className="tw-text-lg tw-font-bold tw-text-gray-800">
+                                                        {payment.user_name}
+                                                    </h3>
+                                                    <p className="tw-text-sm tw-text-gray-600">{payment.user_email}</p>
+                                                    <p className="tw-text-xs tw-text-gray-500">
+                                                        รหัสการจอง: {payment.reservation_id}
+                                                    </p>
+                                                </div>
+                                                <div className="tw-text-right">
+                                                    <p className="tw-text-2xl tw-font-bold tw-text-emerald-600">
+                                                        {formatAmount(payment.amount_cents, payment.currency)}
+                                                    </p>
+                                                    <p className="tw-text-xs tw-text-gray-500 tw-flex tw-items-center tw-justify-end">
+                                                        <Clock className="tw-w-3 tw-h-3 tw-mr-1" />
+                                                        {new Date(payment.uploaded_at).toLocaleString('th-TH')}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="tw-text-right">
-                                                <p className="tw-text-2xl tw-font-bold tw-text-emerald-600">
-                                                    {formatAmount(payment.amount_cents, payment.currency)}
-                                                </p>
-                                                <p className="tw-text-xs tw-text-gray-500 tw-flex tw-items-center tw-justify-end">
-                                                    <Clock className="tw-w-3 tw-h-3 tw-mr-1" />
-                                                    {new Date(payment.uploaded_at).toLocaleString('th-TH')}
-                                                </p>
+
+                                            <div className="tw-bg-white tw-rounded-lg tw-p-4 tw-border tw-border-gray-200">
+                                                <h4 className="tw-font-medium tw-text-gray-800 tw-mb-2 tw-flex tw-items-center">
+                                                    <Calendar className="tw-w-4 tw-h-4 tw-mr-2" />
+                                                    รายละเอียดการจอง
+                                                </h4>
+                                                <div className="tw-space-y-3">
+                                                    {payment.booking_details.facilities.map((facility, index) => (
+                                                        <div key={index} className="tw-grid tw-grid-cols-2 tw-gap-4 tw-text-sm tw-p-3 tw-bg-gray-50 tw-rounded-lg">
+                                                            <div>
+                                                                <span className="tw-text-gray-500">สนาม:</span>
+                                                                <span className="tw-ml-2 tw-font-medium">{facility.facility_name}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="tw-text-gray-500">คอร์ท:</span>
+                                                                <span className="tw-ml-2 tw-font-medium">{facility.court_name}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="tw-text-gray-500">วันที่:</span>
+                                                                <span className="tw-ml-2 tw-font-medium">
+                                                                    {new Date(facility.play_date).toLocaleDateString('th-TH')}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="tw-text-gray-500">เวลา:</span>
+                                                                <span className="tw-ml-2 tw-font-medium">
+                                                                    {facility.start_time}-{facility.end_time}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    <div className="tw-pt-2 tw-border-t tw-border-gray-200">
+                                                        <div className="tw-flex tw-justify-between tw-text-sm">
+                                                            <span className="tw-text-gray-500">สถานะการจอง:</span>
+                                                            <span className={`tw-font-medium ${payment.booking_details.reservation_status === 'confirmed' ? 'tw-text-green-600' :
+                                                                payment.booking_details.reservation_status === 'pending' ? 'tw-text-orange-600' :
+                                                                    'tw-text-red-600'
+                                                                }`}>
+                                                                {payment.booking_details.reservation_status === 'confirmed' ? 'ยืนยันแล้ว' :
+                                                                    payment.booking_details.reservation_status === 'pending' ? 'รอยืนยัน' :
+                                                                        'ยกเลิก'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <div className="tw-bg-white tw-rounded-lg tw-p-4 tw-border tw-border-gray-200">
-                                            <h4 className="tw-font-medium tw-text-gray-800 tw-mb-2 tw-flex tw-items-center">
-                                                <Calendar className="tw-w-4 tw-h-4 tw-mr-2" />
-                                                รายละเอียดการจอง
-                                            </h4>
-                                            <div className="tw-grid tw-grid-cols-2 tw-gap-4 tw-text-sm">
-                                                <div>
-                                                    <span className="tw-text-gray-500">สนาม:</span>
-                                                    <span className="tw-ml-2 tw-font-medium">{payment.booking_details.facility_name}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="tw-text-gray-500">คอร์ท:</span>
-                                                    <span className="tw-ml-2 tw-font-medium">{payment.booking_details.court_name}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="tw-text-gray-500">วันที่:</span>
-                                                    <span className="tw-ml-2 tw-font-medium">
-                                                        {new Date(payment.booking_details.play_date).toLocaleDateString('th-TH')}
-                                                    </span>
-                                                </div>
-                                                <div>
-                                                    <span className="tw-text-gray-500">เวลา:</span>
-                                                    <span className="tw-ml-2 tw-font-medium">{payment.booking_details.time_slot}</span>
-                                                </div>
-                                            </div>
+                                        {/* Actions */}
+                                        <div className="tw-flex tw-flex-col tw-space-y-3">
+                                            <Button
+                                                onClick={() => viewSlip(payment)}
+                                                variant="secondary"
+                                                className="tw-w-full tw-h-12 tw-text-lg tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-gray-200 tw-text-gray-700 tw-border-0 tw-outline-none tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-100 active:tw-bg-gray-200 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-bg-white focus:tw-ring-0 focus:tw-outline-none"
+                                            >
+                                                <Eye className="tw-w-5 tw-h-5 tw-mr-2 tw-text-gray-600" />
+                                                ดูสลิป
+                                            </Button>
+
+                                            <Button
+                                                onClick={() => handleApprovePayment(payment.payment_id)}
+                                                disabled={payment.status !== 'pending'}
+                                                className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
+                                                colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
+                                            >
+                                                <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
+                                                    <CheckCircle className="tw-w-4 tw-h-4 tw-mr-2" />
+                                                    {payment.status === 'pending' ? 'อนุมัติ' :
+                                                        payment.status === 'succeeded' ? 'อนุมัติแล้ว' : 'ปฏิเสธแล้ว'}
+                                                </span>
+                                            </Button>
+
+                                            <Button
+                                                onClick={() => openRejectModal(payment)}
+                                                disabled={payment.status !== 'pending'}
+                                                className="tw-w-auto tw-px-4 tw-h-12 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
+                                                colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl"
+                                            >
+                                                <XCircle className="tw-w-4 tw-h-4 tw-mr-2" />
+                                                {payment.status === 'pending' ? 'ปฏิเสธ' : 'ปฏิเสธแล้ว'}
+                                            </Button>
                                         </div>
-                                    </div>
-
-                                    {/* Actions */}
-                                    <div className="tw-flex tw-flex-col tw-space-y-3">
-                                        <Button
-                                            onClick={() => viewSlip(payment)}
-                                            variant="secondary"
-                                            className="tw-w-full tw-h-12 tw-text-lg tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-gray-200 tw-text-gray-700 tw-border-0 tw-outline-none tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-100 active:tw-bg-gray-200 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-bg-white focus:tw-ring-0 focus:tw-outline-none"
-                                        >
-                                            <Eye className="tw-w-5 tw-h-5 tw-mr-2 tw-text-gray-600" />
-                                            ดูสลิป
-                                        </Button>
-
-                                        <Button
-                                            onClick={() => router.push("/admin/audit")}
-                                            className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
-                                            colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
-                                        >
-                                            <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
-                                                อนุมัติ
-                                            </span>
-                                        </Button>
-
-                                        <Button
-                                            onClick={() => openRejectModal(payment)}
-                                            className="tw-w-auto tw-px-4 tw-h-12 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
-                                            colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl"
-                                        >
-                                            <XCircle className="tw-w-4 tw-h-4 tw-mr-2" />
-                                            ปฏิเสธ
-                                        </Button>
                                     </div>
                                 </div>
+                            ))}
+                        </div>
+
+                        {/* Pagination */}
+                        {pagination.totalPages > 1 && (
+                            <div className="tw-flex tw-items-center tw-justify-between tw-px-6 tw-py-4 tw-border-t tw-border-gray-100">
+                                <div className="tw-text-sm tw-text-gray-600">
+                                    แสดง {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} จาก {pagination.total} รายการ
+                                </div>
+                                <div className="tw-flex tw-space-x-2">
+                                    <Button
+                                        onClick={() => handlePageChange(pagination.page - 1)}
+                                        disabled={!pagination.hasPrev}
+                                        variant="secondary"
+                                        className="tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-rounded-lg tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                                    >
+                                        ก่อนหน้า
+                                    </Button>
+
+                                    <span className="tw-px-4 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-700">
+                                        {pagination.page} / {pagination.totalPages}
+                                    </span>
+
+                                    <Button
+                                        onClick={() => handlePageChange(pagination.page + 1)}
+                                        disabled={!pagination.hasNext}
+                                        variant="secondary"
+                                        className="tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-rounded-lg tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                                    >
+                                        ถัดไป
+                                    </Button>
+                                </div>
                             </div>
-                        ))}
-                    </div>
+                        )}
+                    </>
                 )}
             </div>
 

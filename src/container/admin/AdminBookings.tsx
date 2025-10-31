@@ -28,7 +28,7 @@ import {
     ArrowLeft,
     Activity,
 } from "lucide-react";
-import { Booking } from "@/lib/Booking";
+import { Booking, BookingsResponse, BookingActionRequest } from "@/lib/Booking";
 const STATUS_CONFIG = {
     pending: {
         icon: Clock,
@@ -94,6 +94,22 @@ export default function AdminBookingsContainer() {
     const [filterStatus, setFilterStatus] = useState<string>("all");
     const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("all");
     const [filterRole, setFilterRole] = useState<string>("all");
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 20,
+        total: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrev: false
+    });
+    const [summary, setSummary] = useState({
+        total: 0,
+        pending: 0,
+        confirmed: 0,
+        cancelled: 0,
+        completed: 0,
+        no_show: 0
+    });
 
     const [dateRange, setDateRange] = useState<{
         start: Date | null;
@@ -167,83 +183,90 @@ export default function AdminBookingsContainer() {
 
     // Load bookings data
     useEffect(() => {
-        const loadBookings = async () => {
+        if (session) {
+            loadBookings();
+        }
+    }, [session, pagination.page, filterStatus, filterPaymentStatus, filterRole, dateRange, searchTerm]);
+
+    const loadBookings = async () => {
+        try {
             setLoading(true);
-            try {
-                // TODO: Replace with actual API call
-                // const response = await fetch('/api/admin/bookings');
-                // const data = await response.json();
-                // setBookings(data);
 
-                // For now, use mock data
-                setTimeout(() => {
-                    setBookings([]);
-                    setLoading(false);
-                }, 1000);
-            } catch (error) {
-                console.error('Error loading bookings:', error);
-                toast?.showError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
-                setLoading(false);
+            const params = new URLSearchParams({
+                page: pagination.page.toString(),
+                limit: pagination.limit.toString(),
+                ...(searchTerm && { search: searchTerm }),
+                ...(filterStatus !== 'all' && { status: filterStatus }),
+                ...(filterPaymentStatus !== 'all' && { paymentStatus: filterPaymentStatus }),
+                ...(filterRole !== 'all' && { userRole: filterRole }),
+                ...(dateRange.start && { startDate: dateRange.start.toISOString().split('T')[0] }),
+                ...(dateRange.end && { endDate: dateRange.end.toISOString().split('T')[0] })
+            });
+
+            const response = await fetch(`/api/admin/bookings?${params}`);
+            const data = await response.json();
+
+            if (data.success) {
+                setBookings(data.data.bookings);
+                setPagination(data.data.pagination);
+                setSummary(data.data.summary);
+            } else {
+                toast?.showError("เกิดข้อผิดพลาด", data.message || "ไม่สามารถโหลดข้อมูลได้");
             }
-        };
+        } catch (error) {
+            console.error('Error loading bookings:', error);
+            toast?.showError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        loadBookings();
-    }, [toast]);
-
-    // Filter bookings based on search and filters
-    const filteredBookings = useMemo(() => {
-        return bookings.filter(booking => {
-            // Search filter
-            if (searchTerm) {
-                const searchLower = searchTerm.toLowerCase();
-                const matchesSearch =
-                    booking.reservation_id.toLowerCase().includes(searchLower) ||
-                    booking.user_name.toLowerCase().includes(searchLower) ||
-                    booking.user_email.toLowerCase().includes(searchLower) ||
-                    booking.facility_name.toLowerCase().includes(searchLower) ||
-                    booking.court_name.toLowerCase().includes(searchLower);
-
-                if (!matchesSearch) return false;
-            }
-
-            // Status filter
-            if (filterStatus !== 'all' && booking.status !== filterStatus) {
-                return false;
-            }
-
-            // Payment status filter
-            if (filterPaymentStatus !== 'all' && booking.payment_status !== filterPaymentStatus) {
-                return false;
-            }
-
-            // Role filter
-            if (filterRole !== 'all' && booking.user_role !== filterRole) {
-                return false;
-            }
-
-            // Date range filter
-            if (dateRange.start || dateRange.end) {
-                const bookingDate = new Date(booking.play_date);
-                if (dateRange.start && bookingDate < dateRange.start) return false;
-                if (dateRange.end && bookingDate > dateRange.end) return false;
-            }
-
-            return true;
-        });
-    }, [bookings, searchTerm, filterStatus, filterPaymentStatus, filterRole, dateRange]);
+    // ใช้ bookings โดยตรงเพราะ filtering ทำใน API แล้ว
+    const filteredBookings = bookings;
 
     const handleRefresh = () => {
-        setLoading(true);
-        setTimeout(() => {
-            setBookings([]);
-            setLoading(false);
-            toast?.showSuccess('รีเฟรชข้อมูลสำเร็จ');
-        }, 1000);
+        loadBookings();
+        toast?.showSuccess('รีเฟรชข้อมูลสำเร็จ');
     };
 
     const handleExport = () => {
-        // TODO: Implement export functionality
-        toast?.showInfo('กำลังดาวน์โหลดข้อมูล...');
+        try {
+            if (bookings.length === 0) {
+                toast?.showWarn('ไม่มีข้อมูลสำหรับส่งออก');
+                return;
+            }
+
+            // สร้าง CSV content
+            const headers = ['รหัสจอง', 'ผู้จอง', 'อีเมล', 'สนาม', 'คอร์ท', 'วันที่เล่น', 'เวลา', 'จำนวนเงิน', 'สถานะ', 'สถานะการชำระ', 'วันที่จอง'];
+            const csvContent = [
+                headers.join(','),
+                ...bookings.map(booking => [
+                    booking.reservation_id,
+                    `"${booking.user_name}"`,
+                    booking.user_email,
+                    `"${booking.facility_name}"`,
+                    `"${booking.court_name}"`,
+                    booking.play_date,
+                    `"${booking.time_slots.join(', ')}"`,
+                    booking.total_amount,
+                    booking.status,
+                    booking.payment_status,
+                    new Date(booking.created_at).toLocaleDateString('th-TH')
+                ].join(','))
+            ].join('\n');
+
+            // ดาวน์โหลดไฟล์
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `bookings-${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+
+            toast?.showSuccess('ส่งออกข้อมูลสำเร็จ');
+        } catch (error) {
+            console.error('Export error:', error);
+            toast?.showError('เกิดข้อผิดพลาดในการส่งออกข้อมูล');
+        }
     };
 
     const clearFilters = () => {
@@ -255,6 +278,42 @@ export default function AdminBookingsContainer() {
             start: new Date(),
             end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         });
+        setPagination(prev => ({ ...prev, page: 1 }));
+    };
+
+    const handlePageChange = (newPage: number) => {
+        setPagination(prev => ({ ...prev, page: newPage }));
+    };
+
+    const handleBookingAction = async (bookingId: string, action: 'confirm' | 'cancel', notes?: string) => {
+        try {
+            const response = await fetch(`/api/admin/bookings/${bookingId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action,
+                    notes
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const actionText = action === 'confirm' ? 'ยืนยัน' : 'ยกเลิก';
+                toast?.showSuccess(`${actionText}การจองสำเร็จ`);
+
+                // รีเฟรชข้อมูล
+                loadBookings();
+                setShowDetailModal(false);
+            } else {
+                toast?.showError("เกิดข้อผิดพลาด", data.message || "ไม่สามารถดำเนินการได้");
+            }
+        } catch (error) {
+            console.error('Booking action error:', error);
+            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถดำเนินการได้");
+        }
     };
 
     const viewBookingDetail = (booking: Booking) => {
@@ -409,10 +468,18 @@ export default function AdminBookingsContainer() {
             {/* Bookings Table */}
             <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-border tw-border-gray-100 tw-overflow-hidden">
                 <div className="tw-px-6 tw-py-4 tw-border-b tw-border-gray-100 tw-flex tw-items-center tw-justify-between">
-                    <h2 className="tw-text-xl tw-font-bold tw-text-gray-800 tw-flex tw-items-center">
-                        <Activity className="tw-w-5 tw-h-5 tw-mr-2 tw-text-blue-600" />
-                        รายการการจอง ({filteredBookings.length} รายการ)
-                    </h2>
+                    <div>
+                        <h2 className="tw-text-xl tw-font-bold tw-text-gray-800 tw-flex tw-items-center">
+                            <Activity className="tw-w-5 tw-h-5 tw-mr-2 tw-text-blue-600" />
+                            รายการการจอง ({pagination.total} รายการ)
+                        </h2>
+                        <div className="tw-flex tw-gap-4 tw-mt-2 tw-text-sm tw-text-gray-600">
+                            <span>รอยืนยัน: {summary.pending}</span>
+                            <span>ยืนยันแล้ว: {summary.confirmed}</span>
+                            <span>ยกเลิก: {summary.cancelled}</span>
+                            <span>เสร็จสิ้น: {summary.completed}</span>
+                        </div>
+                    </div>
 
                     <div className="tw-flex tw-items-center tw-space-x-2 tw-text-sm tw-text-gray-500">
                         <Clock className="tw-w-4 tw-h-4" />
@@ -529,6 +596,38 @@ export default function AdminBookingsContainer() {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                )}
+
+                {/* Pagination */}
+                {pagination.totalPages > 1 && (
+                    <div className="tw-flex tw-items-center tw-justify-between tw-px-6 tw-py-4 tw-border-t tw-border-gray-100">
+                        <div className="tw-text-sm tw-text-gray-600">
+                            แสดง {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} จาก {pagination.total} รายการ
+                        </div>
+                        <div className="tw-flex tw-space-x-2">
+                            <Button
+                                onClick={() => handlePageChange(pagination.page - 1)}
+                                disabled={!pagination.hasPrev}
+                                variant="secondary"
+                                className="tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-rounded-lg tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                            >
+                                ก่อนหน้า
+                            </Button>
+
+                            <span className="tw-px-4 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-700">
+                                {pagination.page} / {pagination.totalPages}
+                            </span>
+
+                            <Button
+                                onClick={() => handlePageChange(pagination.page + 1)}
+                                disabled={!pagination.hasNext}
+                                variant="secondary"
+                                className="tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-rounded-lg tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                            >
+                                ถัดไป
+                            </Button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -684,21 +783,13 @@ export default function AdminBookingsContainer() {
                                 {selectedBooking.status === 'pending' && (
                                     <>
                                         <Button
-                                            onClick={() => {
-                                                // TODO: Implement confirm booking
-                                                toast?.showSuccess('ยืนยันการจองสำเร็จ');
-                                                setShowDetailModal(false);
-                                            }}
+                                            onClick={() => handleBookingAction(selectedBooking.reservation_id, 'confirm')}
                                             variant="primary"
                                         >
                                             ยืนยันการจอง
                                         </Button>
                                         <Button
-                                            onClick={() => {
-                                                // TODO: Implement cancel booking
-                                                toast?.showSuccess('ยกเลิกการจองสำเร็จ');
-                                                setShowDetailModal(false);
-                                            }}
+                                            onClick={() => handleBookingAction(selectedBooking.reservation_id, 'cancel')}
                                             variant="danger"
                                         >
                                             ยกเลิกการจอง

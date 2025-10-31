@@ -5,11 +5,10 @@ import { User, Calendar, Edit2, Save, X, Camera, Shield, CreditCard, Users, Mail
 import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ToastProvider";
 import Loading from "@/components/Loading";
-import { UserProfile, UserRole } from "@/types/profile/types";
-import { DropdownField } from "@/components/DropdownField";
+import { UserProfile } from "@/types/profile/types";
 import { InputField } from "@/components/InputField";
-import { DateField } from "@/components/DateField";
 import { Button } from "@/components/Button";
+import { RoleColors } from "@/lib/RoleColors";
 
 const ProfileContainer: React.FC = () => {
     const { data: session } = useSession();
@@ -216,18 +215,18 @@ const ProfileContainer: React.FC = () => {
     };
 
     const handleViewBookings = () => {
-        // Navigate to bookings history page
-        window.location.href = "/bookings";
+        window.location.href = "/profile/bookings";
     };
 
-    const getRoleBadgeColor = (role: UserRole) => {
-        const colors = {
+    const getRoleBadgeColor = (role: keyof RoleColors): string => {
+        const colors: RoleColors = {
             admin: "tw-bg-purple-100 tw-text-purple-800",
             staff: "tw-bg-blue-100 tw-text-blue-800",
             student: "tw-bg-green-100 tw-text-green-800",
             guest: "tw-bg-gray-100 tw-text-gray-800",
+            'super-admin': "tw-bg-red-100 tw-text-red-800",
         };
-        return colors[role];
+        return colors[role] || "tw-bg-gray-100 tw-text-gray-800";
     };
 
     const formatDate = (dateString: string) => {
@@ -335,17 +334,26 @@ const ProfileContainer: React.FC = () => {
                                 </h2>
 
                                 <div className="tw-flex tw-flex-wrap tw-gap-2 tw-mt-3 tw-justify-center sm:tw-justify-start">
+                                    {/* Role Badge */}
                                     <span
-                                        className={`tw-px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-semibold ${getRoleBadgeColor(
+                                        className={`tw-px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-semibold tw-shadow-sm ${getRoleBadgeColor(
                                             userData.role
                                         )}`}
                                     >
                                         {userData.role.toUpperCase()}
                                     </span>
-                                    <span className="tw-px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-semibold tw-bg-yellow-100 tw-text-yellow-800">
+
+                                    {/* Membership Badge */}
+                                    <span
+                                        className={`tw-px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-semibold ${userData.membership === "member"
+                                            ? "tw-bg-yellow-100 tw-text-yellow-800"
+                                            : "tw-bg-gray-100 tw-text-gray-700"
+                                            }`}
+                                    >
                                         {userData.membership === "member" ? "สมาชิก" : "ไม่ใช่สมาชิก"}
                                     </span>
                                 </div>
+
                             </div>
 
                             {/* Actions */}
