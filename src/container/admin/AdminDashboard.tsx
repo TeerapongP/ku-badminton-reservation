@@ -16,6 +16,7 @@ import {
     AlertTriangle,
     CheckCircle,
     XCircle,
+    Image,
 } from "lucide-react";
 
 import { DashboardStats } from "@/lib/DashboardData";
@@ -133,6 +134,14 @@ export default function AdminDashboard() {
             hoverColor: "hover:tw-from-purple-600 hover:tw-to-purple-700",
             count: stats.pendingBookings > 0 ? stats.pendingBookings : undefined,
             href: "/admin/bookings"
+        },
+        {
+            title: "จัดการ Banner",
+            description: "จัดการ banner หน้าแรก",
+            icon: Image,
+            color: "tw-from-indigo-500 tw-to-indigo-600",
+            hoverColor: "hover:tw-from-indigo-600 hover:tw-to-indigo-700",
+            href: "/admin/banners"
         },
         {
             title: "รายงานและสถิติ",
