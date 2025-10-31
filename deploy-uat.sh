@@ -77,8 +77,8 @@ docker run -d --name "${APP_NAME}" \
   --network "${APP_NET}" \
   -e HOST=0.0.0.0 \
   -e PORT="${APP_PORT}" \
-  -e IMAGE_PATH="${UPLOADS_DIR}" \
-  -v "${UPLOADS_DIR}:${UPLOADS_DIR}:rw" \
+  -e IMAGE_PATH="${UPLOADS_DIR}/" \
+  -v "${UPLOADS_DIR}:/app/uploads:rw" \
   --restart=unless-stopped \
   "${APP_IMAGE}"
 
