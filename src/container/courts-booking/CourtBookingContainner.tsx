@@ -97,10 +97,8 @@ export default function CourtBookingContainer() {
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
-            console.log('Court details API response:', json); // Debug log
             if (!json?.data) return null;
             const mappedData = mapServerToView(json.data);
-            console.log('Mapped court data:', mappedData); // Debug log
             return mappedData;
         } finally {
             setLoading(false);
