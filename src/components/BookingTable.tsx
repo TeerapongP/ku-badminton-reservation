@@ -67,7 +67,7 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
                 };
             case 'pending':
                 return {
-                    text: 'รอชำระ',
+                    text: 'รอตรวจสอบ',
                     color: 'tw-bg-gradient-to-br tw-from-amber-400 tw-to-amber-500 tw-text-white tw-shadow-sm',
                     icon: '⏳'
                 };
@@ -155,7 +155,7 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
                             <Clock className="tw-w-6 tw-h-6 tw-text-white" />
                         </div>
                     </div>
-                    <div className="tw-text-sm tw-font-medium tw-text-amber-700">รอชำระเงิน</div>
+                    <div className="tw-text-sm tw-font-medium tw-text-amber-700">รอตรวจสอบ</div>
                     <div className="tw-text-xs tw-text-amber-500 tw-mt-1">Pending</div>
                 </div>
 
@@ -276,7 +276,7 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
                             ⏳
                         </div>
                         <div>
-                            <div className="tw-text-xs tw-font-bold tw-text-amber-800">รอชำระเงิน</div>
+                            <div className="tw-text-xs tw-font-bold tw-text-amber-800">รอตรวจสอบ</div>
                             <div className="tw-text-[10px] tw-text-amber-600">Pending</div>
                         </div>
                     </div>

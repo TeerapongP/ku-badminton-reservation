@@ -1,9 +1,8 @@
 import React, { useState, useRef, useCallback } from "react";
-import { useSession } from "next-auth/react";
 import { Button } from "@/components/Button";
 import { useToast } from "@/components/ToastProvider";
 import { PaymentModalProps } from "@/lib/PaymentModalProps";
-import { Upload } from "lucide-react";
+import { RefreshCw, Upload } from "lucide-react";
 
 /** Util สำหรับฟอร์แมตค่าเงินบาท */
 function formatBaht(v: number | string) {
@@ -23,7 +22,6 @@ export function PaymentModal({
     onConfirm,
     isProcessing = false,
 }: PaymentModalProps) {
-    const { data: session } = useSession();
     const toast = useToast();
     const dialogRef = useRef<HTMLDivElement | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -73,12 +71,67 @@ export function PaymentModal({
             return;
         }
 
+        if (!paymentData.reservationId) {
+            toast?.showError("ข้อมูลไม่ครบถ้วน", "ไม่พบข้อมูลการจอง");
+            return;
+        }
+
         try {
             setIsUploading(true);
+
+            // Step 1: Upload slip file
+            const formData = new FormData();
+            formData.append('slip', selectedFile);
+            formData.append('reservationId', paymentData.reservationId.toString());
+
+            const uploadResponse = await fetch('/api/upload/payment-slip', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const uploadResult = await uploadResponse.json();
+
+            if (!uploadResult.success) {
+                throw new Error(uploadResult.message || 'Failed to upload slip');
+            }
+
+            // Step 2: Create or update payment record
+            const paymentResponse = await fetch('/api/payments', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    reservationId: paymentData.reservationId,
+                    amount: paymentData.amount,
+                    slipUrl: uploadResult.data.filePath,
+                    filename: selectedFile.name
+                }),
+            });
+
+            const paymentResult = await paymentResponse.json();
+
+            if (!paymentResult.success) {
+                throw new Error(paymentResult.message || 'Failed to create payment record');
+            }
+
+            toast?.showSuccess(
+                "อัปโหลดสลิปสำเร็จ",
+                "รอการตรวจสอบจากเจ้าหน้าที่ ประมาณ 5-10 นาที"
+            );
+
+            // Call parent callback if provided
             await onConfirm?.(selectedFile);
+
+            // Close modal
+            handleClose();
+
         } catch (error) {
-            console.error("Payment confirmation error:", error);
-            toast?.showError("เกิดข้อผิดพลาด", "ไม่สามารถยืนยันการชำระเงินได้");
+            console.error('Payment confirmation error:', error);
+            toast?.showError(
+                "เกิดข้อผิดพลาด",
+                error instanceof Error ? error.message : "ไม่สามารถยืนยันการชำระเงินได้"
+            );
         } finally {
             setIsUploading(false);
         }
@@ -128,11 +181,23 @@ export function PaymentModal({
 
                         <button
                             onClick={handleClose}
+
                             disabled={isProcessing || isUploading}
-                            className="tw-w-10 tw-h-10 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-text-gray-400 hover:tw-text-gray-600 hover:tw-bg-gray-100 tw-transition-colors disabled:tw-opacity-50"
+                            aria-label="ปิดหน้าต่างยืนยันการจอง"
+                            className="tw-w-10 tw-h-10 tw-rounded-2xl tw-flex tw-items-center tw-justify-center tw-transition-all tw-duration-300 tw-shadow-[5px_5px_15px_#e0e0e0,-5px_-5px_15px_#ffffff] hover:tw-shadow-[inset_3px_3px_6px_#d1d1d1,inset_-3px_-3px_6px_#ffffff] active:tw-scale-95 tw-border tw-border-gray-200/60 tw-bg-white tw-text-gray-500 hover:tw-text-gray-700 focus:tw-ring-2 focus:tw-ring-emerald-300 focus:tw-outline-none"
                         >
-                            <svg className="tw-w-6 tw-h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            <svg
+                                className="tw-w-5 tw-h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
                             </svg>
                         </button>
                     </div>
@@ -236,24 +301,44 @@ export function PaymentModal({
                                 />
 
                                 {previewUrl ? (
-                                    <div className="tw-space-y-4">
+                                    <div className="tw-flex tw-flex-col tw-items-center tw-space-y-4 tw-text-center">
                                         <img
                                             src={previewUrl}
                                             alt="ตัวอย่างสลิป"
-                                            className="tw-max-w-full tw-max-h-64 tw-mx-auto tw-rounded-lg tw-shadow-md"
+                                            className="tw-max-w-full tw-max-h-64 tw-rounded-lg tw-shadow-md"
                                         />
+
                                         <div className="tw-text-sm tw-text-gray-600">
                                             <p className="tw-font-medium tw-text-green-600 tw-mb-2">✓ อัปโหลดสลิปเรียบร้อย</p>
                                             <p>ไฟล์: {selectedFile?.name}</p>
                                             <p>ขนาด: {selectedFile ? (selectedFile.size / 1024 / 1024).toFixed(2) : 0} MB</p>
                                         </div>
+
                                         <Button
                                             onClick={() => fileInputRef.current?.click()}
-                                            className="tw-px-4 tw-py-2 tw-bg-gray-500 hover:tw-bg-gray-600 tw-text-white tw-rounded-lg tw-transition-colors"
+                                            className="
+      tw-px-6 tw-py-3 
+      tw-font-semibold tw-text-base
+      tw-rounded-xl 
+      tw-shadow-md hover:tw-shadow-lg
+      hover:tw-scale-[1.03] active:tw-scale-[0.97]
+      tw-transition-all tw-duration-300 tw-ease-out
+      tw-flex tw-items-center tw-justify-center tw-gap-2
+      tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0
+    "
+                                            colorClass="
+      tw-bg-gradient-to-r 
+      tw-from-indigo-500 tw-to-blue-600
+      hover:tw-from-indigo-600 hover:tw-to-blue-700
+      tw-text-white
+      focus:tw-ring-4 focus:tw-ring-indigo-300/50
+    "
                                         >
+                                            <RefreshCw className="tw-w-5 tw-h-5" />
                                             เปลี่ยนไฟล์
                                         </Button>
                                     </div>
+
                                 ) : (
                                     <div className="tw-space-y-4">
                                         <div className="tw-w-16 tw-h-16 tw-mx-auto tw-bg-gray-200 tw-rounded-full tw-flex tw-items-center tw-justify-center">
@@ -304,22 +389,57 @@ export function PaymentModal({
                 {/* Footer */}
                 <div className="tw-px-6 tw-py-4 tw-border-t tw-border-gray-200 tw-bg-gray-50">
                     <div className="tw-flex tw-gap-4 tw-justify-end">
+                        {/* Cancel */}
                         <Button
                             onClick={handleCancel}
                             disabled={isProcessing || isUploading}
-                            className="tw-px-6 tw-py-3 tw-bg-gray-500 hover:tw-bg-gray-600 tw-text-white tw-rounded-lg tw-transition-colors tw-font-medium disabled:tw-opacity-50"
+                            className="
+    tw-px-6 tw-py-3 tw-font-semibold tw-text-base
+    tw-rounded-xl
+    tw-shadow-sm hover:tw-shadow-md
+    hover:tw-scale-[1.02] active:tw-scale-[0.98]
+    tw-transition-all tw-duration-300 tw-ease-out
+    tw-flex tw-items-center tw-justify-center tw-gap-2
+    tw-border-0 tw-outline-none focus:tw-outline-none
+    disabled:tw-opacity-50 disabled:tw-cursor-not-allowed
+    disabled:tw-shadow-none
+  "
+                            colorClass="
+    tw-bg-gray-200 hover:tw-bg-gray-300
+    tw-text-gray-700
+    focus:tw-ring-4 focus:tw-ring-gray-300/60
+  "
                         >
                             ยกเลิก
                         </Button>
 
+                        {/* Confirm / Primary */}
                         <Button
                             onClick={handleConfirm}
                             disabled={!selectedFile || isProcessing || isUploading}
-                            className="tw-px-6 tw-py-3 tw-bg-emerald-600 hover:tw-bg-emerald-700 tw-text-white tw-rounded-lg tw-transition-colors tw-font-medium disabled:tw-opacity-50 disabled:tw-cursor-not-allowed tw-flex tw-items-center tw-gap-2"
+                            className="
+    tw-px-6 tw-py-3 tw-font-semibold tw-text-base
+    tw-rounded-xl
+    tw-shadow-lg hover:tw-shadow-xl
+    hover:tw-scale-[1.03] active:tw-scale-[0.97]
+    tw-transition-all tw-duration-300 tw-ease-out
+    tw-flex tw-items-center tw-justify-center tw-gap-2
+    tw-border-0 tw-outline-none focus:tw-outline-none
+    disabled:tw-opacity-50 disabled:tw-cursor-not-allowed
+    disabled:tw-shadow-none
+  "
+                            colorClass="
+    tw-bg-gradient-to-r
+    tw-from-emerald-500 tw-to-green-600
+    hover:tw-from-emerald-600 hover:tw-to-green-700
+    tw-text-white
+    focus:tw-ring-4 focus:tw-ring-emerald-300/50
+  "
+                            aria-busy={isUploading || isProcessing}
                         >
                             {isUploading || isProcessing ? (
                                 <>
-                                    <div className="tw-animate-spin tw-w-4 tw-h-4 tw-border-2 tw-border-white tw-border-t-transparent tw-rounded-full"></div>
+                                    <div className="tw-animate-spin tw-w-4 tw-h-4 tw-border-2 tw-border-white tw-border-t-transparent tw-rounded-full" />
                                     กำลังดำเนินการ...
                                 </>
                             ) : (
@@ -331,6 +451,7 @@ export function PaymentModal({
                                 </>
                             )}
                         </Button>
+
                     </div>
                 </div>
             </div>

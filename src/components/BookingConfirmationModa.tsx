@@ -3,6 +3,7 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/Button";
 import { PaymentModal } from "@/components/PaymentModal";
 import { useToast } from "@/components/ToastProvider";
+import { ModalProps } from "@/lib/BookingData";
 
 /** Util เล็ก ๆ สำหรับฟอร์แมตค่าเงินบาท */
 function formatBaht(v: number | string) {
@@ -13,32 +14,6 @@ function formatBaht(v: number | string) {
         return `${n}`;
     }
 }
-
-/** ข้อมูล user จาก session */
-type UserData = {
-    name: string;
-    phone: string;
-    email: string;
-    role: string;
-};
-
-type BookingData = {
-    date: string;
-    time: string;
-    price: string | number;
-    courtName?: string;
-    facilityName?: string;
-};
-
-type ModalProps = {
-    visible: boolean;
-    onHide?: () => void;
-    bookingData: BookingData;
-    onCancel?: () => void;
-    onConfirm?: () => Promise<void> | void;
-    isProcessing?: boolean;
-    useSessionData?: boolean; // เพิ่ม option ให้เลือกใช้ session data หรือไม่
-};
 
 export function BookingConfirmationModal({
     visible,
@@ -144,17 +119,43 @@ export function BookingConfirmationModal({
 
             const result = await response.json();
 
-            if (result.success) {
-                toast?.showSuccess("ชำระเงินสำเร็จ", "อัปโหลดสลิปการชำระเงินเรียบร้อยแล้ว");
+            if (!result.success) {
+                throw new Error(result.error || 'Upload failed');
+            }
 
-                // เรียก onConfirm callback พร้อมข้อมูลสลิป
-                await onConfirm?.();
+            // 2. สร้างการจองพร้อมข้อมูลสลิป
+            const reservationData = {
+                courtId: bookingData.courtId, // ต้องเพิ่ม courtId ใน bookingData
+                slotId: bookingData.slotId,   // ต้องเพิ่ม slotId ใน bookingData
+                bookingDate: bookingData.date,
+                slipUrl: result.data.filePath
+            };
+
+            const reservationResponse = await fetch('/api/reservations', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(reservationData),
+            });
+
+            if (!reservationResponse.ok) {
+                throw new Error('Reservation creation failed');
+            }
+
+            const reservationResult = await reservationResponse.json();
+
+            if (reservationResult.success) {
+                toast?.showSuccess("จองสำเร็จ", "สร้างการจองและอัปโหลดสลิปเรียบร้อยแล้ว รอการอนุมัติจากแอดมิน");
+
+                // เรียก onConfirm callback พร้อมข้อมูลการจอง
+                await onConfirm?.(reservationResult.data);
 
                 // ปิด modal ทั้งหมด
                 setShowPaymentModal(false);
                 onHide?.();
             } else {
-                throw new Error(result.error || 'Upload failed');
+                throw new Error(reservationResult.error || 'Reservation creation failed');
             }
         } catch (error) {
             console.error('Payment confirmation error:', error);

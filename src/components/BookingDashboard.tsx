@@ -1,10 +1,19 @@
 "use client"
 
-import { MapPin, Calendar, Clock } from "lucide-react";
+import { MapPin, Calendar, Clock, XCircle, AlertTriangle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import BookingTable from "./BookingTable";
 
 import { DashboardBooking, DashboardBookingResponse } from '@/types/booking';
+
+// System Status Interface
+interface SystemStatus {
+  isOpen: boolean;
+  isBusinessHours: boolean;
+  effectiveStatus: boolean;
+  currentHour: number;
+}
+
 // Main Dashboard Component
 const BookingDashboard = () => {
   const [bookings, setBookings] = useState<DashboardBooking[]>([]);
@@ -12,9 +21,34 @@ const BookingDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [countdown, setCountdown] = useState(60);
+  const [systemStatus, setSystemStatus] = useState<SystemStatus>({
+    isOpen: true,
+    isBusinessHours: true,
+    effectiveStatus: true,
+    currentHour: new Date().getHours()
+  });
+  const [systemLoading, setSystemLoading] = useState(true);
 
   const refreshInterval = useRef<NodeJS.Timeout | null>(null);
   const countdownInterval = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch system status
+  const fetchSystemStatus = async () => {
+    try {
+      const response = await fetch('/api/admin/booking-system');
+      const data = await response.json();
+
+      if (data.success) {
+        setSystemStatus(data.data);
+      } else {
+        console.error('Failed to fetch system status:', data.error);
+      }
+    } catch (error) {
+      console.error('Fetch system status error:', error);
+    } finally {
+      setSystemLoading(false);
+    }
+  };
 
   // Fetch booking data
   const fetchBookings = async () => {
@@ -48,10 +82,12 @@ const BookingDashboard = () => {
   // Setup auto-refresh and countdown
   useEffect(() => {
     // Initial load
+    fetchSystemStatus();
     fetchBookings();
 
     // Setup auto-refresh every 60 seconds (1 minute)
     refreshInterval.current = setInterval(() => {
+      fetchSystemStatus();
       fetchBookings();
       setCountdown(60);
     }, 60000);
@@ -144,10 +180,43 @@ const BookingDashboard = () => {
           </div>
         )}
 
-        <BookingTable
-          bookings={bookings}
-          loading={loading}
-        />
+        {/* System Status Check */}
+        {systemLoading ? (
+          <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-8 tw-text-center">
+            <div className="tw-animate-spin tw-rounded-full tw-h-8 tw-w-8 tw-border-b-2 tw-border-blue-600 tw-mx-auto tw-mb-4"></div>
+            <p className="tw-text-gray-600">กำลังตรวจสอบสถานะระบบ...</p>
+          </div>
+        ) : !systemStatus.effectiveStatus ? (
+          <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-8 tw-text-center tw-border tw-border-red-200">
+            <div className="tw-w-16 tw-h-16 tw-bg-red-100 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mx-auto tw-mb-4">
+              <XCircle className="tw-w-8 tw-h-8 tw-text-red-600" />
+            </div>
+            <h3 className="tw-text-xl tw-font-bold tw-text-red-800 tw-mb-2">
+              ระบบการจองปิดให้บริการ
+            </h3>
+            <div className="tw-space-y-2 tw-text-gray-600">
+              {!systemStatus.isOpen ? (
+                <p className="tw-flex tw-items-center tw-justify-center tw-gap-2">
+                  <AlertTriangle className="tw-w-4 tw-h-4 tw-text-orange-500" />
+                  ระบบถูกปิดโดยผู้ดูแล
+                </p>
+              ) : !systemStatus.isBusinessHours ? (
+                <p className="tw-flex tw-items-center tw-justify-center tw-gap-2">
+                  <Clock className="tw-w-4 tw-h-4 tw-text-blue-500" />
+                  นอกเวลาทำการ (เวลาทำการ: 6:00-22:00 น.)
+                </p>
+              ) : null}
+              <p className="tw-text-sm tw-text-gray-500 tw-mt-4">
+                เวลาปัจจุบัน: {systemStatus.currentHour}:00 น.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <BookingTable
+            bookings={bookings}
+            loading={loading}
+          />
+        )}
       </div>
     </div>
   );

@@ -146,14 +146,14 @@ export default function CourtBookingContainer() {
 
         if (matchingSlot) {
             setSelectedSlot(matchingSlot.id);
-            toast?.showSuccess("เลือกเวลาอัตโนมัติ", `เลือกช่วงเวลา ${matchingSlot.label} แล้ว`);
+            // toast?.showSuccess("เลือกเวลาอัตโนมัติ", `เลือกช่วงเวลา ${matchingSlot.label} แล้ว`);
         } else {
             // หากไม่พบ slot ที่ตรงกัน หรือ slot ไม่ว่าง
             const foundSlot = slots.find(slot => slot.label.startsWith(timeSlotParam));
             if (foundSlot) {
-                toast?.showWarning("ช่วงเวลาไม่ว่าง", `ช่วงเวลา ${foundSlot.label} ถูกจองแล้ว`);
+                toast?.showWarn("ช่วงเวลาไม่ว่าง", `ช่วงเวลา ${foundSlot.label} ถูกจองแล้ว`);
             } else {
-                toast?.showWarning("ไม่พบช่วงเวลา", `ไม่พบช่วงเวลา ${timeSlotParam} ในวันที่เลือก`);
+                toast?.showWarn("ไม่พบช่วงเวลา", `ไม่พบช่วงเวลา ${timeSlotParam} ในวันที่เลือก`);
             }
         }
     }, [slots, timeSlotParam, toast]);
@@ -337,7 +337,7 @@ export default function CourtBookingContainer() {
                     </div>
                     <div className="tw-flex tw-items-center tw-gap-2">
                         <span className="tw-w-5 tw-h-5 tw-rounded-md tw-bg-gradient-to-br tw-from-yellow-300 tw-to-yellow-400 tw-shadow-sm" />
-                        <span className="tw-font-semibold tw-text-gray-700">รอชำระเงิน</span>
+                        <span className="tw-font-semibold tw-text-gray-700">รอตรวจสอบ</span>
                     </div>
                     <div className="tw-flex tw-items-center tw-gap-2">
                         <span className="tw-w-5 tw-h-5 tw-rounded-md tw-bg-gradient-to-br tw-from-green-300 tw-to-emerald-300 tw-shadow-sm" />
@@ -381,15 +381,27 @@ export default function CourtBookingContainer() {
                 visible={visible}
                 onHide={() => setVisible(false)}
                 bookingData={{
-                    date: selectedDate?.toLocaleDateString("th-TH") ?? "-",
+                    date: selectedDate?.toISOString().split('T')[0] ?? "-", // ใช้ ISO format สำหรับ API
                     time: slots.find(s => s.id === selectedSlot)?.label ?? "-",
                     price: court?.pricePerHour?.toString() ?? "100",
                     courtName: court?.name ?? "-",
                     facilityName: court?.building ?? "-",
+                    courtId: courtId,
+                    slotId: selectedSlot || undefined,
                 }}
                 useSessionData={true}
-                onCancel={() => alert("ยกเลิกการจองเรียบร้อย")}
-                onConfirm={() => alert("ดำเนินการชำระเงิน")}
+                onCancel={() => {
+                    setVisible(false);
+                    toast?.showInfo("ยกเลิกการจอง", "การจองถูกยกเลิกแล้ว");
+                }}
+                onConfirm={(reservationData) => {
+                    setVisible(false);
+                    // รีเฟรชข้อมูลช่วงเวลา
+                    if (selectedDate) {
+                        fetchCourtAvailability(selectedDate);
+                    }
+                    toast?.showSuccess("จองสำเร็จ", "การจองของคุณอยู่ระหว่างการตรวจสอบ");
+                }}
             />
         </div>
     );
