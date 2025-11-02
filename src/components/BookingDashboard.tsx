@@ -21,14 +21,14 @@ const BookingDashboard = () => {
   const [bookings, setBookings] = useState<DashboardBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState(60);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({
     isOpen: true,
     isBusinessHours: true,
     effectiveStatus: true,
-    currentHour: new Date().getHours()
+    currentHour: 0
   });
   const [systemLoading, setSystemLoading] = useState(true);
 
@@ -89,6 +89,17 @@ const BookingDashboard = () => {
     }
   };
 
+  // Initialize dates after component mounts to avoid hydration issues
+  useEffect(() => {
+    const now = new Date();
+    setLastUpdate(now);
+    setCurrentTime(now);
+    setSystemStatus(prev => ({
+      ...prev,
+      currentHour: now.getHours()
+    }));
+  }, []);
+
   // Setup auto-refresh and countdown เฉพาะเมื่อ authenticated
   useEffect(() => {
     if (status === 'loading') return; // รอให้ session โหลดเสร็จ
@@ -130,6 +141,7 @@ const BookingDashboard = () => {
   };
 
   const getCurrentTime = () => {
+    if (!currentTime) return '--:--';
     return currentTime.toLocaleTimeString('th-TH', {
       hour: '2-digit',
       minute: '2-digit',
@@ -172,11 +184,11 @@ const BookingDashboard = () => {
                     <div className="tw-text-xs tw-text-white/70">วินาที</div>
                   </div>
                   <div className="tw-text-white/60 tw-text-xs tw-mt-2">
-                    อัปเดตล่าสุด: {lastUpdate.toLocaleTimeString('th-TH', {
+                    อัปเดตล่าสุด: {lastUpdate ? lastUpdate.toLocaleTimeString('th-TH', {
                       hour: '2-digit',
                       minute: '2-digit',
                       timeZone: 'Asia/Bangkok'
-                    })}
+                    }) : '--:--'}
                   </div>
                 </div>
               </div>
