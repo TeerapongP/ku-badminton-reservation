@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable standalone output for Docker (disabled for Vercel)
-  // output: 'standalone',
+  // Enable standalone output for Docker builds
+  output: process.env.DOCKER_BUILD === 'true' ? 'standalone' : undefined,
 
   // Server external packages (moved from experimental)
   serverExternalPackages: ['@prisma/client'],

@@ -45,6 +45,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ARG SKIP_ENV_VALIDATION=1
 ENV SKIP_ENV_VALIDATION=$SKIP_ENV_VALIDATION
 
+# Enable standalone output for Docker builds
+ENV DOCKER_BUILD=true
+
 # ✅ สร้าง production build (ถ้าไม่มี script build:prod จะรัน build ปกติ)
 RUN pnpm run build:prod || pnpm run build
 
