@@ -47,9 +47,17 @@ export default function AdminDashboard() {
         isOpen: true,
         isBusinessHours: true,
         effectiveStatus: true,
-        currentHour: new Date().getHours()
+        currentHour: 0
     });
     const [systemLoading, setSystemLoading] = useState(false);
+
+    // Initialize currentHour after component mounts to avoid hydration issues
+    useEffect(() => {
+        setSystemStatus(prev => ({
+            ...prev,
+            currentHour: new Date().getHours()
+        }));
+    }, []);
 
     useEffect(() => {
         if (status === "loading") return;
@@ -102,7 +110,7 @@ export default function AdminDashboard() {
 
             if (data.success) {
                 setActivities(data.data.activities);
-            } 
+            }
         } catch (error) {
             console.error('Fetch activities error:', error);
         } finally {
@@ -342,8 +350,8 @@ export default function AdminDashboard() {
                     <div className="tw-flex tw-items-center tw-justify-between tw-mb-4">
                         <div className="tw-flex tw-items-center tw-space-x-4">
                             <div className={`tw-w-12 tw-h-12 tw-rounded-xl tw-flex tw-items-center tw-justify-center ${systemStatus.effectiveStatus
-                                    ? 'tw-bg-green-100'
-                                    : 'tw-bg-red-100'
+                                ? 'tw-bg-green-100'
+                                : 'tw-bg-red-100'
                                 }`}>
                                 {systemStatus.effectiveStatus ? (
                                     <CheckCircle className="tw-w-6 tw-h-6 tw-text-green-600" />
@@ -356,8 +364,8 @@ export default function AdminDashboard() {
                                     สถานะระบบการจอง
                                 </h3>
                                 <p className={`tw-text-sm tw-font-medium ${systemStatus.effectiveStatus
-                                        ? 'tw-text-green-600'
-                                        : 'tw-text-red-600'
+                                    ? 'tw-text-green-600'
+                                    : 'tw-text-red-600'
                                     }`}>
                                     {systemStatus.effectiveStatus ? 'เปิดให้บริการ' : 'ปิดให้บริการ'}
                                 </p>
@@ -367,8 +375,8 @@ export default function AdminDashboard() {
                             onClick={toggleSystemStatus}
                             disabled={systemLoading}
                             className={`tw-px-6 tw-py-3 tw-font-semibold tw-rounded-xl tw-transition-all tw-duration-300 tw-shadow-lg hover:tw-shadow-xl tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed ${systemStatus.isOpen
-                                    ? 'tw-bg-gradient-to-r tw-from-red-500 tw-to-red-600 hover:tw-from-red-600 hover:tw-to-red-700 tw-text-white focus:tw-ring-4 focus:tw-ring-red-300'
-                                    : 'tw-bg-gradient-to-r tw-from-green-500 tw-to-green-600 hover:tw-from-green-600 hover:tw-to-green-700 tw-text-white focus:tw-ring-4 focus:tw-ring-green-300'
+                                ? 'tw-bg-gradient-to-r tw-from-red-500 tw-to-red-600 hover:tw-from-red-600 hover:tw-to-red-700 tw-text-white focus:tw-ring-4 focus:tw-ring-red-300'
+                                : 'tw-bg-gradient-to-r tw-from-green-500 tw-to-green-600 hover:tw-from-green-600 hover:tw-to-green-700 tw-text-white focus:tw-ring-4 focus:tw-ring-green-300'
                                 }`}
                         >
                             {systemLoading ? (

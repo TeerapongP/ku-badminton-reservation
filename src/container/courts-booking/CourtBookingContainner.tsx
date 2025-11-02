@@ -31,21 +31,14 @@ export default function CourtBookingContainer() {
         return id?.trim() || null;
     }, [params]);
 
-    const [selectedDate, setSelectedDate] = useState<Date | null>(
-        // ถ้ามี time_slot parameter ให้ตั้งวันที่เป็นวันนี้โดยอัตโนมัติ
-        timeSlotParam ? new Date() : null
-    );
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [slotsLoading, setSlotsLoading] = useState(false);
     const [court, setCourt] = useState<CourtView | null>(null);
     const [slots, setSlots] = useState<Slot[]>([]);
     const [visible, setVisible] = useState<boolean>(false);
-    const today = useMemo(() => {
-        const d = new Date();
-        d.setHours(0, 0, 0, 0);
-        return d;
-    }, []);
+    const [today, setToday] = useState<Date | null>(null);
 
     // map response จาก API → รูปแบบที่จอใช้
     function mapServerToView(s: any): CourtView {
@@ -104,6 +97,18 @@ export default function CourtBookingContainer() {
             setLoading(false);
         }
     }
+
+    // Initialize dates after component mounts to avoid hydration issues
+    useEffect(() => {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        setToday(now);
+
+        // ถ้ามี time_slot parameter ให้ตั้งวันที่เป็นวันนี้โดยอัตโนมัติ
+        if (timeSlotParam) {
+            setSelectedDate(new Date());
+        }
+    }, [timeSlotParam]);
 
     useEffect(() => {
         if (!courtId) {
@@ -253,7 +258,7 @@ export default function CourtBookingContainer() {
                         value={selectedDate}
                         onChange={setSelectedDate}
                         showIcon
-                        minDate={today}
+                        minDate={today || undefined}
                         placeholder="เลือกวันที่ต้องการจอง"
                         required
                     />
