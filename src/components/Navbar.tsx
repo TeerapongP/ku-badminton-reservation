@@ -16,6 +16,7 @@ export default function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [decryptedImageUrl, setDecryptedImageUrl] = useState<string | null>(null);
+  const [systemStatus, setSystemStatus] = useState({ effectiveStatus: true });
   const pathname = usePathname();
   const { isAuthenticated, logout } = useAuth();
   const { data: session } = useSession();
@@ -27,6 +28,23 @@ export default function Navbar() {
   }, [pathname]);
 
   // Fetch user profile when authenticated
+  // Fetch system status
+  useEffect(() => {
+    const fetchSystemStatus = async () => {
+      try {
+        const response = await fetch('/api/admin/booking-system');
+        if (response.ok) {
+          const data = await response.json();
+          setSystemStatus(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch system status:', error);
+      }
+    };
+
+    fetchSystemStatus();
+  }, []);
+
   useEffect(() => {
     if (isAuthenticated && (session?.user as any)?.id && !userProfile) {
       fetchUserProfile();
@@ -82,8 +100,15 @@ export default function Navbar() {
   const menuItems: Item[] = useMemo(() => {
     const baseItems = [
       { id: "home", label: "หน้าแรก", href: "/" },
-      { id: "booking", label: "จองสนาม", href: "/badminton-court" },
     ];
+
+    // เพิ่มลิงก์จองสนาม: เมื่อระบบเปิด หรือ user เป็น admin/super_admin
+    const userRole = (session?.user as any)?.role;
+    const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+
+    if (systemStatus.effectiveStatus || isAdmin) {
+      baseItems.push({ id: "booking", label: "จองสนาม", href: "/badminton-court" });
+    }
 
     if (isAuthenticated) {
       // เมื่อ login แล้ว
@@ -107,7 +132,7 @@ export default function Navbar() {
         { id: "contract", label: "ติดต่อสอบถาม", href: "/contract" },
       ];
     }
-  }, [isAuthenticated, (session?.user as any)?.role]);
+  }, [isAuthenticated, (session?.user as any)?.role, systemStatus.effectiveStatus, session]);
 
   // แทนที่ isActive() ด้วยฟังก์ชันนี้
   const getActiveId = () => {
