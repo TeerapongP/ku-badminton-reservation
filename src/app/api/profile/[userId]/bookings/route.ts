@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 // GET - ดึงประวัติการจองของผู้ใช้
 export async function GET(
     req: Request,
-    { params }: { params: Promise<{ userId: string }> }
+    context: { params: Promise<{ userId: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -20,7 +20,7 @@ export async function GET(
             );
         }
 
-        const { userId } = await params;
+        const { userId } = await context.params;
 
         // ตรวจสอบว่าผู้ใช้เข้าถึงประวัติการจองของตัวเองหรือไม่ (หรือเป็น admin)
         if (session.user.id !== userId && session.user.role !== 'admin') {

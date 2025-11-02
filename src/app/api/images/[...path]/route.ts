@@ -11,10 +11,10 @@ import {
 
 async function imageHandler(
     request: NextRequest,
-    { params }: { params: Promise<{ path: string[] }> }
+    context: { params: Promise<{ path: string[] }> }
 ) {
     try {
-        const resolvedParams = await params;
+        const resolvedParams = await context.params;
         const imagePath = resolvedParams.path.join('/');
 
         if (!imagePath) {

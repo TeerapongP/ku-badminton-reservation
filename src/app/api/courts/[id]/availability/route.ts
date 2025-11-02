@@ -17,12 +17,12 @@ const formatTimeSlotLabel = (startMinute: number, endMinute: number): string => 
 
 export async function GET(
     request: Request,
-    { params }: { params: Promise<{ id: string }> }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
         const { searchParams } = new URL(request.url);
         const date = searchParams.get('date');
-        const resolvedParams = await params;
+        const resolvedParams = await context.params;
         const courtId = parseInt(resolvedParams.id);
 
         if (!date) {

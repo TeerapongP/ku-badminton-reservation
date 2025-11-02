@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/Auth";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 // PUT - อัปเดต banner
 export async function PUT(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -28,7 +26,7 @@ export async function PUT(
             );
         }
 
-        const { id } = await params;
+        const { id } = await context.params;
         const body = await request.json();
         const { title, subtitle, image_path, is_active, display_order } = body;
 
@@ -96,7 +94,7 @@ export async function PUT(
 // DELETE - ลบ banner
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -109,14 +107,14 @@ export async function DELETE(
         }
 
         // ตรวจสอบสิทธิ์ admin หรือ super_admin
-        if (!['admin', 'super_admin'].includes(session.user.role ?? "")) {
+        if (!['admin', 'super_admin'].includes(session.user.role || "")) {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
             );
         }
 
-        const { id } = await params;
+        const { id } = await context.params;
 
         // ตรวจสอบว่า banner มีอยู่หรือไม่
         const existingBanner = await prisma.banners.findUnique({

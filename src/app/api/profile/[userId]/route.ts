@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 // GET - ดึงข้อมูลโปรไฟล์
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ userId: string }> }
+  context: { params: Promise<{ userId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -21,7 +21,7 @@ export async function GET(
     }
 
     // Await params since it's now a Promise in Next.js 15
-    const { userId } = await params;
+    const { userId } = await context.params;
 
     // ตรวจสอบว่าผู้ใช้เข้าถึงโปรไฟล์ของตัวเองหรือไม่
     if (session.user.id !== userId) {
@@ -85,7 +85,7 @@ export async function GET(
 // PUT - อัปเดตข้อมูลโปรไฟล์
 export async function PUT(
   req: Request,
-  { params }: { params: Promise<{ userId: string }> }
+  context: { params: Promise<{ userId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -98,7 +98,7 @@ export async function PUT(
     }
 
     // Await params since it's now a Promise in Next.js 15
-    const { userId } = await params;
+    const { userId } = await context.params;
 
     // ตรวจสอบว่าผู้ใช้แก้ไขโปรไฟล์ของตัวเองหรือไม่
     if (session.user.id !== userId) {
