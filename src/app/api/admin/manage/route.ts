@@ -25,10 +25,10 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        if (session.user.role !== 'super_admin' && session.user.role !== 'super_admin') {
+        if (session.user.role !== 'super_admin') {
             console.log("❌ Invalid role:", session.user.role);
             return NextResponse.json(
-                { success: false, error: `ไม่มีสิทธิ์เข้าถึง - role: ${session.user.role}` },
+                { success: false, error: `ไม่มีสิทธิ์เข้าถึง - role: ${session.user.role || 'undefined'}` },
                 { status: 403 }
             );
         }
