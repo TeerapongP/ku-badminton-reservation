@@ -2,6 +2,7 @@
 
 import { MapPin, Calendar, Clock, XCircle, AlertTriangle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import BookingTable from "./BookingTable";
 
 import { DashboardBooking, DashboardBookingResponse } from '@/types/booking';
@@ -16,6 +17,7 @@ interface SystemStatus {
 
 // Main Dashboard Component
 const BookingDashboard = () => {
+  const { data: session, status } = useSession();
   const [bookings, setBookings] = useState<DashboardBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,8 +35,13 @@ const BookingDashboard = () => {
   const refreshInterval = useRef<NodeJS.Timeout | null>(null);
   const countdownInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch system status
+  // Fetch system status เฉพาะเมื่อ authenticated
   const fetchSystemStatus = async () => {
+    if (status !== 'authenticated') {
+      setSystemLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/admin/booking-system');
       const data = await response.json();
@@ -51,8 +58,10 @@ const BookingDashboard = () => {
     }
   };
 
-  // Fetch booking data
+  // Fetch booking data เฉพาะเมื่อ authenticated
   const fetchBookings = async () => {
+    if (status !== 'authenticated') return;
+
     try {
       setLoading(true);
       setError(null);
@@ -80,18 +89,22 @@ const BookingDashboard = () => {
     }
   };
 
-  // Setup auto-refresh and countdown
+  // Setup auto-refresh and countdown เฉพาะเมื่อ authenticated
   useEffect(() => {
+    if (status === 'loading') return; // รอให้ session โหลดเสร็จ
+
     // Initial load
     fetchSystemStatus();
     fetchBookings();
 
-    // Setup auto-refresh every 60 seconds (1 minute)
-    refreshInterval.current = setInterval(() => {
-      fetchSystemStatus();
-      fetchBookings();
-      setCountdown(60);
-    }, 60000);
+    // Setup auto-refresh every 60 seconds (1 minute) เฉพาะเมื่อ authenticated
+    if (status === 'authenticated') {
+      refreshInterval.current = setInterval(() => {
+        fetchSystemStatus();
+        fetchBookings();
+        setCountdown(60);
+      }, 60000);
+    }
 
     // Setup countdown and time update every 1 second
     countdownInterval.current = setInterval(() => {
@@ -104,7 +117,7 @@ const BookingDashboard = () => {
       if (refreshInterval.current) clearInterval(refreshInterval.current);
       if (countdownInterval.current) clearInterval(countdownInterval.current);
     };
-  }, []);
+  }, [status]);
 
   const getCurrentDate = () => {
     const today = new Date();

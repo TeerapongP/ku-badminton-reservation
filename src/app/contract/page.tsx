@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Banner from '@/components/Banner';
 
 export default function ContractPage() {
@@ -13,15 +14,14 @@ export default function ContractPage() {
                 {/* Main Content */}
                 <div className="tw-container tw-mx-auto tw-px-4 tw-py-8">
                     <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 tw-gap-8">
-                        {/* Left Side - Badminton Image */}
-                        <div className="tw-rounded-lg tw-overflow-hidden tw-shadow-lg">
-                            <img 
-                                src="/images/badminton_banner.png" 
-                                alt="Badminton Court - มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตกำแพงแสน"
-                                className="tw-w-full tw-h-96 tw-object-cover tw-rounded-lg"
-                            />
-                        </div>
-
+                        <Image
+                            src="/images/badminton_banner.png"
+                            alt="Badminton Court - มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตกำแพงแสน"
+                            width={600}
+                            height={384}
+                            className="tw-w-full tw-h-96 tw-object-contain tw-rounded-lg"
+                            priority
+                        />
                         {/* Right Side - Contact Information */}
                         <div>
                             <h2 className="tw-text-2xl tw-font-bold tw-text-black tw-mb-6">ติดต่อสอบถาม</h2>

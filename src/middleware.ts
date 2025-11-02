@@ -47,11 +47,17 @@ export async function middleware(request: NextRequest) {
 
   // ตรวจสอบสถานะระบบการจองสำหรับหน้า badminton-court
   if (request.nextUrl.pathname === '/badminton-court') {
-    // เช็ค user role ก่อน
+    // เช็ค authentication ก่อน
     const token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET
     });
+
+    // ถ้ายังไม่ login ให้เด้งไป login
+    if (!token) {
+      console.log("🚫 Not authenticated - redirecting to login");
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
 
     const userRole = (token as any)?.role;
     const isAdmin = userRole === 'admin' || userRole === 'super_admin';
@@ -60,6 +66,7 @@ export async function middleware(request: NextRequest) {
       pathname: request.nextUrl.pathname,
       userRole,
       isAdmin,
+      isAuthenticated: !!token,
     });
 
     // ถ้าเป็น admin หรือ super_admin ให้ผ่านได้เสมอ
