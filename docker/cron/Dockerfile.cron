@@ -9,12 +9,10 @@ RUN apk add --no-cache dcron
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 
-# Install pnpm and dependencies
-ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN pnpm install --frozen-lockfile --prod
+# Install dependencies using npm (simpler for cron container)
+RUN npm install --only=production
 
 # Copy Prisma schema and generate client
 COPY prisma ./prisma
