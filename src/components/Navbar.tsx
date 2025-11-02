@@ -28,8 +28,10 @@ export default function Navbar() {
   }, [pathname]);
 
   // Fetch user profile when authenticated
-  // Fetch system status
+  // Fetch system status เฉพาะเมื่อ login แล้ว
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     const fetchSystemStatus = async () => {
       try {
         const response = await fetch('/api/admin/booking-system');
@@ -43,7 +45,7 @@ export default function Navbar() {
     };
 
     fetchSystemStatus();
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated && (session?.user as any)?.id && !userProfile) {
@@ -102,12 +104,14 @@ export default function Navbar() {
       { id: "home", label: "หน้าแรก", href: "/" },
     ];
 
-    // เพิ่มลิงก์จองสนาม: เมื่อระบบเปิด หรือ user เป็น admin/super_admin
-    const userRole = (session?.user as any)?.role;
-    const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+    // เพิ่มลิงก์จองสนาม: เฉพาะเมื่อ login แล้ว และ (ระบบเปิด หรือ เป็น admin)
+    if (isAuthenticated) {
+      const userRole = (session?.user as any)?.role;
+      const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
-    if (systemStatus.effectiveStatus || isAdmin) {
-      baseItems.push({ id: "booking", label: "จองสนาม", href: "/badminton-court" });
+      if (systemStatus.effectiveStatus || isAdmin) {
+        baseItems.push({ id: "booking", label: "จองสนาม", href: "/badminton-court" });
+      }
     }
 
     if (isAuthenticated) {
