@@ -146,10 +146,21 @@ export async function PUT(request: NextRequest) {
         }
       });
 
+      // คำนวณ effectiveStatus สำหรับ response
+      const hour = now.getHours();
+      const isBusinessHours = hour >= 9 && hour < 22;
+      const responseData = {
+        ...statusData,
+        currentTime: now.toISOString(),
+        currentHour: hour,
+        isBusinessHours,
+        effectiveStatus: isOpen && isBusinessHours
+      };
+
       return NextResponse.json({
         success: true,
         message: `${isOpen ? 'เปิด' : 'ปิด'}ระบบการจองสำเร็จ`,
-        data: statusData
+        data: responseData
       });
 
     } catch (dbError) {

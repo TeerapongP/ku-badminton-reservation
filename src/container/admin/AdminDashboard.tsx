@@ -166,6 +166,8 @@ export default function AdminDashboard() {
                     "อัปเดตสำเร็จ",
                     `${data.data.isOpen ? 'เปิด' : 'ปิด'}ระบบการจองแล้ว`
                 );
+                // Fetch ข้อมูลใหม่เพื่อให้แน่ใจว่าได้ข้อมูลล่าสุด
+                fetchSystemStatus();
             } else {
                 toast?.showError("เกิดข้อผิดพลาด", data.error || "ไม่สามารถอัปเดตสถานะระบบได้");
             }
