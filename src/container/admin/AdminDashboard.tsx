@@ -50,6 +50,7 @@ export default function AdminDashboard() {
         currentHour: 0
     });
     const [systemLoading, setSystemLoading] = useState(false);
+    const [currentTime, setCurrentTime] = useState(new Date());
 
     // Initialize currentHour after component mounts to avoid hydration issues
     useEffect(() => {
@@ -57,6 +58,16 @@ export default function AdminDashboard() {
             ...prev,
             currentHour: new Date().getHours()
         }));
+        setCurrentTime(new Date());
+    }, []);
+
+    // Update current time every second
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+
+        return () => clearInterval(timer);
     }, []);
 
     useEffect(() => {
@@ -420,7 +431,11 @@ export default function AdminDashboard() {
                             <div className="tw-flex tw-items-center tw-justify-center tw-space-x-2">
                                 <Clock className="tw-w-4 tw-h-4 tw-text-gray-500" />
                                 <span className="tw-text-sm tw-font-medium tw-text-gray-700">
-                                    {systemStatus.currentHour}:00 น.
+                                    {currentTime.toLocaleTimeString('th-TH', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        hour12: false
+                                    })} น.
                                 </span>
                             </div>
                         </div>
