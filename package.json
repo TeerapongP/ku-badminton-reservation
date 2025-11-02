@@ -12,7 +12,6 @@
     "build:prod": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate",
     "create-super_admin": "node scripts/create-super_admin.js"
   },
   "dependencies": {
