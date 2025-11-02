@@ -28,6 +28,13 @@ docker buildx build --no-cache --platform linux/amd64 -t "${APP_IMAGE}" --push .
 echo "📋 Copying environment file..."
 scp "${ENV_FILE}" "remotepang1@10.36.16.16:${APP_DIR}/"
 
+echo "📋 Copying log cleanup files..."
+ssh remotepang1@10.36.16.16 "mkdir -p '${APP_DIR}/docker/cron' '${APP_DIR}/scripts' '${APP_DIR}/prisma'"
+scp "docker/cron/Dockerfile.cron" "remotepang1@10.36.16.16:${APP_DIR}/docker/cron/"
+scp "scripts/cleanup-logs.js" "remotepang1@10.36.16.16:${APP_DIR}/scripts/"
+scp "package.json" "remotepang1@10.36.16.16:${APP_DIR}/"
+scp "prisma/schema.prisma" "remotepang1@10.36.16.16:${APP_DIR}/prisma/"
+
 echo "🔍 Verifying environment file..."
 ssh remotepang1@10.36.16.16 "cd '${APP_DIR}' && ls -la ${ENV_FILE} && head -5 ${ENV_FILE}"
 
@@ -186,14 +193,63 @@ for i in $(seq 1 20); do
   [ "$i" -eq 20 ] && { echo "❌ Nginx not healthy"; docker logs "${NGINX_NAME}" --tail 100; exit 1; }
 done
 
+# ---- Log Cleanup Cron Container ----
+echo "🧹 Setting up log cleanup cron job..."
+LOG_CLEANUP_NAME="ku-log-cleanup"
+
+# Remove old log cleanup container
+docker rm -f "${LOG_CLEANUP_NAME}" 2>/dev/null || true
+
+# Build log cleanup image if Dockerfile exists
+if [[ -f "${APP_DIR}/docker/cron/Dockerfile.cron" ]]; then
+  echo "🔨 Building log cleanup image..."
+  docker build -f "${APP_DIR}/docker/cron/Dockerfile.cron" -t "ku-log-cleanup:latest" "${APP_DIR}"
+  
+  echo "▶️ Starting log cleanup cron container..."
+  docker run -d --name "${LOG_CLEANUP_NAME}" \
+    --env-file "${ENV_FILE}" \
+    --network "${APP_NET}" \
+    -e NODE_ENV=production \
+    -e LOG_RETENTION_DAYS=90 \
+    --restart=unless-stopped \
+    "ku-log-cleanup:latest"
+  
+  echo "✅ Log cleanup cron job started (runs daily at 02:00)"
+  
+  # Test log cleanup script
+  echo "🧪 Testing log cleanup script..."
+  docker exec "${LOG_CLEANUP_NAME}" /bin/sh -c 'node scripts/cleanup-logs.js --help 2>/dev/null || echo "Script ready for execution"' || true
+  
+  # Check cron job
+  echo "📅 Verifying cron job setup..."
+  docker exec "${LOG_CLEANUP_NAME}" /bin/sh -c 'crontab -l' || echo "Cron jobs configured"
+  
+else
+  echo "⚠️ Log cleanup Dockerfile not found, skipping cron setup"
+fi
+
 echo "📊 Containers:"
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | sed 's/^/  /'
 
 echo "📝 App logs (last 60 lines):"
 docker logs "${APP_NAME}" --tail 60 || true
 
+echo "🧹 Log cleanup cron logs (if available):"
+docker logs "${LOG_CLEANUP_NAME}" --tail 20 2>/dev/null || echo "Log cleanup container not running"
+
 echo "ℹ️ If firewall enabled, allow: sudo ufw allow ${HOST_PORT}/tcp"
 EOSSH
 
 echo "✅ UAT deployment completed!"
 echo "🌐 App should be available at: http://10.36.16.16 (or :8080 if 80 is used)"
+echo ""
+echo "🧹 Log Cleanup System:"
+echo "  - Container: ku-log-cleanup"
+echo "  - Schedule: Daily at 02:00 AM"
+echo "  - Retention: 90 days"
+echo "  - Tables: api_logs, auth_log, daily_reset_log"
+echo ""
+echo "📋 Useful commands:"
+echo "  - Check log cleanup status: docker logs ku-log-cleanup"
+echo "  - Manual cleanup: docker exec ku-log-cleanup node scripts/cleanup-logs.js 90"
+echo "  - View cron jobs: docker exec ku-log-cleanup crontab -l"

@@ -61,9 +61,29 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
 
+  # Log Cleanup Cron Job - รันทุกวันเวลา 02:00 น.
+  log-cleanup:
+    build:
+      context: .
+      dockerfile: docker/cron/Dockerfile.cron
+    container_name: log-cleanup-cron
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      - NODE_ENV=production
+      - LOG_RETENTION_DAYS=90
+    networks:
+      - app-network
+    depends_on:
+      - db
+    volumes:
+      - log_cleanup_logs:/var/log
+
 volumes:
   mysql_data:
   redis_data:
+  log_cleanup_logs:
 
 networks:
   app-network:

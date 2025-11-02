@@ -1,0 +1,36 @@
+# =========================
+# Log Cleanup Cron Container
+# =========================
+FROM node:20-alpine AS base
+
+# Install cron
+RUN apk add --no-cache dcron
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+
+# Install pnpm and dependencies
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm install --frozen-lockfile --prod
+
+# Copy Prisma schema and generate client
+COPY prisma ./prisma
+RUN npx prisma generate
+
+# Copy cleanup script
+COPY scripts/cleanup-logs.js ./scripts/
+
+# Create cron job file - รันทุกวันเวลา 02:00 น. เก็บ logs 90 วัน
+RUN echo "0 2 * * * cd /app && node scripts/cleanup-logs.js \${LOG_RETENTION_DAYS:-90} >> /var/log/cron.log 2>&1" > /etc/crontabs/root
+
+# Create log file
+RUN touch /var/log/cron.log
+
+# Make script executable
+RUN chmod +x scripts/cleanup-logs.js
+
+# Start cron daemon
+CMD ["sh", "-c", "crond -f -d 8"]
