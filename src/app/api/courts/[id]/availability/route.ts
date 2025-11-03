@@ -51,8 +51,8 @@ export async function GET(
         });
 
         // Remove duplicates based on start_minute and end_minute
-        const timeSlots = allTimeSlots.filter((slot, index, self) =>
-            index === self.findIndex(s =>
+        const timeSlots = allTimeSlots.filter((slot: { start_minute: any; end_minute: any; }, index: any, self: any[]) =>
+            index === self.findIndex((s: { start_minute: any; end_minute: any; }) =>
                 s.start_minute === slot.start_minute && s.end_minute === slot.end_minute
             )
         );
@@ -77,9 +77,9 @@ export async function GET(
         });
 
         // Create slots array with availability status
-        const slots = timeSlots.map((slot, index) => {
+        const slots = timeSlots.map((slot: { slot_id: any; start_minute: number; label: any; end_minute: number; }, index: any) => {
             // Check if this slot is reserved
-            const reservation = reservations.find(r => r.slot_id === slot.slot_id);
+            const reservation = reservations.find((r: { slot_id: any; }) => r.slot_id === slot.slot_id);
 
             let status: 'available' | 'reserved' | 'pending' | 'break' = 'available';
             let bookedBy = '';

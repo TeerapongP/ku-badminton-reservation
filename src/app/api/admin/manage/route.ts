@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            admins: adminUsers.map(admin => ({
+            admins: adminUsers.map((admin: { user_id: { toString: () => any; }; username: any; email: any; first_name: any; last_name: any; role: any; status: any; registered_at: any; last_login_at: any; }) => ({
                 id: admin.user_id.toString(),
                 username: admin.username,
                 email: admin.email,
