@@ -33,7 +33,6 @@ export default function RegisterContainner() {
     // Password fields
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [username, setUsername] = useState('');
     const [nationnalId, setNationnalId] = useState('');
 
     const [firstName, setFirstName] = useState('');
@@ -145,7 +144,6 @@ export default function RegisterContainner() {
     // Validation function
     const validateForm = (): string | null => {
         // Basic validation
-        if (!username.trim()) return "กรุณากรอกชื่อผู้ใช้";
         if (!password) return "กรุณากรอกรหัสผ่าน";
         if (password !== confirmPassword) return "รหัสผ่านไม่ตรงกัน";
         if (password.length < 6) return "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
@@ -188,7 +186,6 @@ export default function RegisterContainner() {
 
             const userData = {
                 // Basic info
-                username: username.trim(),
                 password: hashedPassword,
                 email: email.trim(),
                 phone: phone.trim(),
@@ -272,18 +269,6 @@ export default function RegisterContainner() {
                         required
                     />
                 </div>
-                {userType === "student" && (
-                    <div className="tw-col-span-4 md:tw-col-span-12">
-                        <InputField
-                            type="text"
-                            placeholder="ชื่อผู้ใช้ (Username)"
-                            value={username}
-                            onChange={(val) => setUsername(val as string)}
-                            required
-                        />
-                    </div>
-                )}
-
                 <div className="tw-col-span-4 md:tw-col-span-6">
                     <InputField
                         type="password"

@@ -76,8 +76,6 @@ export default function LoginContainner() {
 
       const result = await login(loginData);
 
-      console.log("🔐 Login result:", result);
-
       if (result.success) {
         toast.showSuccess("เข้าสู่ระบบสำเร็จ", "ยินดีต้อนรับเข้าสู่ระบบ");
         setIsRedirecting(true);
@@ -118,7 +116,7 @@ export default function LoginContainner() {
         <div>
           <InputField
             type="text"
-            placeholder="รหัสนิสิต / เลขบัตรประชาชน / Username"
+            placeholder="รหัสนิสิต / เลขบัตรประชาชน "
             value={identifier}
             maxLength={20}
             onChange={(val) => setIdentifier(val as string)}
@@ -127,7 +125,6 @@ export default function LoginContainner() {
           <p className="tw-text-xs tw-text-gray-500 tw-mt-2">
             • นิสิต: รหัสนิสิต 8-10 หลัก<br />
             • บุคลากร: เลขบัตรประชาชน 13 หลัก<br />
-            • Admin: Username
           </p>
         </div>
 
