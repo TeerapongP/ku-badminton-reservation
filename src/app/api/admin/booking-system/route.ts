@@ -146,6 +146,7 @@ export async function PUT(request: NextRequest) {
         }
       });
 
+<<<<<<< HEAD
       // คำนวณ effectiveStatus สำหรับ response
       const hour = now.getHours();
       const isBusinessHours = hour >= 9 && hour < 22;
@@ -161,6 +162,12 @@ export async function PUT(request: NextRequest) {
         success: true,
         message: `${isOpen ? 'เปิด' : 'ปิด'}ระบบการจองสำเร็จ`,
         data: responseData
+=======
+      return NextResponse.json({
+        success: true,
+        message: `${isOpen ? 'เปิด' : 'ปิด'}ระบบการจองสำเร็จ`,
+        data: statusData
+>>>>>>> develop
       });
 
     } catch (dbError) {

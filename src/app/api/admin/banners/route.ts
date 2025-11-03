@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
         }
 
         // ตรวจสอบสิทธิ์ admin หรือ super_admin
-        if (!['admin', 'super_admin'].includes(session.user.role || "")) {
+        if (!['admin', 'super_admin'].includes(session.user.role ?? "")) {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
             throw dbError;
         }
 
-        const formattedBanners = banners.map(banner => ({
+        const formattedBanners = banners.map((banner: { banner_id: any; title: any; subtitle: any; image_path: any; is_active: any; display_order: any; created_at: { toISOString: () => any; }; updated_at: { toISOString: () => any; }; }) => ({
             id: Number(banner.banner_id),
             title: banner.title,
             subtitle: banner.subtitle,
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         }
 
         // ตรวจสอบสิทธิ์ admin หรือ super_admin
-        if (!['admin', 'super_admin'].includes(session.user.role || "")) {
+        if (!['admin', 'super_admin'].includes(session.user.role ?? "")) {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
