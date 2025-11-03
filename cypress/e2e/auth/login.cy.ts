@@ -124,4 +124,38 @@ describe('Login Authentication', () => {
         cy.get('input[placeholder*="รหัสนิสิต"]').type(longText)
         cy.get('input[placeholder*="รหัสนิสิต"]').should('have.value', 'a'.repeat(20))
     })
+
+    it('should login successfully with superAdmin credentials', () => {
+        cy.visit('/login')
+
+        // กรอกข้อมูล superAdmin
+        cy.get('input[placeholder*="รหัสนิสิต"]').type('superAdmin')
+        cy.get('input[type="password"]').type('1234567890')
+
+        // คลิกปุ่มเข้าสู่ระบบ
+        cy.get('button').contains('เข้าสู่ระบบ').click()
+
+        // ตรวจสอบว่า login สำเร็จ
+        cy.url({ timeout: 10000 }).should('not.include', '/login')
+        
+        // ตรวจสอบว่าเข้าสู่หน้าหลักหรือ dashboard
+        cy.url().should('match', /\/(admin|dashboard|$)/)
+        
+        // ตรวจสอบว่ามี session หรือ user data
+        cy.window().its('localStorage').should('exist')
+    })
+
+    it('should show error for superAdmin with wrong password', () => {
+        cy.visit('/login')
+
+        // กรอกข้อมูล superAdmin ด้วยรหัสผ่านผิด
+        cy.get('input[placeholder*="รหัสนิสิต"]').type('superAdmin')
+        cy.get('input[type="password"]').type('wrongpassword')
+
+        // คลิกปุ่มเข้าสู่ระบบ
+        cy.get('button').contains('เข้าสู่ระบบ').click()
+
+        // ตรวจสอบ error message
+        cy.contains('รหัสผ่านไม่ถูกต้อง', { timeout: 10000 }).should('be.visible')
+    })
 })
