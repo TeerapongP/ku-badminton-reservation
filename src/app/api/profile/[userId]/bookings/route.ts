@@ -8,11 +8,7 @@ const prisma = new PrismaClient();
 // GET - ดึงประวัติการจองของผู้ใช้
 export async function GET(
     req: Request,
-<<<<<<< HEAD
     context: { params: Promise<{ userId: string }> }
-=======
-    { params }: { params: Promise<{ userId: string }> }
->>>>>>> develop
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -24,11 +20,7 @@ export async function GET(
             );
         }
 
-<<<<<<< HEAD
         const { userId } = await context.params;
-=======
-        const { userId } = await params;
->>>>>>> develop
 
         // ตรวจสอบว่าผู้ใช้เข้าถึงประวัติการจองของตัวเองหรือไม่ (หรือเป็น admin)
         if (session.user.id !== userId && session.user.role !== 'admin') {
@@ -110,7 +102,7 @@ export async function GET(
         ]);
 
         // แปลงข้อมูลสำหรับ response
-        const formattedBookings = reservations.flatMap(reservation => {
+        const formattedBookings = reservations.flatMap((reservation: { reservation_items: any[]; reservation_id: any; facilities: { name_th: any; name_en: any; }; status: any; total_cents: any; created_at: { toISOString: () => any; }; updated_at: { toISOString: () => any; }; }) => {
             // ตรวจสอบว่ามี reservation_items หรือไม่
             if (!reservation.reservation_items || reservation.reservation_items.length === 0) {
                 return [];
