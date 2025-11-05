@@ -50,6 +50,14 @@ ChartJS.register(
     Filler
 );
 
+// Helper function to format date without timezone issues
+const formatDateToLocal = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 export default function AdminReportsContainer() {
     const router = useRouter();
     const { data: session, status } = useSession();
@@ -282,7 +290,7 @@ export default function AdminReportsContainer() {
                     </div>
                 </div>
 
-                <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-4">
+                {/* <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-4">
                     <DropdownField
                         label="ช่วงเวลา"
                         value={dateRange.days.toString()}
@@ -303,7 +311,7 @@ export default function AdminReportsContainer() {
                                 value={dateRange.startDate ? new Date(dateRange.startDate) : null}
                                 onChange={(value) => setDateRange(prev => ({
                                     ...prev,
-                                    startDate: value ? value.toISOString().split('T')[0] : ''
+                                    startDate: value ? formatDateToLocal(value) : ''
                                 }))}
                                 placeholder="เลือกวันที่เริ่มต้น"
                             />
@@ -313,11 +321,57 @@ export default function AdminReportsContainer() {
                                 value={dateRange.endDate ? new Date(dateRange.endDate) : null}
                                 onChange={(value) => setDateRange(prev => ({
                                     ...prev,
-                                    endDate: value ? value.toISOString().split('T')[0] : ''
+                                    endDate: value ? formatDateToLocal(value) : ''
                                 }))}
                                 placeholder="เลือกวันที่สิ้นสุด"
                             />
                         </>
+                    )}
+                </div> */}
+
+                <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-4">
+                    <DropdownField
+                        label="ช่วงเวลา"
+                        value={dateRange.days.toString()}
+                        onChange={(value) => setDateRange(prev => ({ ...prev, days: parseInt(value as string), startDate: "", endDate: "" }))}
+                        options={[
+                            { label: '7 วันที่ผ่านมา', value: '7' },
+                            { label: '30 วันที่ผ่านมา', value: '30' },
+                            { label: '90 วันที่ผ่านมา', value: '90' },
+                            { label: 'กำหนดเอง', value: '0' }
+                        ]}
+                        placeholder="เลือกช่วงเวลา"
+                    />
+                    {dateRange.days === 0 && (
+                        <>
+                            <div >
+                                <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
+                                    เลือกวันที่เริ่มต้น
+                                </label>
+                                <DateField
+                                    value={dateRange.startDate ? new Date(dateRange.startDate) : null}
+                                    onChange={(value) => setDateRange(prev => ({
+                                        ...prev,
+                                        startDate: value ? formatDateToLocal(value) : ''
+                                    }))}
+                                    placeholder="เลือกวันที่เริ่มต้น"
+                                />
+                            </div>
+                            <div>
+                                 <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
+                                    เลือกวันที่สิ้นสุด
+                                </label>
+                                <DateField
+                                    value={dateRange.endDate ? new Date(dateRange.endDate) : null}
+                                    onChange={(value) => setDateRange(prev => ({
+                                        ...prev,
+                                        endDate: value ? formatDateToLocal(value) : ''
+                                    }))}
+                                    placeholder="เลือกวันที่สิ้นสุด"
+                                />
+                            </div>
+                        </>
+
                     )}
                 </div>
 

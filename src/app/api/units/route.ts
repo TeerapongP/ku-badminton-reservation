@@ -18,7 +18,7 @@ async function unitsHandler(req: NextRequest) {
     const rows = await prisma.$queryRaw<UnitRow[]>`
         SELECT unit_id, name_th
         FROM units 
-        ORDER BY name_th ASC 
+        ORDER BY unit_id ASC 
     `;
 
     const data = rows.map((r) => ({
