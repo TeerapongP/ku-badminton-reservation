@@ -32,6 +32,7 @@ model api_logs {
   @@index([user_id], map: "idx_api_logs_user")
   @@index([ip], map: "idx_api_logs_ip")
   @@index([status_code, created_at], map: "idx_api_logs_error")
+  @@index([method, path], map: "idx_api_logs_method_path")
 }
 
 model auth_log {
@@ -47,6 +48,7 @@ model auth_log {
   @@index([action], map: "idx_auth_action")
   @@index([created_at], map: "idx_auth_created")
   @@index([user_id], map: "idx_auth_user")
+  @@index([user_id, created_at], map: "idx_auth_user_created")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -104,6 +106,7 @@ model courts {
   @@unique([facility_id, court_code], map: "uq_court_per_fac")
   @@index([is_active], map: "idx_court_active")
   @@index([facility_id], map: "idx_court_facility")
+  @@index([facility_id, court_code], map: "idx_court_code")
 }
 
 model daily_reset_log {
@@ -152,6 +155,7 @@ model departments {
 model facilities {
   facility_id            BigInt                   @id @default(autoincrement()) @db.UnsignedBigInt
   facility_code          String                   @unique(map: "uq_facility_code") @db.VarChar(50)
+  slug                   String?                  @unique(map: "slug") @db.VarChar(80)
   name_th                String
   name_en                String?
   phone                  String?                  @db.VarChar(30)
@@ -190,6 +194,7 @@ model facility_opening_hours {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model faculties {
   id              BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  code            String?           @unique(map: "code") @db.VarChar(50)
   faculty_name_th String            @unique(map: "uq_faculty_name_th")
   faculty_name_en String?
   short_name      String?           @db.VarChar(50)
@@ -219,6 +224,7 @@ model payments {
   @@index([paid_at], map: "idx_pay_paid_at")
   @@index([reservation_id], map: "idx_pay_reservation")
   @@index([status], map: "idx_pay_status")
+  @@index([reservation_id, status], map: "idx_pay_res_status")
 }
 
 model pricing_rules {
@@ -269,6 +275,7 @@ model reservation_items {
   @@index([court_id, play_date], map: "idx_item_court_date")
   @@index([reservation_id], map: "idx_item_reservation")
   @@index([slot_id], map: "idx_item_slot")
+  @@index([play_date], map: "idx_item_play_date")
 }
 
 model reservations {
@@ -296,6 +303,8 @@ model reservations {
   @@index([facility_id, reserved_date], map: "idx_res_facility_date")
   @@index([status], map: "idx_res_status")
   @@index([user_id], map: "idx_res_user")
+  @@index([status, reserved_date], map: "idx_res_status_date")
+  @@index([user_id, reserved_date], map: "idx_res_user_date")
 }
 
 model staff_profile {
@@ -316,7 +325,7 @@ model staff_profile {
 
 model student_profile {
   user_id        BigInt                         @id @db.UnsignedBigInt
-  student_id     String                         @unique(map: "uq_student_id") @db.VarChar(10)
+  student_id     String                         @unique(map: "uq_student_id") @db.VarChar(20)
   national_id    String?                        @db.VarChar(64)
   faculty_id     BigInt                         @db.UnsignedBigInt
   department_id  BigInt                         @db.UnsignedBigInt
@@ -330,6 +339,11 @@ model student_profile {
 
   @@index([department_id], map: "idx_student_department")
   @@index([faculty_id], map: "idx_student_faculty")
+  @@index([created_at], map: "idx_sp_created")
+  @@index([faculty_id, department_id, level_of_study], map: "idx_sp_fac_dept_level")
+  @@index([faculty_id, student_status], map: "idx_sp_faculty_status")
+  @@index([student_status], map: "idx_sp_status")
+  @@index([updated_at], map: "idx_sp_updated")
 }
 
 model sub_units {
@@ -425,6 +439,16 @@ model banners {
   @@index([is_active], map: "idx_banner_active")
   @@index([display_order], map: "idx_banner_order")
   @@index([created_by], map: "idx_banner_created_by")
+}
+
+model system_settings {
+  setting_id BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  key        String   @unique @db.VarChar(100)
+  value      String   @db.Text
+  created_at DateTime @default(now()) @db.DateTime(0)
+  updated_at DateTime @default(now()) @db.DateTime(0)
+
+  @@index([key], map: "idx_system_settings_key")
 }
 
 enum auth_log_action {
@@ -535,13 +559,4 @@ enum users_role {
   admin
   guest
   super_admin @map("super-admin")
-}
-model system_settings {
-  setting_id BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
-  key        String   @unique @db.VarChar(100)
-  value      String   @db.Text
-  created_at DateTime @default(now()) @db.DateTime(0)
-  updated_at DateTime @default(now()) @db.DateTime(0)
-
-  @@index([key], map: "idx_system_settings_key")
 }
