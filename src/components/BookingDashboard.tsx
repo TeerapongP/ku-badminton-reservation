@@ -48,9 +48,7 @@ const BookingDashboard = () => {
 
       if (data.success) {
         setSystemStatus(data.data);
-      } else {
-        console.error('Failed to fetch system status:', data.error);
-      }
+      } 
     } catch (error) {
       console.error('Fetch system status error:', error);
     } finally {

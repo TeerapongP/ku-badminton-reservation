@@ -56,9 +56,10 @@ export default function LoginContainner() {
       // เข้ารหัส identifier สำหรับการค้นหา (เฉพาะเลขบัตรประชาชน)
       const hashedIdentifier = isNationalId ? await bcrypt.hash(identifier, 12) : identifier;
 
-      let loginType = 'student_id';
-      if (isNationalId) loginType = 'national_id';
-      if (isUsername) loginType = 'username';
+      // กำหนด loginType ตามลำดับความสำคัญ
+      let loginType = 'username'; // default
+      if (isStudentId) loginType = 'student_id';
+      else if (isNationalId) loginType = 'national_id';
 
       const loginData = {
         identifier: hashedIdentifier,

@@ -104,14 +104,9 @@ export default function Navbar() {
       { id: "home", label: "หน้าแรก", href: "/" },
     ];
 
-    // เพิ่มลิงก์จองสนาม: เฉพาะเมื่อ login แล้ว และ (ระบบเปิด หรือ เป็น admin)
+    // เพิ่มลิงก์จองสนาม: เฉพาะเมื่อ login แล้ว
     if (isAuthenticated) {
-      const userRole = (session?.user as any)?.role;
-      const isAdmin = userRole === 'admin' || userRole === 'super_admin';
-
-      if (systemStatus.effectiveStatus || isAdmin) {
-        baseItems.push({ id: "booking", label: "จองสนาม", href: "/badminton-court" });
-      }
+      baseItems.push({ id: "booking", label: "จองสนาม", href: "/badminton-court" });
     }
 
     if (isAuthenticated) {

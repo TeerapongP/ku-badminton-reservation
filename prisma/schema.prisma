@@ -413,6 +413,7 @@ model users {
   updated_at        DateTime          @default(now()) @db.DateTime(0)
   last_login_at     DateTime?         @db.DateTime(0)
   last_login_ip     String?           @db.VarChar(45)
+  is_first_login    Boolean           @default(true)
   api_logs          api_logs[]
   auth_log          auth_log[]
   banners           banners[]
