@@ -28,6 +28,11 @@ docker buildx build --no-cache --platform linux/amd64 -t "${APP_IMAGE}" --push .
 echo "📋 Copying environment file..."
 scp "${ENV_FILE}" "remotepang1@10.36.16.16:${APP_DIR}/"
 
+echo "📋 Copying nginx config files..."
+ssh remotepang1@10.36.16.16 "mkdir -p '${APP_DIR}/nginx/conf.d'"
+scp "nginx/nginx.conf" "remotepang1@10.36.16.16:${APP_DIR}/nginx/"
+scp "nginx/conf.d/default.conf" "remotepang1@10.36.16.16:${APP_DIR}/nginx/conf.d/"
+
 echo "📋 Copying log cleanup files..."
 ssh remotepang1@10.36.16.16 "mkdir -p '${APP_DIR}/docker/cron' '${APP_DIR}/scripts' '${APP_DIR}/prisma'"
 scp "docker/cron/Dockerfile.cron" "remotepang1@10.36.16.16:${APP_DIR}/docker/cron/"
@@ -114,64 +119,16 @@ else
   HOST_PORT="80"
 fi
 
-# ---- Write FULL nginx config (overwrite) ----
-echo "🛠️ Writing nginx config (full overwrite)..."
-cat > "${NGINX_CONF}" <<'NGINX_FULL'
-resolver 127.0.0.11 valid=30s ipv6=off;
-
-map $http_upgrade $connection_upgrade { default upgrade; '' close; }
-
-upstream ku_badminton_app {
-    zone ku_badminton_app 64k;
-    server ku-badminton-uat:3000 resolve;
-    keepalive 32;
-}
-
-server {
-    listen 80;
-    server_name _;
-
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
-    gzip_min_length 1024;
-
-    proxy_read_timeout 120s;
-    proxy_send_timeout 120s;
-    send_timeout 120s;
-
-    # reverse proxy to app
-    location / {
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        client_max_body_size 20m;
-        proxy_pass http://ku_badminton_app;
-    }
-
-    # serve uploaded files directly
-    location /uploads/ {
-        alias /home/remotepang1/ku-badminton-app/uploads/;
-        autoindex off;
-        access_log off;
-        expires 7d;
-    }
-
-    # health
-    location = /healthz {
-        return 200 'ok';
-        add_header Content-Type text/plain;
-    }
-}
-NGINX_FULL
+# ---- Use uploaded nginx config files ----
+echo "🛠️ Using nginx config from uploaded files..."
+NGINX_MAIN_CONF="${APP_DIR}/nginx/nginx.conf"
+NGINX_DEFAULT_CONF="${APP_DIR}/nginx/conf.d/default.conf"
 
 # ---- Test nginx config ----
 echo "🧪 Pre-testing nginx config..."
 docker run --rm \
-  -v "${NGINX_CONF}:/etc/nginx/conf.d/default.conf:ro" \
+  -v "${NGINX_MAIN_CONF}:/etc/nginx/nginx.conf:ro" \
+  -v "${NGINX_DEFAULT_CONF}:/etc/nginx/conf.d/default.conf:ro" \
   nginx:alpine nginx -t
 
 # ---- Nginx container ----
@@ -180,7 +137,9 @@ docker rm -f "${NGINX_NAME}" 2>/dev/null || true
 docker run -d --name "${NGINX_NAME}" \
   --network "${APP_NET}" \
   -p ${HOST_PORT}:80 \
-  -v "${NGINX_CONF}:/etc/nginx/conf.d/default.conf:ro" \
+  -p 443:443 \
+  -v "${NGINX_MAIN_CONF}:/etc/nginx/nginx.conf:ro" \
+  -v "${NGINX_DEFAULT_CONF}:/etc/nginx/conf.d/default.conf:ro" \
   -v "${UPLOADS_DIR}:/home/remotepang1/ku-badminton-app/uploads:ro" \
   --restart=unless-stopped \
   nginx:alpine
