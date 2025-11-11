@@ -262,8 +262,7 @@ async function main() {
 
         // ระบุไฟล์ Excel ที่จะ migrate
         const excelFiles = [
-            'Std_R01_01 (12).xlsx',
-            // 'Std_R01_01 (13).xlsx',
+            'Std_R01_01 (13).xlsx',
             // 'Std_R01_01 (14).xlsx',
             // 'Std_R01_01 (15).xlsx',
             // 'Std_R01_01 (16).xlsx',
