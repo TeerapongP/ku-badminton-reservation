@@ -101,7 +101,7 @@ export default function CourtContainer() {
 
                                 <div className="tw-relative tw-h-56 tw-overflow-hidden">
                                     <Image
-                                        src={c.image_path ?? "/images/default-facility.jpg"}
+                                        src={c.image_path ?? "/images/courts.jpg"}
                                         alt={c.name}
                                         fill
                                         sizes="(min-width: 1024px) 50vw, 100vw"

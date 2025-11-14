@@ -11,116 +11,135 @@ async function readExcelFile(filePath) {
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         
-        // อ่านข้อมูลโดยข้าม header rows (เริ่มจากแถวที่ 2)
+        // อ่านข้อมูลโดยใช้ชื่อ column จาก header
         const data = XLSX.utils.sheet_to_json(worksheet, { 
-            range: 1, // ข้าม 1 แถวแรก (header)
             defval: '', // ค่า default สำหรับ cell ว่าง
-            header: 1 // ใช้แถวที่ 1 เป็น header
         });
 
-        console.log(`� อ่า นข้อมูลจากไฟล์: ${path.basename(filePath)}`);
+        console.log(`📂 อ่านข้อมูลจากไฟล์: ${path.basename(filePath)}`);
         console.log(`📊 พบข้อมูล ${data.length} รายการ`);
 
-        // แสดง column names ที่พบ (5 columns แรก)
+        // แสดง column names ที่พบ
         if (data.length > 0) {
-            const columns = Object.keys(data[0]).slice(0, 10);
-            console.log('📋 Columns (10 แรก):', columns.join(', '));
-            
-            // แสดงตัวอย่างข้อมูลแถวแรก
-            console.log('📝 ตัวอย่างข้อมูล:', JSON.stringify(data[0], null, 2));
+            const columns = Object.keys(data[0]);
+            console.log(`📋 พบ ${columns.length} columns`);
+            console.log('📋 Columns:', columns.slice(0, 10).join(', '), '...');
         }
 
-        // แปลงข้อมูลตามโครงสร้างของไฟล์ Excel
+        // กำหนด column names ที่ต้องการ
+        const requiredColumns = {
+            studentId: 'รหัสนิสิต',
+            nationalId: 'เลขที่บัตรประจำตัวประชาชน',
+            titleTh: 'คำนำหน้าชื่อ(ไทย)',
+            titleEn: 'คำนำหน้าชื่อ(อังกฤษ)',
+            firstNameTh: 'ชื่อ(ไทย)',
+            firstNameEn: 'ชื่อ(อังกฤษ)',
+            lastNameTh: 'นามสกุล(ไทย)',
+            lastNameEn: 'นามสกุล(อังกฤษ)',
+            birthDate: 'วันเกิด',
+            genderTh: 'เพศ(ไทย)',
+            genderEn: 'เพศ(อังกฤษ)',
+            bloodType: 'กรุ๊ปเลือด',
+            nationality: 'สัญชาติ',
+            email: 'E-mail',
+            phone: 'โทรศัพท์มือถือ',
+            admissionDate: 'วันที่เข้าศึกษา',
+            admissionYear: 'ปีที่เข้าศึกษา',
+            campus: 'ชื่อวิทยาเขตเจ้าของหลักสูตร',
+            facultyCode: 'รหัสคณะ/หน่วยงานที่เทียบเท่า',
+            faculty: 'คณะ/หน่วยงานที่เทียบเท่า',
+            programCode: 'รหัสหลักสูตร',
+            program: 'ชื่อหลักสูตร',
+            departmentCode: 'รหัสภาควิชา',
+            department: 'ชื่อภาควิชา',
+            majorCode: 'รหัสสาขาวิชา',
+            major: 'ชื่อสาขาวิชา'
+        };
+
+        // ตรวจสอบว่า columns ที่จำเป็นมีอยู่หรือไม่
+        const availableColumns = Object.keys(data[0]);
+        const missingColumns = [];
+        const foundColumns = [];
+        
+        for (const [key, colName] of Object.entries(requiredColumns)) {
+            if (availableColumns.includes(colName)) {
+                foundColumns.push(colName);
+            } else {
+                missingColumns.push(colName);
+            }
+        }
+
+        console.log(`✅ พบ columns ที่ตรง: ${foundColumns.length}/${Object.keys(requiredColumns).length}`);
+        if (missingColumns.length > 0) {
+            console.log(`⚠️  ไม่พบ columns: ${missingColumns.slice(0, 5).join(', ')}${missingColumns.length > 5 ? '...' : ''}`);
+        }
+
+        // แปลงข้อมูล - ข้ามแถวที่ไม่มีข้อมูลสำคัญ
         const students = data.map((row, index) => {
-            // ข้อมูลเป็น array ใช้ index โดยตรง
-            // 0 = รหัสนิสิต
-            // 1 = เลขบัตรประชาชน
-            // 2 = คำนำหน้า(ไทย)
-            // 3 = คำนำหน้า(อังกฤษ)
-            // 4 = ชื่อ(ไทย)
-            // 5 = ชื่อ(อังกฤษ)
-            // 6 = นามสกุล(ไทย)
-            // 7 = นามสกุล(อังกฤษ)
-            // 8 = วันเกิด
-            // 9 = เพศ(ไทย)
-            // 10 = เพศ(อังกฤษ)
-            // 11 = กรุ๊ปเลือด
-            // 12 = สัญชาติ
-            // 13 = E-mail
-            // 14 = โทรศัพท์มือถือ
-            // 15 = วันที่เข้าศึกษา
-            // 16 = ปีที่เข้าศึกษา
-            // 17 = ชื่อวิทยาเขต
-            // 18 = รหัสคณะ
-            // 19 = คณะ
-            // 20 = รหัสหลักสูตร
-            // 21 = ชื่อหลักสูตร
-            // 22 = รหัสภาควิชา
-            // 23 = ชื่อภาควิชา
-            // 24 = รหัสสาขาวิชา
-            // 25 = ชื่อสาขาวิชา
-            
-            const studentId = String(row[0] || '').trim();
-            const nationalId = String(row[1] || '').trim();
-            const titleTh = String(row[2] || '').trim();
-            const titleEn = String(row[3] || '').trim();
-            const firstNameTh = String(row[4] || '').trim();
-            const firstNameEn = String(row[5] || '').trim();
-            const lastNameTh = String(row[6] || '').trim();
-            const lastNameEn = String(row[7] || '').trim();
+            // ดึงข้อมูลจาก column names
+            const studentId = String(row[requiredColumns.studentId] || '').trim();
+            const titleTh = String(row[requiredColumns.titleTh] || '').trim();
+            const firstNameTh = String(row[requiredColumns.firstNameTh] || '').trim();
+            const lastNameTh = String(row[requiredColumns.lastNameTh] || '').trim();
             
             // ดึง email - ถ้าไม่มีให้สร้างจากรหัสนิสิต
-            let email = String(row[13] || '').trim();
-            // ตรวจสอบว่าเป็น email จริง ถ้าไม่ใช่ให้สร้างจากรหัสนิสิต
+            let email = String(row[requiredColumns.email] || '').trim();
             if (!email || !email.includes('@')) {
-                email = `${studentId}@ku.th`;
+                email = studentId ? `${studentId}@ku.th` : '';
             }
             
             // ดึงเบอร์โทร
-            let phone = String(row[14] || '').trim();
+            let phone = String(row[requiredColumns.phone] || '').trim();
+            // ลบช่องว่างและขีดออก
+            phone = phone.replace(/[\s-]/g, '');
+            // ตรวจสอบรูปแบบเบอร์โทร
             if (!/^0\d{9}$/.test(phone)) {
                 phone = '';
             }
             
-            const faculty = String(row[19] || '').trim();
-            const department = String(row[23] || '').trim();
+            const faculty = String(row[requiredColumns.faculty] || '').trim();
+            const department = String(row[requiredColumns.department] || '').trim();
             
             // Debug แถวแรก 3 แถว
             if (index < 3) {
                 console.log(`\n🔍 Debug แถวที่ ${index + 1}:`);
-                console.log(`   รหัสนิสิต [0]: ${studentId}`);
-                console.log(`   เลขบัตรประชาชน [1]: ${nationalId}`);
-                console.log(`   คำนำหน้า(ไทย) [2]: ${titleTh}`);
-                console.log(`   ชื่อ(ไทย) [4]: ${firstNameTh}`);
-                console.log(`   นามสกุล(ไทย) [6]: ${lastNameTh}`);
-                console.log(`   Email [13]: ${email}`);
-                console.log(`   เบอร์โทร [14]: ${phone || '[ไม่มี]'}`);
-                console.log(`   คณะ [19]: ${faculty}`);
-                console.log(`   ภาควิชา [23]: ${department}`);
+                console.log(`   รหัสนิสิต: ${studentId || '[ไม่มี]'}`);
+                console.log(`   คำนำหน้า(ไทย): ${titleTh || '[ไม่มี]'}`);
+                console.log(`   ชื่อ(ไทย): ${firstNameTh || '[ไม่มี]'}`);
+                console.log(`   นามสกุล(ไทย): ${lastNameTh || '[ไม่มี]'}`);
+                console.log(`   Email: ${email || '[ไม่มี]'}`);
+                console.log(`   เบอร์โทร: ${phone || '[ไม่มี]'}`);
+                console.log(`   คณะ: ${faculty || '[ไม่มี]'}`);
+                console.log(`   ภาควิชา: ${department || '[ไม่มี]'}`);
             }
             
             return {
                 studentId,
-                nationalId,
                 titleTh,
-                titleEn,
                 firstName: firstNameTh,
                 lastName: lastNameTh,
                 email,
                 phone,
                 faculty,
                 department,
-                year: '',
             };
         });
 
+        // กรองเฉพาะข้อมูลที่ถูกต้อง - ข้ามแถวที่ไม่มีข้อมูลสำคัญ
         const validStudents = students.filter(s => {
             // ตรวจสอบว่ารหัสนิสิตเป็นตัวเลข 8-10 หลัก
             const isValidId = /^\d{8,10}$/.test(s.studentId);
-            return isValidId && s.firstName && s.lastName;
+            const hasName = s.firstName && s.lastName;
+            
+            if (!isValidId || !hasName) {
+                return false;
+            }
+            
+            return true;
         });
 
         console.log(`✅ กรองข้อมูลที่ถูกต้อง: ${validStudents.length} รายการ`);
+        console.log(`⚠️  ข้ามข้อมูลที่ไม่ครบถ้วน: ${students.length - validStudents.length} รายการ`);
         
         return validStudents;
     } catch (error) {
@@ -262,11 +281,10 @@ async function main() {
 
         // ระบุไฟล์ Excel ที่จะ migrate
         const excelFiles = [
-            'Std_R01_01 (13).xlsx',
-            // 'Std_R01_01 (14).xlsx',
-            // 'Std_R01_01 (15).xlsx',
-            // 'Std_R01_01 (16).xlsx',
-            // 'Std_R01_01 (17).xlsx',
+            'Std_R01_01 (14).xlsx',
+            'Std_R01_01 (15).xlsx',
+            'Std_R01_01 (16).xlsx',
+            'Std_R01_01 (17).xlsx',
         ];
 
         let totalProcessed = 0;

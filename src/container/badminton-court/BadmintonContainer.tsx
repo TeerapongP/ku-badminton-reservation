@@ -130,17 +130,25 @@ export default function BadmintonContainer() {
                   </span>
                 </div>
 
-                <div className="tw-relative tw-h-56 tw-overflow-hidden">
+                <div className="tw-relative tw-h-56 tw-overflow-hidden group">
                   <Image
-                    src={f.image_path || "/images/default-facility.jpg"}
+                    src={
+                      f.name_th === "อาคารพลศึกษา 1"
+                        ? f.image_path || "/images/facility1.jpg"
+                        : f.image_path || "/images/facility3.jpg"
+                    }
                     alt={f.name_th}
                     fill
+                    quality={90}
                     sizes="(min-width: 1024px) 50vw, 100vw"
-                    className="tw-object-cover tw-transition-transform tw-duration-500 group-hover:tw-scale-105"
-                    priority={false}
+                    className="
+      tw-object-cover tw-object-center
+      tw-transition-transform tw-duration-500 group-hover:tw-scale-105
+      tw-brightness-105 tw-saturate-110
+    "
                   />
-                  <div className="tw-absolute tw-inset-0 tw-bg-gradient-to-t tw-from-black/30 tw-to-transparent" />
                 </div>
+
 
                 <div className="tw-p-8">
                   <h3 className="tw-text-2xl tw-font-bold tw-text-gray-800 tw-mb-1 group-hover:tw-text-green-600 tw-transition-colors">

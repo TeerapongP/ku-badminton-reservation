@@ -17,6 +17,7 @@ import {
     CheckCircle,
     XCircle,
     Image,
+    Upload,
 } from "lucide-react";
 
 import { DashboardStats } from "@/lib/DashboardData";
@@ -210,6 +211,14 @@ export default function AdminDashboard() {
             hoverColor: "hover:tw-from-purple-600 hover:tw-to-purple-700",
             count: stats.pendingBookings > 0 ? stats.pendingBookings : undefined,
             href: "/admin/bookings"
+        },
+        {
+            title: "อัพโหลดข้อมูลนิสิต",
+            description: "นำเข้าข้อมูลนิสิตจากไฟล์ Excel",
+            icon: Upload,
+            color: "tw-from-blue-500 tw-to-cyan-600",
+            hoverColor: "hover:tw-from-blue-600 hover:tw-to-cyan-700",
+            href: "/admin/students/upload"
         },
         {
             title: "จัดการ Banner",
