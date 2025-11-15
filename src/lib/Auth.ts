@@ -161,15 +161,31 @@ export const authOptions: NextAuthOptions = {
 
           console.log("✅ Password valid, logging in user");
 
-          // อัปเดต last_login_at
+          // ตรวจสอบว่าเป็นการ login ครั้งแรกหรือไม่
+          const userWithLoginInfo = await prisma.users.findUnique({
+            where: { user_id: user.user_id },
+            select: { last_login_at: true }
+          });
+          const isFirstLogin = !userWithLoginInfo?.last_login_at;
+
+          console.log("🔍 First login check:", {
+            role: user.role,
+            hasLastLogin: !!userWithLoginInfo?.last_login_at,
+            isFirstLogin
+          });
+
+          // อัปเดต last_login_at เฉพาะถ้าไม่ใช่ first login
+          // (first login จะอัปเดตหลังจากเปลี่ยนรหัสผ่านแล้ว)
           try {
-            await prisma.users.update({
-              where: { user_id: user.user_id },
-              data: {
-                last_login_at: new Date(),
-                last_login_ip: "unknown"
-              }
-            });
+            if (!isFirstLogin) {
+              await prisma.users.update({
+                where: { user_id: user.user_id },
+                data: {
+                  last_login_at: new Date(),
+                  last_login_ip: "unknown"
+                }
+              });
+            }
 
             // บันทึก log การ login สำเร็จ
             await prisma.auth_log.create({
@@ -192,6 +208,7 @@ export const authOptions: NextAuthOptions = {
             email: user.email,
             username: user.username,
             role: user.role,
+            isFirstLogin,
           };
 
           console.log("🎉 Login successful, returning user:", userResult);
@@ -219,16 +236,27 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.username = user.username;
         token.role = user.role;
+        token.isFirstLogin = (user as any).isFirstLogin;
       }
       return token;
     },
     async session({ session, token }) {
-      console.log("📋 Session callback:", { tokenId: token.id });
+      console.log("📋 Session callback:", { 
+        tokenId: token.id,
+        role: token.role,
+        isFirstLogin: token.isFirstLogin
+      });
       if (token) {
         session.user.id = token.id as string;
         session.user.username = token.username as string;
         session.user.role = token.role as string;
+        (session.user as any).isFirstLogin = token.isFirstLogin;
       }
+      console.log("📋 Session after update:", {
+        userId: session.user.id,
+        role: session.user.role,
+        isFirstLogin: (session.user as any).isFirstLogin
+      });
       return session;
     },
     async signIn({ user, account, profile }) {

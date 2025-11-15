@@ -78,11 +78,31 @@ export default function LoginContainner() {
       const result = await login(loginData);
 
       if (result.success) {
-        toast.showSuccess("เข้าสู่ระบบสำเร็จ", "ยินดีต้อนรับเข้าสู่ระบบ");
-        setIsRedirecting(true);
-        setTimeout(() => {
-          router.push("/"); // หรือ redirect ไปหน้าอื่น
-        }, 1500);
+        // ตรวจสอบว่าเป็นนิสิตที่ login ครั้งแรกหรือไม่
+        const isStudent = result.user?.role === 'student';
+        const isFirstLogin = result.user?.isFirstLogin === true;
+
+        console.log("🔍 Login result:", {
+          role: result.user?.role,
+          isStudent,
+          isFirstLogin,
+          fullUser: result.user
+        });
+
+        if (isStudent && isFirstLogin) {
+          toast.showSuccess("เข้าสู่ระบบสำเร็จ", "กรุณาเปลี่ยนรหัสผ่านของคุณ");
+          setIsRedirecting(true);
+          setTimeout(() => {
+            router.push("/forgot-password");
+          }, 1500);
+        } else {
+          console.log("✅ Redirecting to home");
+          toast.showSuccess("เข้าสู่ระบบสำเร็จ", "ยินดีต้อนรับเข้าสู่ระบบ");
+          setIsRedirecting(true);
+          setTimeout(() => {
+            router.push("/");
+          }, 1500);
+        }
 
       } else {
         toast.showError("เข้าสู่ระบบไม่สำเร็จ", result.error ?? "รหัสนิสิต/บัตรประชาชน หรือรหัสผ่านไม่ถูกต้อง");

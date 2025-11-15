@@ -22,7 +22,19 @@ export function useAuth() {
         throw new Error(result.error);
       }
 
-      return { success: true };
+      // รอให้ session อัปเดต
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // ดึง session ใหม่
+      const response = await fetch('/api/auth/session');
+      const sessionData = await response.json();
+
+      console.log("🔍 Session data from API:", sessionData);
+
+      return { 
+        success: true,
+        user: sessionData?.user
+      };
     } catch (error) {
       return {
         success: false,

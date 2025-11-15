@@ -1,190 +1,106 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/Auth';
 import { prisma } from '@/lib/prisma';
-import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
     try {
-        const { token, email, password, confirmPassword } = await request.json();
-
-        // Validation
-        if (!token || !email || !password || !confirmPassword) {
+        // ตรวจสอบ session
+        const session = await getServerSession(authOptions);
+        if (!session || !session.user) {
             return NextResponse.json(
-                { message: 'กรุณากรอกข้อมูลให้ครบถ้วน' },
+                { success: false, error: 'ไม่มีสิทธิ์เข้าถึง' },
+                { status: 401 }
+            );
+        }
+
+        const { currentPassword, newPassword } = await request.json();
+
+        // Validate
+        if (!currentPassword || !newPassword) {
+            return NextResponse.json(
+                { success: false, error: 'กรุณากรอกข้อมูลให้ครบถ้วน' },
                 { status: 400 }
             );
         }
 
-        if (password !== confirmPassword) {
+        if (newPassword.length < 6) {
             return NextResponse.json(
-                { message: 'รหัสผ่านไม่ตรงกัน' },
+                { success: false, error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' },
                 { status: 400 }
             );
         }
 
-        // ตรวจสอบความแข็งแกร่งของรหัสผ่าน
-        const passwordValidation = validatePassword(password);
-        if (!passwordValidation.isValid) {
+        if (!/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
             return NextResponse.json(
-                { message: passwordValidation.message },
+                { success: false, error: 'รหัสผ่านต้องมีทั้งตัวอักษรและตัวเลข' },
                 { status: 400 }
             );
         }
 
-        // เข้ารหัส token เพื่อเปรียบเทียบกับฐานข้อมูล
-        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-
-        // ตรวจสอบผู้ใช้
-        const user = await prisma.users.findFirst({
-            where: { email },
+        // ดึงข้อมูล user
+        const user = await prisma.users.findUnique({
+            where: { user_id: BigInt(session.user.id) },
             select: {
                 user_id: true,
-                email: true,
-                status: true
+                password_hash: true,
+                username: true,
+                last_login_at: true
             }
         });
 
         if (!user) {
             return NextResponse.json(
-                { message: 'ไม่พบผู้ใช้นี้ในระบบ' },
+                { success: false, error: 'ไม่พบข้อมูลผู้ใช้' },
                 { status: 404 }
             );
         }
 
-        if (user.status !== 'active') {
+        // ตรวจสอบรหัสผ่านปัจจุบัน
+        const isPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
+        if (!isPasswordValid) {
             return NextResponse.json(
-                { message: 'บัญชีผู้ใช้ไม่ได้เปิดใช้งาน' },
-                { status: 403 }
-            );
-        }
-
-        // TODO: ตรวจสอบ token ในฐานข้อมูล (ต้องสร้างตาราง password_resets ก่อน)
-        // สำหรับตอนนี้ข้ามการตรวจสอบ token
-
-        // เข้ารหัสรหัสผ่านใหม่
-        const hashedPassword = await bcrypt.hash(password, 12);
-
-        // อัปเดตรหัสผ่านในฐานข้อมูล
-        await prisma.users.update({
-            where: { user_id: user.user_id },
-            data: {
-                password_hash: hashedPassword,
-                updated_at: new Date()
-            }
-        });
-
-        return NextResponse.json({
-            message: 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว สามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้ทันที',
-            success: true
-        });
-
-    } catch (error) {
-        console.error('Reset password error:', error);
-        return NextResponse.json(
-            { message: 'เกิดข้อผิดพลาดในระบบ' },
-            { status: 500 }
-        );
-    }
-}
-
-// API สำหรับตรวจสอบความถูกต้องของ token
-export async function GET(request: NextRequest) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const token = searchParams.get('token');
-        const email = searchParams.get('email');
-
-        if (!token || !email) {
-            return NextResponse.json(
-                { message: 'ข้อมูลไม่ครบถ้วน', valid: false },
+                { success: false, error: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' },
                 { status: 400 }
             );
         }
 
-        // ตรวจสอบผู้ใช้
-        const user = await prisma.users.findFirst({
-            where: { email },
-            select: {
-                email: true,
-                first_name: true,
-                last_name: true,
-                status: true
+        // เข้ารหัสรหัสผ่านใหม่
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+        // อัปเดตรหัสผ่านและ last_login_at (ถ้ายังไม่เคยมี)
+        await prisma.users.update({
+            where: { user_id: user.user_id },
+            data: {
+                password_hash: hashedPassword,
+                // อัปเดต last_login_at ถ้ายังเป็น null (first login)
+                ...(user.last_login_at === null ? { last_login_at: new Date() } : {}),
+                updated_at: new Date()
             }
         });
 
-        if (!user || user.status !== 'active') {
-            return NextResponse.json({
-                message: 'ไม่พบผู้ใช้หรือบัญชีไม่ได้เปิดใช้งาน',
-                valid: false
-            });
-        }
-
-        // TODO: ตรวจสอบ token ในฐานข้อมูล
-        // สำหรับตอนนี้ถือว่า token ถูกต้องเสมอ
+        // บันทึก log
+        await prisma.auth_log.create({
+            data: {
+                user_id: user.user_id,
+                username_input: user.username,
+                action: 'login_success',
+                ip: request.headers.get('x-forwarded-for') || 'unknown',
+                user_agent: request.headers.get('user-agent') || 'unknown'
+            }
+        });
 
         return NextResponse.json({
-            message: 'Token ถูกต้อง',
-            valid: true,
-            user: {
-                email: user.email,
-                name: `${user.first_name} ${user.last_name}`
-            }
+            success: true,
+            message: 'เปลี่ยนรหัสผ่านสำเร็จ'
         });
 
-    } catch (error) {
-        console.error('Token validation error:', error);
+    } catch (error: any) {
+        console.error('Reset password error:', error);
         return NextResponse.json(
-            { message: 'เกิดข้อผิดพลาดในระบบ', valid: false },
+            { success: false, error: error.message || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน' },
             { status: 500 }
         );
     }
-}
-
-// ฟังก์ชันตรวจสอบความแข็งแกร่งของรหัสผ่าน
-function validatePassword(password: string) {
-    const minLength = 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-    if (password.length < minLength) {
-        return {
-            isValid: false,
-            message: `รหัสผ่านต้องมีอย่างน้อย ${minLength} ตัวอักษร`
-        };
-    }
-
-    if (!hasUpperCase) {
-        return {
-            isValid: false,
-            message: 'รหัสผ่านต้องมีตัวพิมพ์ใหญ่อย่างน้อย 1 ตัว'
-        };
-    }
-
-    if (!hasLowerCase) {
-        return {
-            isValid: false,
-            message: 'รหัสผ่านต้องมีตัวพิมพ์เล็กอย่างน้อย 1 ตัว'
-        };
-    }
-
-    if (!hasNumbers) {
-        return {
-            isValid: false,
-            message: 'รหัสผ่านต้องมีตัวเลขอย่างน้อย 1 ตัว'
-        };
-    }
-
-    if (!hasSpecialChar) {
-        return {
-            isValid: false,
-            message: 'รหัสผ่านต้องมีอักขระพิเศษอย่างน้อย 1 ตัว (!@#$%^&*(),.?":{}|<>)'
-        };
-    }
-
-    return {
-        isValid: true,
-        message: 'รหัสผ่านถูกต้อง'
-    };
 }

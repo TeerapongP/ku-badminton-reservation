@@ -134,6 +134,9 @@ async function loginHandler(request: NextRequest) {
         );
         }
 
+        // ตรวจสอบว่าเป็นการ login ครั้งแรกหรือไม่
+        const isFirstLogin = !user.last_login_at;
+
         // Login สำเร็จ - อัปเดต last_login_at
         await prisma.users.update({
             where: { user_id: user.user_id },
@@ -158,7 +161,8 @@ async function loginHandler(request: NextRequest) {
         id: user.user_id,
         username: user.username,
         email: user.email,
-        name: `${user.first_name} ${user.last_name}`
+        name: `${user.first_name} ${user.last_name}`,
+        isFirstLogin
     }, 'เข้าสู่ระบบสำเร็จ');
 }
 

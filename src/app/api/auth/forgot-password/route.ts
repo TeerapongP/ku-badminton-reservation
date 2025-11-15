@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
         const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
 
         // สร้าง reset URL
-        const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email || '')}&phone=${encodeURIComponent(user.phone || '')}`;
+        const resetUrl = `${process.env.NEXTAUTH_URL}/forgot-password?token=${resetToken}&email=${encodeURIComponent(user.email || '')}&phone=${encodeURIComponent(user.phone || '')}`;
 
         // บันทึก reset token ลงฐานข้อมูล (สร้างตารางชั่วคราวใน memory หรือใช้ cache)
         // เนื่องจากยังไม่มีตาราง password_resets ใน schema

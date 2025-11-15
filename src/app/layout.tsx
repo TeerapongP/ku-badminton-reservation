@@ -11,6 +11,7 @@ import "primereact/resources/primereact.min.css";
 import ClientLayout from "@/components/ClientLayout";
 import AuthProvider from "@/providers/AuthProvider";
 import { ToastProvider } from "@/components/ToastProvider";
+import RequirePasswordChange from "@/components/RequirePasswordChange";
 
 
 const inter = Inter({
@@ -30,9 +31,11 @@ export default function RootLayout({
       <body className={`${inter.variable} tw-antialiased tw-text-gray-900`}>
         <ToastProvider>
           <AuthProvider>
-            <PrimeReactProvider>
-              <ClientLayout>{children}</ClientLayout>
-            </PrimeReactProvider>
+            <RequirePasswordChange>
+              <PrimeReactProvider>
+                <ClientLayout>{children}</ClientLayout>
+              </PrimeReactProvider>
+            </RequirePasswordChange>
           </AuthProvider>
         </ToastProvider>
       </body>
