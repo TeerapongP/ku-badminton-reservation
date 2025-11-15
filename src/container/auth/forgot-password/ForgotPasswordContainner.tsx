@@ -1,17 +1,30 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { InputField } from "@/components/InputField";
 import { Button } from "@/components/Button";
 import { useToast } from "@/components/ToastProvider";
 
 export default function ForgotPasswordContainer() {
+    const router = useRouter();
+    const { data: session } = useSession();
     const [email, setEmail] = useState("");
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const toast = useToast();
+
+    // ฟังก์ชัน logout และกลับไปหน้า login
+    const handleBackToLogin = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (session) {
+            await signOut({ redirect: false });
+        }
+        router.push("/login");
+    };
     const handleSubmit = async () => {
         setMessage(null);
         setError(null);
@@ -100,9 +113,13 @@ export default function ForgotPasswordContainer() {
                 </div>
 
                 <div className="tw-text-center tw-mt-4">
-                    <Link href="/login" className="tw-underline">
+                    <a 
+                        href="/login" 
+                        onClick={handleBackToLogin}
+                        className="tw-underline tw-cursor-pointer"
+                    >
                         กลับไปหน้าเข้าสู่ระบบ
-                    </Link>
+                    </a>
                 </div>
             </form>
         </div>
