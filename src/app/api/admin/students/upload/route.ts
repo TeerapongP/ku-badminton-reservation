@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
                 
                 const chunkData = await Promise.all(
                     chunk.map(async (student: any) => {
-                        const hashedPassword = await bcrypt.hash(student.studentId, 10);
+                        const hashedPassword = await bcrypt.hash(student.studentId, 12);
                         return {
                             username: student.studentId,
                             password_hash: hashedPassword,

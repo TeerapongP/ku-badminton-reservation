@@ -35,10 +35,11 @@ export async function GET(req: Request) {
         // หา role ของ user (ถ้ามี userId)
         let userRole: "student" | "staff" | "admin" | null = null;
         if (userId) {
-            const r = await prisma.$queryRaw<{ role: "student" | "staff" | "admin" }[]>`
-        SELECT role FROM users WHERE user_id = ${userId} LIMIT 1
-      `;
-            userRole = r[0]?.role ?? null;
+            const user = await prisma.users.findUnique({
+                where: { user_id: BigInt(userId) },
+                select: { role: true }
+            });
+            userRole = user?.role as "student" | "staff" | "admin" | null;
         }
 
         type Row = {
