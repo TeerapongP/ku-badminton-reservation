@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import ReCAPTCHA from "react-google-recaptcha";
 import { InputField } from "@/components/InputField";
 import { Button } from "@/components/Button";
 import { useToast } from "@/components/ToastProvider";
@@ -19,6 +20,9 @@ export default function LoginContainner() {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [requireCaptcha, setRequireCaptcha] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   // Validation function
   const validateForm = (): string | null => {
@@ -42,6 +46,12 @@ export default function LoginContainner() {
     const validationError = validateForm();
     if (validationError) {
       toast.showError("ข้อมูลไม่ถูกต้อง", validationError);
+      return;
+    }
+
+    // ตรวจสอบ CAPTCHA ถ้าจำเป็น
+    if (requireCaptcha && !captchaToken) {
+      toast.showError("กรุณายืนยัน CAPTCHA", "กรุณาทำ CAPTCHA ก่อนเข้าสู่ระบบ");
       return;
     }
 
@@ -105,7 +115,24 @@ export default function LoginContainner() {
         }
 
       } else {
-        toast.showError("เข้าสู่ระบบไม่สำเร็จ", result.error ?? "รหัสนิสิต/บัตรประชาชน หรือรหัสผ่านไม่ถูกต้อง");
+        // เพิ่มจำนวนครั้งที่ล้มเหลว
+        const newFailedAttempts = failedAttempts + 1;
+        setFailedAttempts(newFailedAttempts);
+
+        // ตรวจสอบว่าต้องแสดง RECAPTCHA หรือไม่ (หลัง 5 ครั้ง)
+        if (newFailedAttempts >= 5) {
+          setRequireCaptcha(true);
+          toast.showError(
+            "เข้าสู่ระบบไม่สำเร็จ", 
+            "คุณพยายามเข้าสู่ระบบผิดหลายครั้ง กรุณายืนยัน CAPTCHA"
+          );
+        } else {
+          const remainingAttempts = 3 - newFailedAttempts;
+          toast.showError(
+            "เข้าสู่ระบบไม่สำเร็จ", 
+            `${result.error ?? "รหัสนิสิต/บัตรประชาชน หรือรหัสผ่านไม่ถูกต้อง"} (เหลือ ${remainingAttempts} ครั้ง)`
+          );
+        }
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -158,6 +185,42 @@ export default function LoginContainner() {
             required
           />
         </div>
+
+        {/* RECAPTCHA Warning */}
+        {requireCaptcha && (
+          <div className="tw-bg-yellow-50 tw-border-l-4 tw-border-yellow-400 tw-p-4 tw-rounded-md">
+            <div className="tw-flex">
+              <div className="tw-flex-shrink-0">
+                <svg className="tw-h-5 tw-w-5 tw-text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="tw-ml-3">
+                <p className="tw-text-sm tw-text-yellow-700">
+                  <strong>คำเตือน:</strong> คุณพยายามเข้าสู่ระบบผิดหลายครั้ง ({failedAttempts} ครั้ง)
+                </p>
+                <p className="tw-text-xs tw-text-yellow-600 tw-mt-1">
+                  กรุณายืนยันว่าคุณไม่ใช่บอท (CAPTCHA verification required)
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Google reCAPTCHA */}
+        {requireCaptcha && process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY && (
+          <div className="tw-flex tw-justify-center" data-testid="recaptcha">
+            <ReCAPTCHA
+              sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY}
+              onChange={(token) => setCaptchaToken(token)}
+              onExpired={() => setCaptchaToken(null)}
+              onErrored={() => {
+                setCaptchaToken(null);
+                toast.showError("CAPTCHA Error", "เกิดข้อผิดพลาดกับ CAPTCHA กรุณาลองใหม่");
+              }}
+            />
+          </div>
+        )}
 
         <div className="tw-flex tw-justify-end">
           <Link

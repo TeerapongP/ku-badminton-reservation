@@ -210,7 +210,7 @@ async function checkIPRateLimit(ip: string) {
         }
     });
 
-    const requireCaptcha = failedAttempts >= 3;
+    const requireCaptcha = failedAttempts >= 5;
     const isLocked = failedAttempts >= 10;
 
     if (isLocked) {
