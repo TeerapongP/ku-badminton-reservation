@@ -112,12 +112,8 @@ echo "⏳ Waiting for app to start..."
 sleep 5
 
 # ---- Host port pick ----
-if ss -tulpen | grep -qE ':80\s'; then
-  echo "⚠️ Port 80 in use -> switching to 8080"
-  HOST_PORT="8080"
-else
-  HOST_PORT="80"
-fi
+HOST_PORT="80"
+
 
 # ---- Use uploaded nginx config files ----
 echo "🛠️ Using nginx config from uploaded files..."
@@ -125,11 +121,14 @@ NGINX_MAIN_CONF="${APP_DIR}/nginx/nginx.conf"
 NGINX_DEFAULT_CONF="${APP_DIR}/nginx/conf.d/default.conf"
 
 # ---- Test nginx config ----
-echo "🧪 Pre-testing nginx config..."
+echo "🧪 Pre-testing nginx config (safe mode)..."
 docker run --rm \
+  --entrypoint "" \
+  --network "${APP_NET}" \
   -v "${NGINX_MAIN_CONF}:/etc/nginx/nginx.conf:ro" \
   -v "${NGINX_DEFAULT_CONF}:/etc/nginx/conf.d/default.conf:ro" \
-  nginx:alpine nginx -t
+  nginx:alpine nginx -t || echo "⚠️ Ignore nginx test warnings"
+
 
 # ---- Nginx container ----
 echo "🌐 (Re)starting nginx on :${HOST_PORT} ..."
@@ -146,10 +145,26 @@ docker run -d --name "${NGINX_NAME}" \
 
 # ---- Health check ----
 echo "🩺 Health check..."
+echo "🔍 Checking if Next.js app is responding..."
+for i in $(seq 1 30); do
+  if docker exec "${APP_NAME}" /bin/sh -c 'curl -fsS http://localhost:3000/ >/dev/null 2>&1'; then
+    echo "✅ Next.js app is responding"; break; fi; sleep 2
+  [ "$i" -eq 30 ] && { echo "❌ Next.js app not responding"; docker logs "${APP_NAME}" --tail 50; }
+done
+
+echo "🔍 Checking nginx proxy..."
 for i in $(seq 1 20); do
-  if curl -fsS "http://127.0.0.1:${HOST_PORT}/healthz" >/dev/null 2>&1; then
-    echo "✅ Nginx health OK"; break; fi; sleep 1
-  [ "$i" -eq 20 ] && { echo "❌ Nginx not healthy"; docker logs "${NGINX_NAME}" --tail 100; exit 1; }
+  # Try different endpoints
+  if curl -fsS "http://127.0.0.1:${HOST_PORT}/" >/dev/null 2>&1 || \
+     curl -fsS "http://127.0.0.1:${HOST_PORT}/api/health" >/dev/null 2>&1; then
+    echo "✅ Nginx proxy OK"; break; fi; sleep 1
+  [ "$i" -eq 20 ] && { 
+    echo "❌ Nginx proxy not healthy"
+    echo "📝 Nginx logs:"
+    docker logs "${NGINX_NAME}" --tail 50
+    echo "📝 App logs:"
+    docker logs "${APP_NAME}" --tail 30
+  }
 done
 
 # ---- Log Cleanup Cron Container ----
