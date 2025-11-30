@@ -379,7 +379,7 @@ export default function AdminReportsContainer() {
                     <div className="tw-mt-4">
                         <Button
                             onClick={fetchReportData}
-                            className="tw-px-6 tw-py-2 tw-bg-blue-600 tw-text-white tw-rounded-xl"
+                           className="tw-px-4 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-blue-600 tw-text-white tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-blue-700 active:tw-bg-blue-800 focus:tw-ring-0 focus:tw-outline-none"
                         >
                             อัปเดตรายงาน
                         </Button>

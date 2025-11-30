@@ -20,11 +20,13 @@ export default function RegisterContainner() {
     const { register } = useAuth();
     const router = useRouter();
 
-    // User type options (staff, guest, and student)
+    // User type options (staff, guest, student, admin, super_admin)
     const userTypeOptions = [
         { label: "บุคลากร", value: "staff" },
         { label: "นักเรียนสาธิต", value: "student" },
-        { label: "บุคคลทั่วไป", value: "guest" }
+        { label: "บุคคลทั่วไป", value: "guest" },
+        { label: "ผู้ดูแลระบบ", value: "admin" },
+        { label: "ผู้ดูแลระบบสูงสุด", value: "super_admin" }
     ];
 
     // Loading state
@@ -35,9 +37,10 @@ export default function RegisterContainner() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [nationnalId, setNationnalId] = useState('');
 
+    const [username, setUsername] = useState('');
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
-    const [userType, setUserType] = useState<"staff" | "student" | "guest">("staff");
+    const [userType, setUserType] = useState<"staff" | "student" | "guest" | "admin" | "super_admin">("staff");
     const [prefix, setPrefix] = useState<{ en: string; th: string } | null>(null);
     const [phone, setPhone] = useState<string>('');
     const [email, setEmail] = useState<string>('');
@@ -147,13 +150,22 @@ export default function RegisterContainner() {
         if (!password) return "กรุณากรอกรหัสผ่าน";
         if (password !== confirmPassword) return "รหัสผ่านไม่ตรงกัน";
         if (password.length < 6) return "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
-        if (!nationnalId.trim()) return "กรุณากรอกรหัสบัตรประชาชน";
         if (!firstName.trim()) return "กรุณากรอกชื่อ";
         if (!lastName.trim()) return "กรุณากรอกนามสกุล";
         if (!email.trim()) return "กรุณากรอกอีเมล";
         if (!phone.trim()) return "กรุณากรอกเบอร์โทรศัพท์";
         if (phone && !/^0\d{9}$/.test(phone)) return "เบอร์โทรศัพท์ต้องขึ้นต้นด้วย 0 และมี 10 หลัก";
-        if (nationnalId && !/^\d{13}$/.test(nationnalId)) return "เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก";
+
+        // Admin และ SuperAdmin ใช้ username
+        if (userType === "admin" || userType === "super_admin") {
+            if (!username.trim()) return "กรุณากรอก Username";
+            if (username.length < 3) return "Username ต้องมีอย่างน้อย 3 ตัวอักษร";
+            if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) return "Username ต้องเป็นตัวอักษร ตัวเลข หรือ _ เท่านั้น";
+        } else {
+            // ผู้ใช้อื่นใช้ national_id
+            if (!nationnalId.trim()) return "กรุณากรอกรหัสบัตรประชาชน";
+            if (nationnalId && !/^\d{13}$/.test(nationnalId)) return "เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก";
+        }
 
         // Staff validation
         if (userType === "staff") {
@@ -186,6 +198,7 @@ export default function RegisterContainner() {
 
             const userData = {
                 // Basic info
+                username: (userType === "admin" || userType === "super_admin") ? username.trim() : `USER_${Date.now()}`,
                 password: hashedPassword,
                 email: email.trim(),
                 phone: phone.trim(),
@@ -195,21 +208,24 @@ export default function RegisterContainner() {
                 last_name: lastName.trim(),
                 role: userType,
 
+                // Admin และ SuperAdmin ไม่ต้องมี national_id
+                ...(userType !== "admin" && userType !== "super_admin" && {
+                    national_id: hashedNationalId,
+                }),
+
                 // Staff specific
                 ...(userType === "staff" && {
-                    national_id: hashedNationalId,
                     unit_id: office,
                     position: jobtitle,
+                    staff_type: "university", // default value
                 }),
 
                 // Student specific (นักเรียนสาธิต)
                 ...(userType === "student" && {
-                    national_id: hashedNationalId,
-                }),
-
-                // Guest specific
-                ...(userType === "guest" && {
-                    national_id: hashedNationalId,
+                    student_id: `STU_${Date.now()}`, // generate student_id
+                    faculty_id: 1, // default faculty
+                    department_id: 1, // default department
+                    level_of_study: "UG", // default level
                 }),
             };
 
@@ -259,16 +275,30 @@ export default function RegisterContainner() {
                 </div>
 
 
-                <div className="tw-col-span-4 md:tw-col-span-12">
-                    <InputField
-                        type="text"
-                        placeholder="กรอกรหัสบัตรประชาชน"
-                        value={nationnalId}
-                        maxLength={13}
-                        onChange={(val) => setNationnalId(val as string)}
-                        required
-                    />
-                </div>
+                {/* Username field สำหรับ Admin และ SuperAdmin */}
+                {(userType === "admin" || userType === "super_admin") ? (
+                    <div className="tw-col-span-4 md:tw-col-span-12">
+                        <InputField
+                            type="text"
+                            placeholder="กรอก Username"
+                            value={username}
+                            maxLength={20}
+                            onChange={(val) => setUsername(val as string)}
+                            required
+                        />
+                    </div>
+                ) : (
+                    <div className="tw-col-span-4 md:tw-col-span-12">
+                        <InputField
+                            type="text"
+                            placeholder="กรอกรหัสบัตรประชาชน"
+                            value={nationnalId}
+                            maxLength={13}
+                            onChange={(val) => setNationnalId(val as string)}
+                            required
+                        />
+                    </div>
+                )}
                 <div className="tw-col-span-4 md:tw-col-span-6">
                     <InputField
                         type="password"

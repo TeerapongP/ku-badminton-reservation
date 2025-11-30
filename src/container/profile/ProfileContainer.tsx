@@ -119,10 +119,8 @@ const ProfileContainer: React.FC = () => {
 
                 if (uploadResponse.ok) {
                     const uploadData = await uploadResponse.json();
-                    console.log('Upload response:', uploadData); // Debug log
                     // Use imagePath from response (already encrypted)
                     finalImagePath = uploadData.data?.imagePath;
-                    console.log('Final image path:', finalImagePath); // Debug log
                 } else {
                     const errorData = await uploadResponse.json();
                     toast.showError("เกิดข้อผิดพลาด", errorData.message ?? "ไม่สามารถอัปโหลดรูปภาพได้");

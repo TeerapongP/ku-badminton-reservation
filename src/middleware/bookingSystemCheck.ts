@@ -9,8 +9,8 @@ export async function checkBookingSystemStatus() {
     const now = new Date();
     const hour = now.getHours();
 
-    // ระบบเปิดตั้งแต่ 9:00-22:00
-    const isBusinessHours = hour >= 9 && hour < 22;
+    // ระบบเปิดตั้งแต่ 8:00-20:00
+    const isBusinessHours = hour >= 8 && hour < 20;
 
     return systemOpen && isBusinessHours;
   } catch (error) {
@@ -27,7 +27,7 @@ export function withBookingSystemCheck(handler: Function) {
       return NextResponse.json(
         {
           error: 'ระบบการจองปิดอยู่ในขณะนี้',
-          message: 'กรุณาติดต่อแอดมิน หรือรอระบบเปิดอัตโนมัติเวลา 9:00 น.'
+          message: 'ระบบเปิดให้บริการเวลา 8:00-20:00 น. กรุณาติดต่อแอดมินหากต้องการใช้งานนอกเวลา'
         },
         { status: 403 }
       );

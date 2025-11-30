@@ -47,10 +47,8 @@ const BannerManagementContainer: React.FC = () => {
     const fetchBanners = useCallback(async () => {
         try {
             setIsLoading(true);
-            console.log("Fetching banners...");
 
             const response = await fetch('/api/admin/banners');
-            console.log("Response status:", response.status);
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -59,11 +57,9 @@ const BannerManagementContainer: React.FC = () => {
             }
 
             const data: BannerResponse = await response.json();
-            console.log("Response data:", data);
 
             if (data.success && Array.isArray(data.data)) {
                 setBanners(data.data);
-                console.log("Banners loaded:", data.data.length);
             } else {
                 console.error("API returned error:", data.error);
                 toast.showError("เกิดข้อผิดพลาด", data.error || "ไม่สามารถโหลดข้อมูล banner ได้");
@@ -518,12 +514,6 @@ const BannerManagementContainer: React.FC = () => {
                                     <h2 className="tw-text-2xl tw-font-bold tw-text-gray-900">
                                         {editingBanner ? 'แก้ไข Banner' : 'เพิ่ม Banner ใหม่'}
                                     </h2>
-                                    <Button
-                                        onClick={handleCloseModal}
-                                        className="tw-p-2 tw-text-gray-400 hover:tw-text-gray-600 tw-rounded-lg tw-transition-colors"
-                                    >
-                                        <X size={20} />
-                                    </Button>
                                 </div>
 
                                 <form onSubmit={handleSubmit} className="tw-space-y-6">

@@ -78,12 +78,7 @@ export default function LoginContainner() {
         originalIdentifier: identifier // ส่ง plain text ไปด้วยเพื่อเปรียบเทียบ
       };
 
-      console.log("🔐 Attempting login with data:", {
-        identifier: hashedIdentifier,
-        type: loginType,
-        hasPassword: !!password,
-        originalIdentifier: identifier
-      });
+
 
       const result = await login(loginData);
 
@@ -92,12 +87,7 @@ export default function LoginContainner() {
         const isStudent = result.user?.role === 'student';
         const isFirstLogin = result.user?.isFirstLogin === true;
 
-        console.log("🔍 Login result:", {
-          role: result.user?.role,
-          isStudent,
-          isFirstLogin,
-          fullUser: result.user
-        });
+
 
         if (isStudent && isFirstLogin) {
           toast.showSuccess("เข้าสู่ระบบสำเร็จ", "กรุณาเปลี่ยนรหัสผ่านของคุณ");
@@ -106,7 +96,6 @@ export default function LoginContainner() {
             router.push("/forgot-password");
           }, 1500);
         } else {
-          console.log("✅ Redirecting to home");
           toast.showSuccess("เข้าสู่ระบบสำเร็จ", "ยินดีต้อนรับเข้าสู่ระบบ");
           setIsRedirecting(true);
           setTimeout(() => {
@@ -164,7 +153,7 @@ export default function LoginContainner() {
         <div>
           <InputField
             type="text"
-            placeholder="รหัสนิสิต / เลขบัตรประชาชน "
+            placeholder="รหัสนิสิต / เลขบัตรประชาชน / Username"
             value={identifier}
             maxLength={20}
             onChange={(val) => setIdentifier(val as string)}
@@ -172,7 +161,8 @@ export default function LoginContainner() {
           />
           <p className="tw-text-xs tw-text-gray-500 tw-mt-2">
             • นิสิต: รหัสนิสิต 8-10 หลัก<br />
-            • บุคลากร: เลขบัตรประชาชน 13 หลัก<br />
+            • บุคลากร/บุคคลทั่วไป: เลขบัตรประชาชน 13 หลัก<br />
+            • ผู้ดูแลระบบ: Username<br />
           </p>
         </div>
 

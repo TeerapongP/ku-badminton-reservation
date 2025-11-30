@@ -95,7 +95,8 @@ export const authOptions: NextAuthOptions = {
               }
             }
           } else if (loginType === 'username') {
-            // ค้นหาด้วย username (สำหรับ admin เท่านั้น)
+            // ค้นหาด้วย username (สำหรับ admin และ super_admin เท่านั้น)
+            console.log("👨‍💼 Searching by username:", credentials.identifier);
             user = await prisma.users.findFirst({
               where: {
                 username: credentials.identifier,

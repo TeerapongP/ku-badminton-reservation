@@ -48,24 +48,42 @@ export class BookingSystemManager {
     return this.status;
   }
 
-  // เปิดระบบอัตโนมัติเวลา 9:00
-  autoOpen(): BookingSystemStatus {
+  // ตรวจสอบและจัดการระบบอัตโนมัติ
+  autoManage(): BookingSystemStatus {
     const now = new Date();
     const hour = now.getHours();
+    const minute = now.getMinutes();
     
-    // เช็คว่าเป็นเวลา 9:00 และระบบยังปิดอยู่
-    if (hour >= 9 && !this.status.isOpen) {
+    // เปิดระบบอัตโนมัติเวลา 9:00 (ถ้า admin ไม่เปิด)
+    if (hour === 9 && minute < 5 && !this.status.isOpen) {
       this.status = {
         isOpen: true,
         openedBy: 'auto',
         openedAt: now,
+        lastUpdatedBy: 'system-auto-open'
       };
       
       this.saveToDatabase();
-      console.log(`🤖 Auto-opened booking system at ${now.toLocaleString()}`);
+    }
+    
+    // ปิดระบบอัตโนมัติเวลา 20:00 (ถ้า admin ไม่ปิด)
+    if (hour === 20 && minute < 5 && this.status.isOpen) {
+      this.status = {
+        isOpen: false,
+        openedBy: 'auto',
+        openedAt: now,
+        lastUpdatedBy: 'system-auto-close'
+      };
+      
+      this.saveToDatabase();
     }
     
     return this.status;
+  }
+
+  // เปิดระบบอัตโนมัติเวลา 9:00 (backward compatibility)
+  autoOpen(): BookingSystemStatus {
+    return this.autoManage();
   }
 
   // ดึงสถานะปัจจุบัน
@@ -93,10 +111,10 @@ export class BookingSystemManager {
       });
       
       if (!response.ok) {
-        console.error('Failed to save booking system status');
+        // Failed to save booking system status
       }
     } catch (error) {
-      console.error('Error saving booking system status:', error);
+      // Error saving booking system status
     }
   }
 
@@ -109,7 +127,7 @@ export class BookingSystemManager {
         this.status = data;
       }
     } catch (error) {
-      console.error('Error loading booking system status:', error);
+      // Error loading booking system status
     }
   }
 }

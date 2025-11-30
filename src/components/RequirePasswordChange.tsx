@@ -27,13 +27,6 @@ export default function RequirePasswordChange({ children }: { children: React.Re
         const isStudent = session.user?.role === "student";
         const isFirstLogin = (session.user as any)?.isFirstLogin === true;
 
-        console.log("🔍 RequirePasswordChange check:", {
-            pathname,
-            role: session.user?.role,
-            isStudent,
-            isFirstLogin,
-        });
-
         if (isStudent && isFirstLogin) {
             router.push("/forgot-password");
         }

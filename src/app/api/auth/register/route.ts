@@ -88,6 +88,14 @@ async function registerHandler(req: NextRequest) {
     validateRequired(body, ['national_id']);
   }
 
+  // Admin และ SuperAdmin ไม่ต้องมี national_id
+  if (role === "admin" || role === "super_admin") {
+    // ไม่ต้อง validate national_id
+  } else {
+    // ผู้ใช้อื่นต้องมี national_id
+    validateRequired(body, ['national_id']);
+  }
+
   // Validate formats
   if (postal_code) {
     validatePostalCode(postal_code);
@@ -107,6 +115,8 @@ async function registerHandler(req: NextRequest) {
         { email },
         ...(phone ? [{ phone }] : []),
         ...(role === "student" && student_id ? [{ student_id }] : []),
+        // ตรวจสอบ national_id เฉพาะผู้ใช้ที่ไม่ใช่ admin
+        ...(role !== "admin" && role !== "super_admin" && national_id ? [{ national_id }] : []),
       ],
     },
     select: {
@@ -114,6 +124,7 @@ async function registerHandler(req: NextRequest) {
       email: true,
       phone: true,
       student_id: true,
+      national_id: true,
     },
   });
 
@@ -123,6 +134,7 @@ async function registerHandler(req: NextRequest) {
     else if (existingUser.email.toLowerCase() === email.toLowerCase()) duplicateField = "อีเมล";
     else if (existingUser.phone && existingUser.phone === phone) duplicateField = "เบอร์โทรศัพท์";
     else if (existingUser.student_id && existingUser.student_id === student_id) duplicateField = "รหัสนิสิต";
+    else if (existingUser.national_id && existingUser.national_id === national_id) duplicateField = "เลขบัตรประชาชน";
 
     throw new CustomApiError(
       ERROR_CODES.DUPLICATE_ENTRY,
@@ -164,50 +176,10 @@ async function registerHandler(req: NextRequest) {
       },
     });
 
-    // 2) addresses (ถ้ามีข้อมูล)
+    // 2) ข้าม addresses เนื่องจากไม่มี table นี้ใน schema
     let addressId: bigint | null = null;
 
-    if (house_number || street || subdistrict || district || province || postal_code) {
-      const createdAddress = await tx.addresses.create({
-        data: {
-          user_id: newUser.user_id,
-          house_number: house_number || null,
-          street: street || null,
-          subdistrict: subdistrict || null,
-          district: district || null,
-          province: province || null,
-          postal_code: postal_code && /^\d{5}$/.test(postal_code) ? postal_code : null,
-          country,
-          is_primary: true,
-        },
-        select: { id: true },
-      });
-
-      addressId = createdAddress.id;
-
-      // 3) อัปเดต users.address_id
-      await tx.users.update({
-        where: { user_id: newUser.user_id },
-        data: { address_id: addressId },
-      });
-    } else {
-      // ลองหา primary ที่มีอยู่ (เผื่อกรณีพิเศษ)
-      const primaryAddress = await tx.addresses.findFirst({
-        where: { user_id: newUser.user_id, is_primary: true },
-        select: { id: true },
-        orderBy: { id: "asc" },
-      });
-
-      if (primaryAddress) {
-        addressId = primaryAddress.id;
-        await tx.users.update({
-          where: { user_id: newUser.user_id },
-          data: { address_id: addressId },
-        });
-      }
-    }
-
-    // 4) profile ตาม role
+    // 3) profile ตาม role
     if (role === "student") {
       await tx.student_profile.create({
         data: {
@@ -233,7 +205,7 @@ async function registerHandler(req: NextRequest) {
       });
     }
 
-    // 5) auth log
+    // 4) auth log
     await tx.auth_log.create({
       data: {
         user_id: newUser.user_id,
@@ -255,7 +227,7 @@ async function registerHandler(req: NextRequest) {
     email: newUser.email,
     name: `${newUser.first_name} ${newUser.last_name}`,
     role: newUser.role,
-    address_id: addressId ? addressId.toString() : null,
+    address_id: null,
   }, "สมัครสมาชิกสำเร็จ");
 }
 

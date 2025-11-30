@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/Auth";
+import { authOptions } from "../../../../lib/Auth";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         isOpen: true,
         openedBy: 'system',
         openedAt: new Date().toISOString(),
-        businessHours: { start: 9, end: 22 }
+        businessHours: { start: 8, end: 20 }
       };
 
       if (systemStatus) {
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       // เช็ค business hours
       const now = new Date();
       const hour = now.getHours();
-      const isBusinessHours = hour >= 9 && hour < 22;
+      const isBusinessHours = hour >= 9 && hour < 20;
 
       return NextResponse.json({
         success: true,
@@ -65,18 +65,18 @@ export async function GET(request: NextRequest) {
       console.error('Database error:', dbError);
 
       // Fallback ถ้า table ยังไม่มี
-      const now = new Date();
-      const hour = now.getHours();
-      const isBusinessHours = hour >= 9 && hour < 22;
+      const currentTime = new Date();
+      const hour = currentTime.getHours();
+      const isBusinessHours = hour >= 9 && hour < 20;
 
       return NextResponse.json({
         success: true,
         data: {
           isOpen: true,
           openedBy: 'system',
-          openedAt: now.toISOString(),
-          businessHours: { start: 9, end: 22 },
-          currentTime: now.toISOString(),
+          openedAt: currentTime.toISOString(),
+          businessHours: { start: 8, end: 20 },
+          currentTime: currentTime.toISOString(),
           currentHour: hour,
           isBusinessHours,
           effectiveStatus: isBusinessHours,
@@ -124,12 +124,31 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // ตรวจสอบว่าก่อน 8:00 น. และพยายามเปิดระบบ
     const now = new Date();
+    const hour = now.getHours();
+    
+    if (hour < 8 && isOpen) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: "ไม่สามารถเปิดระบบได้ก่อน 8:00 น.",
+          message: "ระบบเปิดให้บริการตั้งแต่ 8:00-20:00 น. เท่านั้น"
+        },
+        { status: 403 }
+      );
+    }
     const statusData = {
       isOpen,
-      openedBy: session.user.username || session.user.id,
+      openedBy: 'admin',
       openedAt: now.toISOString(),
-      businessHours: { start: 9, end: 22 }
+      businessHours: { start: 8, end: 20 },
+      lastUpdatedBy: session.user.username || session.user.id,
+      manualOverride: true, // บอกว่า admin เป็นคนเปิด/ปิดเอง
+      adminOverride: (hour >= 20 || hour < 8) && isOpen, // บอกว่าเป็นการเปิดนอกเวลาโดย admin
+      overrideReason: (hour >= 20 || hour < 8) && isOpen 
+        ? (hour >= 20 ? 'Admin opened system after business hours' : 'Admin opened system before business hours')
+        : null
     };
 
     try {
@@ -148,7 +167,7 @@ export async function PUT(request: NextRequest) {
 
       // คำนวณ effectiveStatus สำหรับ response
       const hour = now.getHours();
-      const isBusinessHours = hour >= 9 && hour < 22;
+      const isBusinessHours = hour >= 9 && hour < 20;
       const responseData = {
         ...statusData,
         currentTime: now.toISOString(),
@@ -157,9 +176,15 @@ export async function PUT(request: NextRequest) {
         effectiveStatus: isOpen && isBusinessHours
       };
 
+      const message = isOpen 
+        ? (hour >= 20 ? 'เปิดระบบการจองสำเร็จ (Admin Override หลังเวลาทำการ)' : 
+           hour < 8 ? 'เปิดระบบการจองสำเร็จ (Admin Override ก่อนเวลาทำการ)' : 
+           'เปิดระบบการจองสำเร็จ')
+        : 'ปิดระบบการจองสำเร็จ';
+
       return NextResponse.json({
         success: true,
-        message: `${isOpen ? 'เปิด' : 'ปิด'}ระบบการจองสำเร็จ`,
+        message,
         data: responseData
       });
 
