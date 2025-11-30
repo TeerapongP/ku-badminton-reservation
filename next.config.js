@@ -3,15 +3,15 @@ const nextConfig = {
   // Enable standalone output for Docker builds
   output: process.env.DOCKER_BUILD === 'true' ? 'standalone' : undefined,
 
-  // IMPORTANT: Base Path for sub-folder deployment
-  basePath: '/ku-badminton-reservation',
-  assetPrefix: '/ku-badminton-reservation',
+  // IMPORTANT: Base Path for sub-folder deployment (disabled for UAT)
+  // basePath: '/ku-badminton-reservation',
+  // assetPrefix: '/ku-badminton-reservation',
 
   // Fix image loader under basePath
   images: {
     domains: ['localhost', 'your-domain.com'],
     formats: ['image/webp', 'image/avif'],
-    path: '/ku-badminton-reservation/_next/image',
+    // path: '/ku-badminton-reservation/_next/image',
   },
 
   // Server external packages
