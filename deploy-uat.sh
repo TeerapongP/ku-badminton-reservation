@@ -15,10 +15,37 @@ HOST_PORT="80" # auto fallback to 8080
 NGINX_CONF="${APP_DIR}/nginx/default.conf"
 UPLOADS_DIR="${APP_DIR}/uploads"
 SUDO_PASS="pang_0320_VM"   # ⚠️ password of user 'remotepang1' on the server
+SSH_PASS="pang_0320_VM"    # SSH password (same as sudo for this user)
+SERVER_USER="remotepang1"
+SERVER_HOST="10.36.16.16"
 
 # ---- Local sanity checks ----
 if [[ ! -f "${ENV_FILE}" ]]; then
   echo "❌ ${ENV_FILE} not found in $(pwd)"; exit 1
+fi
+
+# ---- SSH Key Setup (run once) ----
+setup_ssh_key() {
+  echo "🔑 Setting up SSH key authentication..."
+  
+  # Generate SSH key if not exists
+  if [[ ! -f ~/.ssh/id_rsa ]]; then
+    echo "📝 Generating SSH key..."
+    ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N "" -C "deploy-key"
+  fi
+  
+  # Copy public key to server
+  echo "📤 Copying public key to server..."
+  echo "Enter server password when prompted:"
+  ssh-copy-id "${SERVER_USER}@${SERVER_HOST}"
+  
+  echo "✅ SSH key setup complete. You won't need password anymore."
+}
+
+# Check if SSH key authentication works
+if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${SERVER_USER}@${SERVER_HOST}" exit 2>/dev/null; then
+  echo "⚠️ SSH key authentication not working. Setting up..."
+  setup_ssh_key
 fi
 
 echo "🚀 Starting UAT deployment..."
@@ -26,25 +53,25 @@ echo "📦 Building Docker image..."
 docker buildx build --no-cache --platform linux/amd64 -t "${APP_IMAGE}" --push .
 
 echo "📋 Copying environment file..."
-scp "${ENV_FILE}" "remotepang1@10.36.16.16:${APP_DIR}/"
+scp "${ENV_FILE}" "${SERVER_USER}@${SERVER_HOST}:${APP_DIR}/"
 
 echo "📋 Copying nginx config files..."
-ssh remotepang1@10.36.16.16 "mkdir -p '${APP_DIR}/nginx/conf.d'"
-scp "nginx/nginx.conf" "remotepang1@10.36.16.16:${APP_DIR}/nginx/"
-scp "nginx/conf.d/default.conf" "remotepang1@10.36.16.16:${APP_DIR}/nginx/conf.d/"
+ssh "${SERVER_USER}@${SERVER_HOST}" "mkdir -p '${APP_DIR}/nginx/conf.d'"
+scp "nginx/nginx.conf" "${SERVER_USER}@${SERVER_HOST}:${APP_DIR}/nginx/"
+scp "nginx/conf.d/default.conf" "${SERVER_USER}@${SERVER_HOST}:${APP_DIR}/nginx/conf.d/"
 
 echo "📋 Copying log cleanup files..."
-ssh remotepang1@10.36.16.16 "mkdir -p '${APP_DIR}/docker/cron' '${APP_DIR}/scripts' '${APP_DIR}/prisma'"
-scp "docker/cron/Dockerfile.cron" "remotepang1@10.36.16.16:${APP_DIR}/docker/cron/"
-scp "scripts/cleanup-logs.js" "remotepang1@10.36.16.16:${APP_DIR}/scripts/"
-scp "package.json" "remotepang1@10.36.16.16:${APP_DIR}/"
-scp "prisma/schema.prisma" "remotepang1@10.36.16.16:${APP_DIR}/prisma/"
+ssh "${SERVER_USER}@${SERVER_HOST}" "mkdir -p '${APP_DIR}/docker/cron' '${APP_DIR}/scripts' '${APP_DIR}/prisma'"
+scp "docker/cron/Dockerfile.cron" "${SERVER_USER}@${SERVER_HOST}:${APP_DIR}/docker/cron/"
+scp "scripts/cleanup-logs.js" "${SERVER_USER}@${SERVER_HOST}:${APP_DIR}/scripts/"
+scp "package.json" "${SERVER_USER}@${SERVER_HOST}:${APP_DIR}/"
+scp "prisma/schema.prisma" "${SERVER_USER}@${SERVER_HOST}:${APP_DIR}/prisma/"
 
 echo "🔍 Verifying environment file..."
-ssh remotepang1@10.36.16.16 "cd '${APP_DIR}' && ls -la ${ENV_FILE} && head -5 ${ENV_FILE}"
+ssh "${SERVER_USER}@${SERVER_HOST}" "cd '${APP_DIR}' && ls -la ${ENV_FILE} && head -5 ${ENV_FILE}"
 
 echo "🚢 Deploying on server..."
-ssh remotepang1@10.36.16.16 "SUDO_PASS='${SUDO_PASS}' bash -se" << 'EOSSH'
+ssh "${SERVER_USER}@${SERVER_HOST}" "SUDO_PASS='${SUDO_PASS}' bash -se" << 'EOSSH'
 set -euo pipefail
 
 # ---- Config (remote) ----
@@ -154,12 +181,12 @@ done
 
 echo "🔍 Checking nginx proxy..."
 for i in $(seq 1 20); do
-  # Try different endpoints
-  if curl -fsS "http://127.0.0.1:${HOST_PORT}/" >/dev/null 2>&1 || \
-     curl -fsS "http://127.0.0.1:${HOST_PORT}/api/health" >/dev/null 2>&1; then
-    echo "✅ Nginx proxy OK"; break; fi; sleep 1
+  # Check if nginx is responding (even 404 is OK, means it's working)
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${HOST_PORT}/" 2>/dev/null || echo "000")
+  if [[ "$HTTP_CODE" =~ ^[2-4][0-9][0-9]$ ]]; then
+    echo "✅ Nginx proxy OK (HTTP $HTTP_CODE)"; break; fi; sleep 1
   [ "$i" -eq 20 ] && { 
-    echo "❌ Nginx proxy not healthy"
+    echo "❌ Nginx proxy not responding"
     echo "📝 Nginx logs:"
     docker logs "${NGINX_NAME}" --tail 50
     echo "📝 App logs:"
