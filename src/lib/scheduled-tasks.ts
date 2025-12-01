@@ -38,9 +38,11 @@ export class ScheduledTasks {
   // ตรวจสอบและจัดการระบบการจองตามเวลา
   private async checkBookingSystemSchedule() {
     try {
+      // ใช้เวลาไทย (UTC+7)
       const now = new Date();
-      const hour = now.getHours();
-      const minute = now.getMinutes();
+      const thailandTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+      const hour = thailandTime.getHours();
+      const minute = thailandTime.getMinutes();
 
       const bookingSystem = BookingSystemManager.getInstance();
       await bookingSystem.loadFromDatabase();
@@ -51,12 +53,13 @@ export class ScheduledTasks {
         const updatedStatus = {
           isOpen: true,
           openedBy: 'auto' as const,
-          openedAt: now,
+          openedAt: thailandTime,
           lastUpdatedBy: 'system-auto-open'
         };
         
         bookingSystem['status'] = updatedStatus;
         await bookingSystem['saveToDatabase']();
+        console.log(`[Thailand Time ${thailandTime.toISOString()}] ระบบเปิดอัตโนมัติ`);
       }
 
       // ปิดระบบอัตโนมัติเวลา 20:00 (ถ้า admin ไม่ปิด และไม่ได้เปิดด้วย admin override)
@@ -64,12 +67,13 @@ export class ScheduledTasks {
         const updatedStatus = {
           isOpen: false,
           openedBy: 'auto' as const,
-          openedAt: now,
+          openedAt: thailandTime,
           lastUpdatedBy: 'system-auto-close'
         };
         
         bookingSystem['status'] = updatedStatus;
         await bookingSystem['saveToDatabase']();
+        console.log(`[Thailand Time ${thailandTime.toISOString()}] ระบบปิดอัตโนมัติ`);
       }
 
       // แจ้งเตือนก่อนปิดระบบ 15 นาที (19:45) - เฉพาะถ้าไม่ได้เปิดโดย admin
