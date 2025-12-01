@@ -144,13 +144,16 @@ export default function AdminDashboard() {
     };
 
     const toggleSystemStatus = async () => {
-        const currentHour = new Date().getHours();
+        // ใช้เวลาไทย (UTC+7)
+        const now = new Date();
+        const thailandTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+        const currentHour = thailandTime.getHours();
         
-        // ตรวจสอบว่าก่อน 8:00 น. และพยายามเปิดระบบ
-        if (currentHour < 8 && !systemStatus.isOpen) {
+        // ตรวจสอบว่าอยู่นอกช่วงเวลาที่อนุญาต (08:00 - 19:59 น.)
+        if (currentHour < 8 || currentHour >= 20) {
             toast?.showError(
-                "ไม่สามารถเปิดระบบได้", 
-                "ระบบเปิดให้บริการตั้งแต่ 8:00-20:00 น. เท่านั้น"
+                "ไม่สามารถเปิด/ปิดระบบได้", 
+                "สามารถเปิด/ปิดระบบได้เฉพาะช่วงเวลา 08:00 - 19:59 น. เท่านั้น ระบบจะเปิดอัตโนมัติเวลา 08:00 น. และปิดอัตโนมัติเวลา 20:00 น."
             );
             return;
         }
@@ -404,7 +407,12 @@ export default function AdminDashboard() {
                         </div>
                         <Button
                             onClick={toggleSystemStatus}
-                            disabled={systemLoading || (currentTime.getHours() < 8 && !systemStatus.isOpen)}
+                            disabled={systemLoading || (() => {
+                                const now = new Date();
+                                const thailandTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+                                const hour = thailandTime.getHours();
+                                return hour < 8 || hour >= 20;
+                            })()}
                             className={`tw-px-6 tw-py-3 tw-font-semibold tw-rounded-xl tw-transition-all tw-duration-300 tw-shadow-lg hover:tw-shadow-xl tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed ${systemStatus.isOpen
                                 ? 'tw-bg-gradient-to-r tw-from-red-500 tw-to-red-600 hover:tw-from-red-600 hover:tw-to-red-700 tw-text-white focus:tw-ring-4 focus:tw-ring-red-300'
                                 : 'tw-bg-gradient-to-r tw-from-green-500 tw-to-green-600 hover:tw-from-green-600 hover:tw-to-green-700 tw-text-white focus:tw-ring-4 focus:tw-ring-green-300'
@@ -422,27 +430,39 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* ข้อความแจ้งเตือนสำหรับ Admin */}
-                    {currentTime.getHours() < 8 && !systemStatus.isOpen && (
-                        <div className="tw-mt-3 tw-p-3 tw-bg-orange-50 tw-border tw-border-orange-200 tw-rounded-lg">
-                            <div className="tw-flex tw-items-center tw-space-x-2">
-                                <AlertTriangle className="tw-w-4 tw-h-4 tw-text-orange-600" />
-                                <p className="tw-text-sm tw-text-orange-700">
-                                    ระบบเปิดให้บริการตั้งแต่ 8:00-20:00 น. เท่านั้น กรุณารอเวลา 8:00 น. เพื่อเปิดระบบ
-                                </p>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {currentTime.getHours() >= 20 && !systemStatus.isOpen && (
-                        <div className="tw-mt-3 tw-p-3 tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg">
-                            <div className="tw-flex tw-items-center tw-space-x-2">
-                                <CheckCircle className="tw-w-4 tw-h-4 tw-text-blue-600" />
-                                <p className="tw-text-sm tw-text-blue-700">
-                                    <strong>Admin Override:</strong> คุณสามารถเปิดระบบได้หลัง 8:00 น. ระบบจะเปิดอัตโนมัติเวลา 9:00 น. หากไม่ได้เปิดด้วยตนเอง
-                                </p>
-                            </div>
-                        </div>
-                    )}
+                    {(() => {
+                        const now = new Date();
+                        const thailandTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+                        const hour = thailandTime.getHours();
+                        
+                        if (hour < 8) {
+                            return (
+                                <div className="tw-mt-3 tw-p-3 tw-bg-orange-50 tw-border tw-border-orange-200 tw-rounded-lg">
+                                    <div className="tw-flex tw-items-center tw-space-x-2">
+                                        <AlertTriangle className="tw-w-4 tw-h-4 tw-text-orange-600" />
+                                        <p className="tw-text-sm tw-text-orange-700">
+                                            ไม่สามารถเปิด/ปิดระบบได้ในช่วงเวลา 20:00 - 07:59 น. ระบบจะเปิดอัตโนมัติเวลา 08:00 น.
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        }
+                        
+                        if (hour >= 20) {
+                            return (
+                                <div className="tw-mt-3 tw-p-3 tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg">
+                                    <div className="tw-flex tw-items-center tw-space-x-2">
+                                        <CheckCircle className="tw-w-4 tw-h-4 tw-text-blue-600" />
+                                        <p className="tw-text-sm tw-text-blue-700">
+                                            ระบบปิดอัตโนมัติเวลา 20:00 น. แล้ว ไม่สามารถเปิด/ปิดระบบได้จนกว่าจะถึง 08:00 น.
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        }
+                        
+                        return null;
+                    })()}
 
                     <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-4 tw-pt-4 tw-border-t tw-border-gray-100">
                         <div className="tw-text-center">

@@ -35,15 +35,10 @@ const BookingDashboard = () => {
   const refreshInterval = useRef<NodeJS.Timeout | null>(null);
   const countdownInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch system status เฉพาะเมื่อ authenticated
+  // Fetch system status (ไม่ต้อง login)
   const fetchSystemStatus = async () => {
-    if (status !== 'authenticated') {
-      setSystemLoading(false);
-      return;
-    }
-
     try {
-      const response = await fetch('/api/admin/booking-system');
+      const response = await fetch('/api/booking-system-status');
       const data = await response.json();
 
       if (data.success) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../../lib/Auth";
 import { PrismaClient } from "@prisma/client";
+import { isAdminControlAllowed, getAdminControlDisabledMessage } from "@/lib/scheduled-tasks";
 
 const prisma = new PrismaClient();
 
@@ -124,31 +125,30 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // ตรวจสอบว่าก่อน 8:00 น. และพยายามเปิดระบบ
-    const now = new Date();
-    const hour = now.getHours();
-    
-    if (hour < 8 && isOpen) {
+    // เช็คว่าอยู่ในช่วงเวลาที่ admin สามารถควบคุมได้หรือไม่ (08:00 - 19:59 น. เวลาไทย)
+    if (!isAdminControlAllowed()) {
+      const message = getAdminControlDisabledMessage();
       return NextResponse.json(
         { 
           success: false, 
-          error: "ไม่สามารถเปิดระบบได้ก่อน 8:00 น.",
-          message: "ระบบเปิดให้บริการตั้งแต่ 8:00-20:00 น. เท่านั้น"
+          error: "ไม่สามารถเปิด/ปิดระบบได้ในช่วงเวลานี้",
+          message: message
         },
         { status: 403 }
       );
     }
+
+    const now = new Date();
+    const thailandTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+    const hour = thailandTime.getHours();
     const statusData = {
       isOpen,
       openedBy: 'admin',
-      openedAt: now.toISOString(),
+      openedAt: thailandTime.toISOString(),
       businessHours: { start: 8, end: 20 },
       lastUpdatedBy: session.user.username || session.user.id,
       manualOverride: true, // บอกว่า admin เป็นคนเปิด/ปิดเอง
-      adminOverride: (hour >= 20 || hour < 8) && isOpen, // บอกว่าเป็นการเปิดนอกเวลาโดย admin
-      overrideReason: (hour >= 20 || hour < 8) && isOpen 
-        ? (hour >= 20 ? 'Admin opened system after business hours' : 'Admin opened system before business hours')
-        : null
+      thailandTime: thailandTime.toISOString()
     };
 
     try {
@@ -166,20 +166,17 @@ export async function PUT(request: NextRequest) {
       });
 
       // คำนวณ effectiveStatus สำหรับ response
-      const hour = now.getHours();
-      const isBusinessHours = hour >= 9 && hour < 20;
+      const isBusinessHours = hour >= 8 && hour < 20;
       const responseData = {
         ...statusData,
-        currentTime: now.toISOString(),
+        currentTime: thailandTime.toISOString(),
         currentHour: hour,
         isBusinessHours,
         effectiveStatus: isOpen && isBusinessHours
       };
 
       const message = isOpen 
-        ? (hour >= 20 ? 'เปิดระบบการจองสำเร็จ (Admin Override หลังเวลาทำการ)' : 
-           hour < 8 ? 'เปิดระบบการจองสำเร็จ (Admin Override ก่อนเวลาทำการ)' : 
-           'เปิดระบบการจองสำเร็จ')
+        ? 'เปิดระบบการจองสำเร็จ'
         : 'ปิดระบบการจองสำเร็จ';
 
       return NextResponse.json({
