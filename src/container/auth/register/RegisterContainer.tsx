@@ -25,8 +25,6 @@ export default function RegisterContainner() {
         { label: "บุคลากร", value: "staff" },
         { label: "นักเรียนสาธิต", value: "student" },
         { label: "บุคคลทั่วไป", value: "guest" },
-        { label: "ผู้ดูแลระบบ", value: "admin" },
-        { label: "ผู้ดูแลระบบสูงสุด", value: "super_admin" }
     ];
 
     // Loading state
@@ -198,20 +196,16 @@ export default function RegisterContainner() {
 
             const userData = {
                 // Basic info
-                username: (userType === "admin" || userType === "super_admin") ? username.trim() : `USER_${Date.now()}`,
+                username: `USER_${Date.now()}`,
                 password: hashedPassword,
                 email: email.trim(),
                 phone: phone.trim(),
-                title_th: prefix?.th || null,
-                title_en: prefix?.en || null,
+                title_th: prefix?.th ?? null,
+                title_en: prefix?.en ?? null,
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
                 role: userType,
 
-                // Admin และ SuperAdmin ไม่ต้องมี national_id
-                ...(userType !== "admin" && userType !== "super_admin" && {
-                    national_id: hashedNationalId,
-                }),
 
                 // Staff specific
                 ...(userType === "staff" && {
@@ -242,10 +236,12 @@ export default function RegisterContainner() {
                     router.push("/login");
                 }, 2000);
             } else {
-                toast.showError("สมัครสมาชิกไม่สำเร็จ", result.error || "เกิดข้อผิดพลาด");
+                const errorMessage = typeof result.error === 'object' && result.error?.message 
+                    ? result.error.message 
+                    : result.error || "เกิดข้อผิดพลาด";
+                toast.showError("สมัครสมาชิกไม่สำเร็จ", errorMessage);
             }
         } catch (error) {
-            console.error("Registration error:", error);
             toast.showError("เกิดข้อผิดพลาด", "ไม่สามารถสมัครสมาชิกได้ กรุณาลองใหม่อีกครั้ง");
         } finally {
             setIsSubmitting(false);

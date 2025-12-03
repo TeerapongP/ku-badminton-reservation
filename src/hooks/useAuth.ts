@@ -75,7 +75,10 @@ export function useAuth() {
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.error || "เกิดข้อผิดพลาดในการสมัครสมาชิก");
+        return {
+          success: false,
+          error: data.error || "เกิดข้อผิดพลาดในการสมัครสมาชิก"
+        };
       }
 
       return { success: true, data };
