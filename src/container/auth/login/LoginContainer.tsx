@@ -8,7 +8,7 @@ import { Button } from "@/components/Button";
 import { useToast } from "@/components/ToastProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import bcrypt from 'bcryptjs';
+import { encryptDataClient } from "@/lib/encryption";
 import Loading from "@/components/Loading";
 
 export default function LoginContainner() {
@@ -30,12 +30,10 @@ export default function LoginContainner() {
     if (!password) return "กรุณากรอกรหัสผ่าน";
 
     // ตรวจสอบรูปแบบ
-    const isStudentId = /^\d{8,10}$/.test(identifier);
     const isNationalId = /^\d{13}$/.test(identifier);
-    const isUsername = /^[a-zA-Z0-9_]{3,20}$/.test(identifier); // Username สำหรับ admin
 
-    if (!isStudentId && !isNationalId && !isUsername) {
-      return "รหัสนิสิตต้องเป็นตัวเลข 8-10 หลัก, เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก หรือ Username สำหรับ Admin";
+    if ( !isNationalId) {
+      return  "เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก ";
     }
 
     return null;
@@ -63,19 +61,26 @@ export default function LoginContainner() {
       const isNationalId = /^\d{13}$/.test(identifier);
       const isUsername = /^[a-zA-Z0-9_]{3,20}$/.test(identifier);
 
-      // เข้ารหัส identifier สำหรับการค้นหา (เฉพาะเลขบัตรประชาชน)
-      const hashedIdentifier = isNationalId ? await bcrypt.hash(identifier, 12) : identifier;
-
       // กำหนด loginType ตามลำดับความสำคัญ
       let loginType = 'username'; // default
       if (isStudentId) loginType = 'student_id';
       else if (isNationalId) loginType = 'national_id';
 
+      // เข้ารหัสข้อมูลก่อนส่ง
+      const encryptionKey = process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
+      if (!encryptionKey) {
+        throw new Error("Encryption key not found");
+      }
+
+      const encryptedIdentifier = encryptDataClient(identifier, encryptionKey);
+      const encryptedPassword = encryptDataClient(password, encryptionKey);
+      const encryptedOriginalIdentifier = encryptDataClient(identifier, encryptionKey);
+
       const loginData = {
-        identifier: hashedIdentifier,
-        password,
+        identifier: encryptedIdentifier,
+        password: encryptedPassword,
         type: loginType,
-        originalIdentifier: identifier // ส่ง plain text ไปด้วยเพื่อเปรียบเทียบ
+        originalIdentifier: encryptedOriginalIdentifier
       };
 
 
@@ -177,7 +182,6 @@ export default function LoginContainner() {
           <p className="tw-text-xs tw-text-gray-500 tw-mt-2">
             • นิสิต: รหัสนิสิต 8-10 หลัก<br />
             • บุคลากร/บุคคลทั่วไป: เลขบัตรประชาชน 13 หลัก<br />
-            • ผู้ดูแลระบบ: Username<br />
           </p>
         </div>
 

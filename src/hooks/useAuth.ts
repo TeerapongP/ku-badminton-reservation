@@ -77,7 +77,7 @@ export function useAuth() {
       if (!data.success) {
         return {
           success: false,
-          error: data.error || "เกิดข้อผิดพลาดในการสมัครสมาชิก"
+          error: data.error ?? "เกิดข้อผิดพลาดในการสมัครสมาชิก"
         };
       }
 

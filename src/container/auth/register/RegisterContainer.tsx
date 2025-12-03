@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import {
     prefixTitleOptions,
 } from '@/constants/options';
-import bcrypt from 'bcryptjs';
+import { hashPassword, encryptDataClient } from '@/lib/encryption';
 
 export default function RegisterContainner() {
     const toast = useToast();
@@ -35,10 +35,9 @@ export default function RegisterContainner() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [nationnalId, setNationnalId] = useState('');
 
-    const [username, setUsername] = useState('');
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
-    const [userType, setUserType] = useState<"staff" | "student" | "guest" | "admin" | "super_admin">("staff");
+    const [userType, setUserType] = useState<"staff" | "student" | "guest" | "demonstration_student">("staff");
     const [prefix, setPrefix] = useState<{ en: string; th: string } | null>(null);
     const [phone, setPhone] = useState<string>('');
     const [email, setEmail] = useState<string>('');
@@ -154,25 +153,13 @@ export default function RegisterContainner() {
         if (!phone.trim()) return "กรุณากรอกเบอร์โทรศัพท์";
         if (phone && !/^0\d{9}$/.test(phone)) return "เบอร์โทรศัพท์ต้องขึ้นต้นด้วย 0 และมี 10 หลัก";
 
-        // Admin และ SuperAdmin ใช้ username
-        if (userType === "admin" || userType === "super_admin") {
-            if (!username.trim()) return "กรุณากรอก Username";
-            if (username.length < 3) return "Username ต้องมีอย่างน้อย 3 ตัวอักษร";
-            if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) return "Username ต้องเป็นตัวอักษร ตัวเลข หรือ _ เท่านั้น";
-        } else {
-            // ผู้ใช้อื่นใช้ national_id
-            if (!nationnalId.trim()) return "กรุณากรอกรหัสบัตรประชาชน";
-            if (nationnalId && !/^\d{13}$/.test(nationnalId)) return "เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก";
-        }
+        // ผู้ใช้อื่นใช้ national_id
+        if (!nationnalId.trim()) return "กรุณากรอกรหัสบัตรประชาชน";
+        if (nationnalId && !/^\d{13}$/.test(nationnalId)) return "เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก";
 
         // Staff validation
         if (userType === "staff") {
             if (!office) return "กรุณาเลือกหน่วยงาน";
-        }
-
-        // Student validation
-        if (userType === "student") {
-            // นักเรียนสาธิตไม่ต้องมี validation เพิ่มเติม
         }
 
         return null;
@@ -190,9 +177,15 @@ export default function RegisterContainner() {
         setIsSubmitting(true);
 
         try {
-            // เข้ารหัส password และ national_id
-            const hashedPassword = await bcrypt.hash(password, 12);
-            const hashedNationalId = nationnalId ? await bcrypt.hash(nationnalId, 12) : null;
+            const encryptionKey = process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
+            if (!encryptionKey) {
+                throw new Error("Encryption key not found");
+            }
+
+            // เข้ารหัส password, national_id และ role
+            const hashedPassword = await hashPassword(password);
+            const encryptedNationalId = nationnalId ? encryptDataClient(nationnalId, encryptionKey) : null;
+            const encryptedRole = encryptDataClient(userType, encryptionKey);
 
             const userData = {
                 // Basic info
@@ -204,8 +197,8 @@ export default function RegisterContainner() {
                 title_en: prefix?.en ?? null,
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
-                role: userType,
-
+                role: encryptedRole,
+                national_id: encryptedNationalId,
 
                 // Staff specific
                 ...(userType === "staff" && {
@@ -215,7 +208,7 @@ export default function RegisterContainner() {
                 }),
 
                 // Student specific (นักเรียนสาธิต)
-                ...(userType === "student" && {
+                ...(userType === "demonstration_student" && {
                     student_id: `STU_${Date.now()}`, // generate student_id
                     faculty_id: 1, // default faculty
                     department_id: 1, // default department
@@ -236,8 +229,8 @@ export default function RegisterContainner() {
                     router.push("/login");
                 }, 2000);
             } else {
-                const errorMessage = typeof result.error === 'object' && result.error?.message 
-                    ? result.error.message 
+                const errorMessage = typeof result.error === 'object' && result.error?.message
+                    ? result.error.message
                     : result.error ?? "เกิดข้อผิดพลาด";
                 toast.showError("สมัครสมาชิกไม่สำเร็จ", errorMessage);
             }
@@ -256,7 +249,7 @@ export default function RegisterContainner() {
                     <h2 className="tw-text-2xl sm:tw-text-3xl lg:tw-text-4xl tw-font-bold tw-text-gray-800">
                         สมัครสมาชิก
                     </h2>
-                    <Link 
+                    <Link
                         href="/"
                         className="tw-px-4 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-700 tw-bg-white tw-border tw-border-gray-300 tw-rounded-lg hover:tw-bg-gray-50 tw-transition-colors tw-duration-200 tw-flex tw-items-center tw-gap-2"
                     >
@@ -280,32 +273,16 @@ export default function RegisterContainner() {
                         required
                     />
                 </div>
-
-
-                {/* Username field สำหรับ Admin และ SuperAdmin */}
-                {(userType === "admin" || userType === "super_admin") ? (
-                    <div className="tw-col-span-4 md:tw-col-span-12">
-                        <InputField
-                            type="text"
-                            placeholder="กรอก Username"
-                            value={username}
-                            maxLength={20}
-                            onChange={(val) => setUsername(val as string)}
-                            required
-                        />
-                    </div>
-                ) : (
-                    <div className="tw-col-span-4 md:tw-col-span-12">
-                        <InputField
-                            type="text"
-                            placeholder="กรอกรหัสบัตรประชาชน"
-                            value={nationnalId}
-                            maxLength={13}
-                            onChange={(val) => setNationnalId(val as string)}
-                            required
-                        />
-                    </div>
-                )}
+                <div className="tw-col-span-4 md:tw-col-span-12">
+                    <InputField
+                        type="text"
+                        placeholder="กรอกรหัสบัตรประชาชน"
+                        value={nationnalId}
+                        maxLength={13}
+                        onChange={(val) => setNationnalId(val as string)}
+                        required
+                    />
+                </div>
                 <div className="tw-col-span-4 md:tw-col-span-6">
                     <InputField
                         type="password"

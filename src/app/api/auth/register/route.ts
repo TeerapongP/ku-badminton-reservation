@@ -1,5 +1,5 @@
 // src/app/api/auth/register/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import {
   withErrorHandler,
@@ -7,13 +7,13 @@ import {
   validateEmail,
   validatePhone,
   validatePostalCode,
-  validateStudentId,
   CustomApiError,
   ERROR_CODES,
   HTTP_STATUS,
   successResponse
 } from "@/lib/error-handler";
 import { withMiddleware } from "@/lib/api-middleware";
+import { decryptData } from "@/lib/encryption";
 
 const prisma = new PrismaClient();
 
@@ -43,7 +43,7 @@ async function registerHandler(req: NextRequest) {
     phone,
     first_name,
     last_name,
-    role,
+    role: encryptedRole,
 
     // Student specific
     student_id,
@@ -57,27 +57,47 @@ async function registerHandler(req: NextRequest) {
     position,
     staff_type,
     unit_id,
-
-    // Address
-    house_number,
-    street,
-    subdistrict,
-    district,
-    province,
     postal_code,
-    country = "TH",
   } = body;
 
+  // ---------- ถอดรหัส role และ national_id ----------
+  let role: string;
+  let decryptedNationalId: string | null = null;
+  
+  try {
+    role = decryptData(encryptedRole);
+  } catch (error) {
+    throw new CustomApiError(
+      ERROR_CODES.VALIDATION_ERROR,
+      "ข้อมูล role ไม่ถูกต้อง",
+      HTTP_STATUS.BAD_REQUEST,
+      { field: "role" }
+    );
+  }
+
+  // ถอดรหัส national_id ถ้ามี
+  if (national_id) {
+    try {
+      decryptedNationalId = decryptData(national_id);
+    } catch (error) {
+      throw new CustomApiError(
+        ERROR_CODES.VALIDATION_ERROR,
+        "ข้อมูลเลขบัตรประชาชนไม่ถูกต้อง",
+        HTTP_STATUS.BAD_REQUEST,
+        { field: "national_id" }
+      );
+    }
+  }
+
   // ---------- Validate เบื้องต้น ----------
-  validateRequired(body, ['username', 'password', 'email', 'first_name', 'last_name', 'role']);
+  validateRequired(body, ['username', 'password', 'email', 'first_name', 'last_name', 'role', 'national_id']);
 
   // Validate email format
   validateEmail(email);
 
   // เงื่อนไขเฉพาะ role
-  if (role === "student") {
-    validateRequired(body, ['student_id', 'faculty_id', 'department_id', 'level_of_study']);
-    validateStudentId(student_id);
+  if (role === "demonstration_student") {
+    validateRequired(body, ['student_id', 'faculty_id', 'department_id', 'level_of_study', 'national_id']);
   }
 
   if (role === "staff") {
@@ -85,14 +105,6 @@ async function registerHandler(req: NextRequest) {
   }
 
   if (role === "guest") {
-    validateRequired(body, ['national_id']);
-  }
-
-  // Admin และ SuperAdmin ไม่ต้องมี national_id
-  if (role === "admin" || role === "super_admin") {
-    // ไม่ต้อง validate national_id
-  } else {
-    // ผู้ใช้อื่นต้องมี national_id
     validateRequired(body, ['national_id']);
   }
 
@@ -114,9 +126,7 @@ async function registerHandler(req: NextRequest) {
         { username },
         { email },
         ...(phone ? [{ phone }] : []),
-        ...(role === "student" && student_id ? [{ student_id }] : []),
-        // ตรวจสอบ national_id เฉพาะผู้ใช้ที่ไม่ใช่ admin
-        ...(role !== "admin" && role !== "super_admin" && national_id ? [{ national_id }] : []),
+        ...(decryptedNationalId ? [{ national_id: decryptedNationalId }] : []),
       ],
     },
     select: {
@@ -133,8 +143,8 @@ async function registerHandler(req: NextRequest) {
     if (existingUser.username === username) duplicateField = "ชื่อผู้ใช้";
     else if (existingUser.email.toLowerCase() === email.toLowerCase()) duplicateField = "อีเมล";
     else if (existingUser.phone && existingUser.phone === phone) duplicateField = "เบอร์โทรศัพท์";
-    else if (existingUser.student_id && existingUser.student_id === student_id) duplicateField = "รหัสนิสิต";
-    else if (existingUser.national_id && existingUser.national_id === national_id) duplicateField = "เลขบัตรประชาชน";
+    else if (existingUser.national_id && existingUser.national_id === decryptedNationalId)
+      duplicateField = "เลขบัตรประชาชน";
 
     throw new CustomApiError(
       ERROR_CODES.DUPLICATE_ENTRY,
@@ -149,21 +159,20 @@ async function registerHandler(req: NextRequest) {
 
   // ---------- Transaction ----------
   const result = await prisma.$transaction(async (tx) => {
-    // 1) users (ยังไม่ใส่ address_id)
+    // 1) users (บันทึก national_id ที่ถอดรหัสแล้ว)
     const newUser = await tx.users.create({
       data: {
         username,
-        password_hash, // ใช้ตัวแปรเดียว
+        password_hash,
         email,
         phone,
-        title_th: title_th || null,
-        title_en: title_en || null,
+        title_th: title_th,
+        title_en: title_en,
         first_name,
         last_name,
         role: role as any,
-        student_id: role === "student" ? student_id : null,
         staff_id: role === "staff" ? `STAFF_${Date.now()}` : null,
-        national_id: national_id || null,
+        national_id: decryptedNationalId,
         status: "active" as any,
       },
       select: {
@@ -172,31 +181,36 @@ async function registerHandler(req: NextRequest) {
         email: true,
         first_name: true,
         last_name: true,
-        role: true,
       },
     });
 
-    // 2) ข้าม addresses เนื่องจากไม่มี table นี้ใน schema
-    let addressId: bigint | null = null;
-
-    // 3) profile ตาม role
-    if (role === "student") {
+    // 2) profile ตาม role
+    if (role === "student" || role === "demonstration_student") {
       await tx.student_profile.create({
         data: {
           user_id: newUser.user_id,
-          student_id: student_id!,
-          national_id: national_id || null,
+          student_id: student_id,
+          national_id: decryptedNationalId,
           faculty_id: BigInt(faculty_id),
           department_id: BigInt(department_id),
           level_of_study: level_of_study as any,
-          student_status: "enrolled" as any,
         },
       });
     } else if (role === "staff") {
+      // staff_profile.national_id เป็น required และรองรับแค่ VARCHAR(20)
+      if (!decryptedNationalId) {
+        throw new CustomApiError(
+          ERROR_CODES.VALIDATION_ERROR,
+          "กรุณากรอกเลขบัตรประชาชน",
+          HTTP_STATUS.BAD_REQUEST,
+          { field: "national_id" }
+        );
+      }
+      
       await tx.staff_profile.create({
         data: {
           user_id: newUser.user_id,
-          national_id: national_id || null,
+          national_id: decryptedNationalId.substring(0, 20),
           office_department: office_department || null,
           position: position || null,
           staff_type: staff_type as any,
@@ -216,18 +230,14 @@ async function registerHandler(req: NextRequest) {
       },
     });
 
-    return { newUser, addressId };
+    return { newUser };
   });
 
-  const { newUser, addressId } = result;
+  const { newUser } = result;
 
   return successResponse({
-    id: newUser.user_id.toString(),
-    username: newUser.username,
-    email: newUser.email,
+    // id: newUser.user_id.toString(),
     name: `${newUser.first_name} ${newUser.last_name}`,
-    role: newUser.role,
-    address_id: null,
   }, "สมัครสมาชิกสำเร็จ");
 }
 

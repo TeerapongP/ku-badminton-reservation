@@ -599,14 +599,6 @@ enum users_membership {
   non_member
 }
 
-enum users_role {
-  student
-  staff
-  admin
-  guest
-  super_admin @map("super-admin")
-}
-
 enum archive_users_role {
   student
   staff
@@ -636,4 +628,13 @@ enum archive_users_status {
 enum archive_users_membership {
   member
   non_member
+}
+
+enum users_role {
+  student
+  demonstration_student
+  staff
+  admin
+  guest
+  super_admin           @map("super-admin")
 }

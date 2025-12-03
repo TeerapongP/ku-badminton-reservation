@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
+import { encryptData, decryptData } from "./encryption";
 
 // Ensure database connection
 prisma.$connect().catch((error: any) => {
@@ -20,25 +21,42 @@ export const authOptions: NextAuthOptions = {
         originalIdentifier: { label: "Original Identifier", type: "text" }
       },
       async authorize(credentials, req) {
+        // ถอดรหัสข้อมูลที่ได้รับจาก client
+        let identifier = credentials?.identifier;
+        let password = credentials?.password;
+        let originalIdentifier = credentials?.originalIdentifier;
+
+        try {
+          if (identifier) identifier = decryptData(identifier);
+          if (password) password = decryptData(password);
+          if (originalIdentifier) originalIdentifier = decryptData(originalIdentifier);
+        } catch (decryptError) {
+          console.error("❌ Decryption error:", decryptError);
+          return null;
+        }
+
+        // เข้ารหัสสำหรับ log
+        const encryptedIdentifierForLog = identifier ? encryptData(identifier) : null;
+
         console.log("🔐 NextAuth authorize called with:", {
-          identifier: credentials?.identifier,
+          identifier: encryptedIdentifierForLog,
           type: credentials?.type,
-          hasPassword: !!credentials?.password,
+          hasPassword: !!password,
           allCredentials: Object.keys(credentials || {})
         });
 
         // Validate required fields
-        if (!credentials?.identifier || !credentials?.password) {
+        if (!identifier || !password) {
           console.error("❌ Missing required credentials:", {
-            hasIdentifier: !!credentials?.identifier,
-            hasPassword: !!credentials?.password,
+            hasIdentifier: !!identifier,
+            hasPassword: !!password,
             hasType: !!credentials?.type
           });
           return null;
         }
 
         // Default type if not provided
-        const loginType = credentials.type || 'student_id';
+        const loginType = credentials?.type || 'student_id';
 
         try {
           let user;
@@ -47,9 +65,9 @@ export const authOptions: NextAuthOptions = {
 
           if (loginType === 'student_id') {
             // ค้นหาด้วยรหัสนิสิต
-            console.log("👨‍🎓 Searching by student_id:", credentials.identifier);
+            console.log("👨‍🎓 Searching by student_id:", encryptedIdentifierForLog);
             user = await prisma.users.findFirst({
-              where: { student_id: credentials.identifier },
+              where: { student_id: identifier },
               select: {
                 user_id: true,
                 username: true,
@@ -62,12 +80,22 @@ export const authOptions: NextAuthOptions = {
               }
             });
           } else if (loginType === 'national_id') {
-            // ค้นหาด้วยเลขบัตรประชาชน
-            const allUsers = await prisma.users.findMany({
+            // ค้นหาด้วยเลขบัตรประชาชน (เก็บเป็น plain text ในฐานข้อมูล)
+            console.log("🔍 Searching national_id, originalIdentifier exists:", !!originalIdentifier);
+
+            if (!originalIdentifier) {
+              console.log("❌ originalIdentifier is required for national_id login");
+              throw new Error("CredentialsSignin");
+            }
+
+            // ค้นหาโดยตรงด้วย national_id (plain text)
+            user = await prisma.users.findFirst({
               where: {
-                national_id: { not: null },
+                national_id: originalIdentifier,
                 OR: [
                   { role: 'staff' },
+                  { role: 'student' },
+                  { role: 'demonstration_student' },
                   { role: 'guest' },
                   { role: 'admin' },
                   { role: 'super_admin' }
@@ -82,24 +110,20 @@ export const authOptions: NextAuthOptions = {
                 last_name: true,
                 role: true,
                 status: true,
-                national_id: true,
               }
             });
 
-            // เปรียบเทียบ plain text กับ hash ใน database
-            for (const u of allUsers) {
-              if (u.national_id && credentials.originalIdentifier &&
-                await bcrypt.compare(credentials.originalIdentifier, u.national_id)) {
-                user = u;
-                break;
-              }
+            if (user) {
+              console.log("✅ Found user by national_id:", user.username);
+            } else {
+              console.log("❌ No user found with national_id");
             }
           } else if (loginType === 'username') {
             // ค้นหาด้วย username (สำหรับ admin และ super_admin เท่านั้น)
-            console.log("👨‍💼 Searching by username:", credentials.identifier);
+            console.log("👨‍💼 Searching by username:", encryptedIdentifierForLog);
             user = await prisma.users.findFirst({
               where: {
-                username: credentials.identifier,
+                username: identifier,
                 OR: [
                   { role: 'admin' },
                   { role: 'super_admin' }
@@ -119,7 +143,7 @@ export const authOptions: NextAuthOptions = {
           }
 
           if (!user) {
-            console.log("❌ User not found for identifier:", credentials.identifier, "type:", loginType);
+            console.log("❌ User not found for identifier:", encryptedIdentifierForLog, "type:", loginType);
             throw new Error("CredentialsSignin");
           }
 
@@ -137,7 +161,7 @@ export const authOptions: NextAuthOptions = {
           }
 
           // ตรวจสอบรหัสผ่าน
-          const isPasswordValid = await bcrypt.compare(credentials.password, user.password_hash);
+          const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
           if (!isPasswordValid) {
             console.log("❌ Invalid password");
@@ -147,7 +171,7 @@ export const authOptions: NextAuthOptions = {
               await prisma.auth_log.create({
                 data: {
                   user_id: user.user_id,
-                  username_input: credentials.identifier,
+                  username_input: encryptedIdentifierForLog || "unknown",
                   action: "login_fail",
                   ip: "unknown",
                   user_agent: "unknown"
@@ -192,7 +216,7 @@ export const authOptions: NextAuthOptions = {
             await prisma.auth_log.create({
               data: {
                 user_id: user.user_id,
-                username_input: credentials.identifier,
+                username_input: encryptedIdentifierForLog || "unknown",
                 action: "login_success",
                 ip: "unknown",
                 user_agent: "unknown"
@@ -224,11 +248,12 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 ชั่วโมง
+    maxAge: 5 * 60 * 60, // 5 ชั่วโมง
   },
   jwt: {
-    maxAge: 24 * 60 * 60, // 24 ชั่วโมง
+    maxAge: 5 * 60 * 60, // 5 ชั่วโมง
   },
+
   debug: process.env.NODE_ENV === 'development', // Enable debug in development
   callbacks: {
     async jwt({ token, user }) {
@@ -242,7 +267,7 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      console.log("📋 Session callback:", { 
+      console.log("📋 Session callback:", {
         tokenId: token.id,
         role: token.role,
         isFirstLogin: token.isFirstLogin

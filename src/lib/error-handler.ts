@@ -348,16 +348,6 @@ export function validatePostalCode(postalCode: string): void {
   }
 }
 
-export function validateStudentId(studentId: string): void {
-  const studentIdRegex = /^\d{8,10}$/;
-  if (!studentIdRegex.test(studentId)) {
-    throw new CustomApiError(
-      ERROR_CODES.INVALID_FORMAT,
-      'รหัสนิสิตต้องเป็นตัวเลข 8-10 หลัก',
-      HTTP_STATUS.BAD_REQUEST
-    );
-  }
-}
 
 // Helper function to convert BigInt to string for JSON serialization
 function convertBigIntToString(obj: any): any {

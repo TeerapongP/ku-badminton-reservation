@@ -21,7 +21,11 @@ const ProfileContainer: React.FC = () => {
     const [formData, setFormData] = useState<UserProfile | null>(null);
     const [decryptedImageUrl, setDecryptedImageUrl] = useState<string | null>(null);
     const lastFetchedIdRef = useRef<string | null>(null);
-
+    const roleLabelMap: Record<string, string> = {
+        guest: "บุคคลธรรมดา",
+        student: "นักศึกษา",
+        demonstration_student: "นักเรียนสาธิต",
+    };
     const fetchUserProfile = useCallback(async (id: string) => {
         try {
             setIsLoading(true);
@@ -338,7 +342,7 @@ const ProfileContainer: React.FC = () => {
                                             userData.role
                                         )}`}
                                     >
-                                        {userData.role.toUpperCase()}
+                                        {roleLabelMap[userData.role] ?? ""}
                                     </span>
 
                                     {/* Membership Badge */}
@@ -428,7 +432,7 @@ const ProfileContainer: React.FC = () => {
                                             placeholder="Username"
                                             value={formData.username}
                                             onChange={(value) => handleInputChange("username", value)}
-                                            disabled={!isEditing}
+                                            disabled={true}
                                             required
                                             className="tw-pl-10"
                                         />
