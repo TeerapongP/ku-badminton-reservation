@@ -238,7 +238,7 @@ export default function RegisterContainner() {
             } else {
                 const errorMessage = typeof result.error === 'object' && result.error?.message 
                     ? result.error.message 
-                    : result.error || "เกิดข้อผิดพลาด";
+                    : result.error ?? "เกิดข้อผิดพลาด";
                 toast.showError("สมัครสมาชิกไม่สำเร็จ", errorMessage);
             }
         } catch (error) {
@@ -252,9 +252,20 @@ export default function RegisterContainner() {
     return (
         <>
             <div className="tw-mx-4 tw-my-4">
-                <h2 className="tw-text-2xl sm:tw-text-3xl lg:tw-text-4xl tw-font-bold tw-text-gray-800 tw-mb-4 sm:tw-mb-6 lg:tw-mb-4 tw-mt-[60px]">
-                    สมัครสมาชิก
-                </h2>
+                <div className="tw-flex tw-items-center tw-justify-between tw-mb-4 sm:tw-mb-6 lg:tw-mb-4 tw-mt-[60px]">
+                    <h2 className="tw-text-2xl sm:tw-text-3xl lg:tw-text-4xl tw-font-bold tw-text-gray-800">
+                        สมัครสมาชิก
+                    </h2>
+                    <Link 
+                        href="/"
+                        className="tw-px-4 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-700 tw-bg-white tw-border tw-border-gray-300 tw-rounded-lg hover:tw-bg-gray-50 tw-transition-colors tw-duration-200 tw-flex tw-items-center tw-gap-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="tw-w-4 tw-h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        กลับหน้าหลัก
+                    </Link>
+                </div>
             </div>
 
 

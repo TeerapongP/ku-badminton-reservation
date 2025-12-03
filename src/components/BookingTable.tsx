@@ -47,7 +47,7 @@ const getStatusDisplay = (status: string) => {
                     'tw-bg-gradient-to-br tw-from-gray-400 tw-to-gray-500 tw-text-white tw-shadow-sm',
                 chip:
                     'tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-gray-200 cursor-not-allowed',
-                icon: '🍽️',
+                icon: '',
             };
         case 'available':
         default:
@@ -400,12 +400,8 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
                     </div>
 
                     <div className="tw-flex tw-items-center tw-gap-3 tw-p-3 tw-bg-gray-50 tw-rounded-xl tw-border tw-border-gray-200">
-                        <div className="tw-w-10 tw-h-10 tw-bg-gradient-to-br tw-from-gray-400 tw-to-gray-500 tw-rounded-lg tw-flex tw-items-center tw-justify-center tw-text-white tw-font-bold tw-shadow-sm">
-                            🍽️
-                        </div>
                         <div>
                             <div className="tw-text-xs tw-font-bold tw-text-gray-800">พักเที่ยง</div>
-                            <div className="tw-text-md tw-text-gray-600">Lunch Break</div>
                         </div>
                     </div>
                 </div>

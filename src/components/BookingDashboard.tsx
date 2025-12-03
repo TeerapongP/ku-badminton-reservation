@@ -201,7 +201,7 @@ const BookingDashboard = () => {
         )}
 
         {/* System Status Check */}
-        {systemLoading ? (
+        {/* {systemLoading ? (
           <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-8 tw-text-center">
             <div className="tw-animate-spin tw-rounded-full tw-h-8 tw-w-8 tw-border-b-2 tw-border-blue-600 tw-mx-auto tw-mb-4"></div>
             <p className="tw-text-gray-600">กำลังตรวจสอบสถานะระบบ...</p>
@@ -231,12 +231,12 @@ const BookingDashboard = () => {
               </p>
             </div>
           </div>
-        ) : (
+        ) : ( */}
           <BookingTable
             bookings={bookings}
             loading={loading}
           />
-        )}
+        {/* )} */}
       </div>
     </div>
   );
