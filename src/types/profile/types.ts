@@ -11,10 +11,10 @@ export interface UserProfile {
   username: string;
   email: string;
   phone?: string;
-  title_th?: string;
-  title_en?: string;
   first_name: string;
   last_name: string;
+  first_name_en: string;
+  last_name_en: string;
 
   student_id?: string;
   staff_id?: string;

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/Auth";
 import { PrismaClient } from "@prisma/client";
+import { decryptData } from "@/lib/encryption";
 
 const prisma = new PrismaClient();
 
@@ -20,7 +21,18 @@ export async function GET(
             );
         }
 
-        const { userId } = await context.params;
+        const { userId: encryptedUserId } = await context.params;
+
+        // ถอดรหัส userId
+        let userId: string;
+        try {
+            userId = decryptData(decodeURIComponent(encryptedUserId));
+        } catch (error) {
+            return NextResponse.json(
+                { success: false, error: "ข้อมูล userId ไม่ถูกต้อง" },
+                { status: 400 }
+            );
+        }
 
         // ตรวจสอบว่าผู้ใช้เข้าถึงประวัติการจองของตัวเองหรือไม่ (หรือเป็น admin)
         if (session.user.id !== userId && session.user.role !== 'admin') {

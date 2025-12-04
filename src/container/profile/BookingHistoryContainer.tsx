@@ -25,6 +25,7 @@ import {
     BookingStatus
 } from "@/types/profile/booking-history";
 import { DateField } from "@/components/DateField";
+import { encryptDataClient } from "@/lib/encryption";
 
 const BookingHistoryContainer: React.FC = () => {
     const { data: session } = useSession();
@@ -58,6 +59,14 @@ const BookingHistoryContainer: React.FC = () => {
         try {
             setIsLoading(true);
 
+            // เข้ารหัส id ก่อนส่งไปยัง API
+            const encryptionKey = process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
+            if (!encryptionKey) {
+                toast.showError("เกิดข้อผิดพลาด", "ไม่พบ encryption key");
+                return;
+            }
+            const encryptedId = encryptDataClient(session.user.id, encryptionKey);
+
             const params = new URLSearchParams();
             if (currentFilters.status && currentFilters.status !== 'all') {
                 params.append('status', currentFilters.status);
@@ -72,7 +81,7 @@ const BookingHistoryContainer: React.FC = () => {
             params.append('limit', (currentFilters.limit || 10).toString());
 
             const response = await fetch(
-                `/api/profile/${session.user.id}/bookings?${params.toString()}`
+                `/api/profile/${encodeURIComponent(encryptedId)}/bookings?${params.toString()}`
             );
 
             if (!response.ok) {

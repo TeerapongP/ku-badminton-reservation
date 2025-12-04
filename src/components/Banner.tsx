@@ -108,31 +108,6 @@ export default function Banner() {
           ))}
         </div>
       )}
-
-      {/* Navigation Arrows (for manual control) */}
-      {banners.length > 1 && (
-        <>
-          <button
-            className="tw-absolute tw-left-4 tw-top-1/2 tw-transform tw--translate-y-1/2 tw-bg-black tw-bg-opacity-50 hover:tw-bg-opacity-75 tw-text-white tw-p-2 tw-rounded-full tw-transition-all tw-duration-300"
-            onClick={() => setCurrentSlide((prev) => (prev - 1 + banners.length) % banners.length)}
-            aria-label="Previous slide"
-          >
-            <svg className="tw-w-6 tw-h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-
-          <button
-            className="tw-absolute tw-right-4 tw-top-1/2 tw-transform tw--translate-y-1/2 tw-bg-black tw-bg-opacity-50 hover:tw-bg-opacity-75 tw-text-white tw-p-2 tw-rounded-full tw-transition-all tw-duration-300"
-            onClick={() => setCurrentSlide((prev) => (prev + 1) % banners.length)}
-            aria-label="Next slide"
-          >
-            <svg className="tw-w-6 tw-h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </>
-      )}
     </div>
   );
 }

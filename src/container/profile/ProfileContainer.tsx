@@ -9,6 +9,28 @@ import { UserProfile } from "@/types/profile/types";
 import { InputField } from "@/components/InputField";
 import { Button } from "@/components/Button";
 import { RoleColors } from "@/lib/RoleColors";
+import { encryptDataClient } from "@/lib/encryption";
+import { statfs } from "fs";
+
+// Decrypt data on client side
+const decryptDataClient = async (encryptedData: string): Promise<string> => {
+    try {
+        const response = await fetch('/api/decrypt/data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ encryptedData }),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data.decryptedData;
+        }
+        throw new Error('Decryption failed');
+    } catch (error) {
+        console.error('Decryption error:', error);
+        throw error;
+    }
+};
 
 const ProfileContainer: React.FC = () => {
     const { data: session } = useSession();
@@ -20,22 +42,47 @@ const ProfileContainer: React.FC = () => {
     const [userData, setUserData] = useState<UserProfile | null>(null);
     const [formData, setFormData] = useState<UserProfile | null>(null);
     const [decryptedImageUrl, setDecryptedImageUrl] = useState<string | null>(null);
+    const [decryptedRole, setDecryptedRole] = useState<string>("");
     const lastFetchedIdRef = useRef<string | null>(null);
+
     const roleLabelMap: Record<string, string> = {
         guest: "บุคคลธรรมดา",
         student: "นักศึกษา",
+        staff: "บุคลากร มก.",
         demonstration_student: "นักเรียนสาธิต",
+        admin: "ผู้ดูแลระบบ",
+        super_admin: "ผู้ดูแลระบบสูงสุด",
     };
     const fetchUserProfile = useCallback(async (id: string) => {
         try {
             setIsLoading(true);
 
-            const res = await fetch(`/api/profile/${id}`);
+            // เข้ารหัส id ก่อนส่งไปยัง API
+            const encryptionKey = process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
+            if (!encryptionKey) {
+                toast.showError("เกิดข้อผิดพลาด", "ไม่พบ encryption key");
+                return;
+            }
+            const encryptedId = encryptDataClient(id, encryptionKey);
+
+            const res = await fetch(`/api/profile/${encodeURIComponent(encryptedId)}`);
             if (!res.ok) {
                 toast.showError("เกิดข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลโปรไฟล์ได้");
                 return;
             }
             const data = await res.json();
+
+            // ถอดรหัส role
+            if (data.user.role) {
+                try {
+                    const decrypted = await decryptDataClient(data.user.role);
+                    setDecryptedRole(decrypted);
+                } catch (error) {
+                    console.error('Failed to decrypt role:', error);
+                    setDecryptedRole('guest'); // fallback
+                }
+            }
+
             setUserData(data.user);
             setFormData(data.user);
         } catch (err: any) {
@@ -83,10 +130,10 @@ const ProfileContainer: React.FC = () => {
                 const data = await response.json();
                 setDecryptedImageUrl(data.imagePath);
             } else {
-                setDecryptedImageUrl('https://via.placeholder.com/150');
+                setDecryptedImageUrl('/images/avatar_profile.jpg');
             }
         } catch (error) {
-            setDecryptedImageUrl('https://via.placeholder.com/150');
+            setDecryptedImageUrl('/images/avatar_profile.jpg');
         }
     };
 
@@ -142,7 +189,15 @@ const ProfileContainer: React.FC = () => {
                 profile_photo_url: encryptedImagePath
             };
 
-            const response = await fetch(`/api/profile/${session?.user?.id}`, {
+            // เข้ารหัส id ก่อนส่งไปยัง API
+            const encryptionKey = process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
+            if (!encryptionKey) {
+                toast.showError("เกิดข้อผิดพลาด", "ไม่พบ encryption key");
+                return;
+            }
+            const encryptedId = encryptDataClient(session?.user?.id ?? '', encryptionKey);
+
+            const response = await fetch(`/api/profile/${encodeURIComponent(encryptedId)}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(updateData),
@@ -293,7 +348,7 @@ const ProfileContainer: React.FC = () => {
                                         isEditing && formData?.profile_photo_url?.startsWith('data:')
                                             ? formData.profile_photo_url
                                             // Otherwise use decrypted URL or fallback
-                                            : decryptedImageUrl || "https://via.placeholder.com/150"
+                                            : decryptedImageUrl || "/images/avatar_profile.jpg"
                                     }
                                     alt="Profile"
                                     className="tw-w-32 tw-h-32 tw-rounded-full tw-border-4 tw-border-white tw-shadow-lg tw-object-cover tw-transition-all tw-duration-300 group-hover:tw-brightness-90"
@@ -330,29 +385,40 @@ const ProfileContainer: React.FC = () => {
 
 
                             {/* Name and Role */}
-                            <div className="tw-flex-1 tw-text-center sm:tw-text-left sm:tw-ml-4 tw-mt-2">
-                                <h2 className="tw-text-2xl tw-font-bold tw-text-gray-900">
-                                    {userData.title_en} {userData.first_name} {userData.last_name}
+                            <div className="tw-flex-1 tw-text-center sm:tw-text-left sm:tw-ml-4 tw-flex tw-flex-col tw-justify-center">
+                                <h2 className="tw-text-2xl tw-font-bold tw-text-gray-900 tw-mb-2">
+                                    {userData.first_name} {userData.last_name}
                                 </h2>
 
-                                <div className="tw-flex tw-flex-wrap tw-gap-2 tw-mt-3 tw-justify-center sm:tw-justify-start">
+                                <div className="tw-flex tw-flex-wrap tw-gap-2 tw-justify-center sm:tw-justify-start">
                                     {/* Role Badge */}
                                     <span
-                                        className={`tw-px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-semibold tw-shadow-sm ${getRoleBadgeColor(
-                                            userData.role
+                                        className={`tw-inline-flex tw-items-center tw-px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-semibold tw-shadow-sm tw-transition-all tw-duration-200 hover:tw-scale-105 ${getRoleBadgeColor(
+                                            decryptedRole as keyof RoleColors
                                         )}`}
                                     >
-                                        {roleLabelMap[userData.role] ?? ""}
+                                        <Shield size={12} className="tw-mr-1" />
+                                        {roleLabelMap[decryptedRole] ?? ""}
                                     </span>
 
                                     {/* Membership Badge */}
                                     <span
-                                        className={`tw-px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-semibold ${userData.membership === "member"
-                                            ? "tw-bg-yellow-100 tw-text-yellow-800"
+                                        className={`tw-inline-flex tw-items-center tw-px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-semibold tw-shadow-sm tw-transition-all tw-duration-200 hover:tw-scale-105 ${userData.membership === "member"
+                                            ? "tw-bg-gradient-to-r tw-from-yellow-100 tw-to-amber-100 tw-text-yellow-800"
                                             : "tw-bg-gray-100 tw-text-gray-700"
                                             }`}
                                     >
-                                        {userData.membership === "member" ? "สมาชิก" : "ไม่ใช่สมาชิก"}
+                                        {userData.membership === "member" ? (
+                                            <>
+                                                <CreditCard size={12} className="tw-mr-1" />
+                                                สมาชิก
+                                            </>
+                                        ) : (
+                                            <>
+                                                <X size={12} className="tw-mr-1" />
+                                                ไม่ใช่สมาชิก
+                                            </>
+                                        )}
                                     </span>
                                 </div>
 
@@ -418,9 +484,11 @@ const ProfileContainer: React.FC = () => {
                     <div className="tw-px-6 tw-pb-6">
                         <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-6">
                             {/* Account Information */}
-                            <div className="tw-space-y-4">
+                            <div className="tw-space-y-4 tw-bg-gradient-to-br tw-from-blue-50 tw-to-white tw-p-5 tw-rounded-xl tw-border tw-border-blue-100">
                                 <h3 className="tw-text-lg tw-font-semibold tw-text-gray-900 tw-flex tw-items-center tw-gap-2">
-                                    <User size={20} className="tw-text-blue-600" />
+                                    <div className="tw-w-8 tw-h-8 tw-bg-gradient-to-br tw-from-blue-500 tw-to-blue-600 tw-rounded-lg tw-flex tw-items-center tw-justify-center tw-shadow-md">
+                                        <User size={16} className="tw-text-white" />
+                                    </div>
                                     ข้อมูลบัญชี
                                 </h3>
 
@@ -450,46 +518,19 @@ const ProfileContainer: React.FC = () => {
                                             className="tw-pl-10"
                                         />
                                     </div>
-
-                                    <div className="tw-relative">
-                                        <Phone size={18} className="tw-absolute tw-left-3 tw-top-1/2 -tw-translate-y-1/2 tw-text-gray-400 tw-pointer-events-none tw-z-10" />
-                                        <InputField
-                                            type="tel"
-                                            placeholder="เบอร์โทรศัพท์"
-                                            value={formData.phone ?? ""}
-                                            onChange={(value) => handleInputChange("phone", value)}
-                                            disabled={!isEditing}
-                                            className="tw-pl-10"
-                                        />
-                                    </div>
                                 </div>
                             </div>
 
                             {/* Personal Information */}
-                            <div className="tw-space-y-4">
+                            <div className="tw-space-y-4 tw-bg-gradient-to-br tw-from-green-50 tw-to-white tw-p-5 tw-rounded-xl tw-border tw-border-green-100">
                                 <h3 className="tw-text-lg tw-font-semibold tw-text-gray-900 tw-flex tw-items-center tw-gap-2">
-                                    <CreditCard size={20} className="tw-text-green-600" />
+                                    <div className="tw-w-8 tw-h-8 tw-bg-gradient-to-br tw-from-green-500 tw-to-emerald-600 tw-rounded-lg tw-flex tw-items-center tw-justify-center tw-shadow-md">
+                                        <CreditCard size={16} className="tw-text-white" />
+                                    </div>
                                     ข้อมูลส่วนตัว
                                 </h3>
 
                                 <div className="tw-space-y-3">
-                                    <div className="tw-grid tw-grid-cols-2 tw-gap-3">
-                                        <InputField
-                                            type="text"
-                                            placeholder="คำนำหน้า (ไทย)"
-                                            value={formData.title_th ?? ""}
-                                            onChange={(value) => handleInputChange("title_th", value)}
-                                            disabled={!isEditing}
-                                        />
-                                        <InputField
-                                            type="text"
-                                            placeholder="คำนำหน้า (อังกฤษ)"
-                                            value={formData.title_en ?? ""}
-                                            onChange={(value) => handleInputChange("title_en", value)}
-                                            disabled={!isEditing}
-                                        />
-                                    </div>
-
                                     <div className="tw-grid tw-grid-cols-2 tw-gap-3">
                                         <InputField
                                             type="text"
@@ -508,18 +549,26 @@ const ProfileContainer: React.FC = () => {
                                             required
                                         />
                                     </div>
-
-
-
-
+                                     <div className="tw-grid tw-gap-3">
+                                      <InputField
+                                            type="tel"
+                                            placeholder="เบอร์โทรศัพท์"
+                                            value={formData.phone ?? ""}
+                                            onChange={(value) => handleInputChange("phone", value)}
+                                            disabled={!isEditing}
+                                            className="tw-w-full"
+                                        /></div>
+                                   
                                 </div>
                             </div>
 
                             {/* ID Information */}
                             {hasIdInfo && (
-                                <div className="tw-space-y-4">
+                                <div className="tw-space-y-4 tw-bg-gradient-to-br tw-from-purple-50 tw-to-white tw-p-5 tw-rounded-xl tw-border tw-border-purple-100">
                                     <h3 className="tw-text-lg tw-font-semibold tw-text-gray-900 tw-flex tw-items-center tw-gap-2">
-                                        <Shield size={20} className="tw-text-purple-600" />
+                                        <div className="tw-w-8 tw-h-8 tw-bg-gradient-to-br tw-from-purple-500 tw-to-purple-600 tw-rounded-lg tw-flex tw-items-center tw-justify-center tw-shadow-md">
+                                            <Shield size={16} className="tw-text-white" />
+                                        </div>
                                         รหัสประจำตัว
                                     </h3>
 
@@ -545,10 +594,12 @@ const ProfileContainer: React.FC = () => {
                             )}
 
                             {/* Account Status */}
-                            <div className="tw-space-y-4">
+                            <div className="tw-space-y-4 tw-bg-gradient-to-br tw-from-orange-50 tw-to-white tw-p-5 tw-rounded-xl tw-border tw-border-orange-100">
                                 <h3 className="tw-text-lg tw-font-semibold tw-text-gray-900 tw-flex tw-items-center tw-gap-2">
-                                    <Calendar size={20} className="tw-text-orange-600" />
-                                    ข้อมูลบัญชี
+                                    <div className="tw-w-8 tw-h-8 tw-bg-gradient-to-br tw-from-orange-500 tw-to-orange-600 tw-rounded-lg tw-flex tw-items-center tw-justify-center tw-shadow-md">
+                                        <Calendar size={16} className="tw-text-white" />
+                                    </div>
+                                    สถานะบัญชี
                                 </h3>
 
                                 <div className="tw-space-y-3">

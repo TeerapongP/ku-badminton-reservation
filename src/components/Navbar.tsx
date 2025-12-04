@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSession } from "next-auth/react";
 import { Button } from "./Button";
 import { UserProfile } from "@/types/profile/types";
+import { encryptDataClient } from "@/lib/encryption";
 
 type Item = { id: string; label: string; href: string };
 
@@ -62,7 +63,18 @@ export default function Navbar() {
 
   const fetchUserProfile = async () => {
     try {
-      const response = await fetch(`/api/profile/${(session?.user as any)?.id}`);
+      const userId = (session?.user as any)?.id;
+      if (!userId) return;
+
+      // เข้ารหัส id ก่อนส่งไปยัง API
+      const encryptionKey = process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
+      if (!encryptionKey) {
+        console.error("Encryption key not found");
+        return;
+      }
+      const encryptedId = encryptDataClient(userId, encryptionKey);
+
+      const response = await fetch(`/api/profile/${encodeURIComponent(encryptedId)}`);
       if (response.ok) {
         const data = await response.json();
         setUserProfile(data.user);
@@ -92,10 +104,10 @@ export default function Navbar() {
         const data = await response.json();
         setDecryptedImageUrl(data.imagePath);
       } else {
-        setDecryptedImageUrl('https://via.placeholder.com/150');
+        setDecryptedImageUrl('/images/avatar_profile.jpg');
       }
     } catch (error) {
-      setDecryptedImageUrl('https://via.placeholder.com/150');
+      setDecryptedImageUrl('/images/avatar_profile.jpg');
     }
   };
 
@@ -103,9 +115,8 @@ export default function Navbar() {
     const baseItems = [
       { id: "home", label: "หน้าแรก", href: "/" },
     ];
-
-    // เพิ่มลิงก์จองสนาม: เฉพาะเมื่อ login แล้ว
-    if (isAuthenticated) {
+    // เพิ่มลิงก์จองสนาม: เฉพาะเมื่อ login แล้ว และระบบเปิดอยู่
+    if (isAuthenticated && !systemStatus.effectiveStatus) {
       baseItems.push({ id: "booking", label: "จองสนาม", href: "/badminton-court" });
     }
 

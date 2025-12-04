@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/Auth";
 import { prisma } from "@/lib/prisma";
+import { decryptData, encryptData } from "@/lib/encryption";
 
 // GET - ดึงข้อมูลโปรไฟล์
 export async function GET(
@@ -19,7 +20,18 @@ export async function GET(
     }
 
     // Await params since it's now a Promise in Next.js 15
-    const { userId } = await context.params;
+    const { userId: encryptedUserId } = await context.params;
+
+    // ถอดรหัส userId
+    let userId: string;
+    try {
+      userId = decryptData(decodeURIComponent(encryptedUserId));
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: "ข้อมูล userId ไม่ถูกต้อง" },
+        { status: 400 }
+      );
+    }
 
     // ตรวจสอบว่าผู้ใช้เข้าถึงโปรไฟล์ของตัวเองหรือไม่
     if (session.user.id !== userId) {
@@ -32,8 +44,8 @@ export async function GET(
     const user = await prisma.users.findUnique({
       where: { user_id: BigInt(userId) },
       select: {
-        user_id: true,
-        role: true,
+        user_id: true, 
+        role: true, 
         username: true,
         email: true,
         phone: true,
@@ -58,10 +70,11 @@ export async function GET(
       );
     }
 
-    // แปลง BigInt เป็น string สำหรับ JSON
+    // แปลง BigInt เป็น string และเข้ารหัสข้อมูลสำคัญ
     const userData = {
       ...user,
-      user_id: Number(user.user_id),
+      user_id: encryptData(user.user_id.toString()),
+      role: encryptData(user.role),
       registered_at: user.registered_at.toISOString(),
       last_login_at: user.last_login_at ? user.last_login_at.toISOString() : null,
     };
@@ -96,7 +109,18 @@ export async function PUT(
     }
 
     // Await params since it's now a Promise in Next.js 15
-    const { userId } = await context.params;
+    const { userId: encryptedUserId } = await context.params;
+
+    // ถอดรหัส userId
+    let userId: string;
+    try {
+      userId = decryptData(decodeURIComponent(encryptedUserId));
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: "ข้อมูล userId ไม่ถูกต้อง" },
+        { status: 400 }
+      );
+    }
 
     // ตรวจสอบว่าผู้ใช้แก้ไขโปรไฟล์ของตัวเองหรือไม่
     if (session.user.id !== userId) {
@@ -185,10 +209,11 @@ export async function PUT(
       }
     });
 
-    // แปลง BigInt เป็น string สำหรับ JSON
+    // แปลง BigInt เป็น string และเข้ารหัสข้อมูลสำคัญ
     const userData = {
       ...updatedUser,
-      user_id: Number(updatedUser.user_id),
+      user_id: encryptData(updatedUser.user_id.toString()),
+      role: encryptData(updatedUser.role),
       registered_at: updatedUser.registered_at.toISOString(),
       last_login_at: updatedUser.last_login_at ? updatedUser.last_login_at.toISOString() : null,
     };

@@ -30,10 +30,13 @@ export default function LoginContainner() {
     if (!password) return "กรุณากรอกรหัสผ่าน";
 
     // ตรวจสอบรูปแบบ
+    const isStudentId = /^\d{8,10}$/.test(identifier);
     const isNationalId = /^\d{13}$/.test(identifier);
+    const isUsername = /^[a-zA-Z0-9_]{3,20}$/.test(identifier);
 
-    if ( !isNationalId) {
-      return  "เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก ";
+    // อนุญาตให้ใช้ได้ทั้ง student_id, national_id, และ username
+    if (!isStudentId && !isNationalId && !isUsername) {
+      return "รูปแบบไม่ถูกต้อง: รหัสนิสิต (8-10 หลัก), เลขบัตรประชาชน (13 หลัก) หรือ Username (3-20 ตัวอักษร)";
     }
 
     return null;
@@ -182,6 +185,7 @@ export default function LoginContainner() {
           <p className="tw-text-xs tw-text-gray-500 tw-mt-2">
             • นิสิต: รหัสนิสิต 8-10 หลัก<br />
             • บุคลากร/บุคคลทั่วไป: เลขบัตรประชาชน 13 หลัก<br />
+            • Admin: Username (3-20 ตัวอักษร)
           </p>
         </div>
 
