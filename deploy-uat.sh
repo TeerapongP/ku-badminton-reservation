@@ -50,7 +50,16 @@ fi
 
 echo "🚀 Starting UAT deployment..."
 echo "📦 Building Docker image..."
-docker buildx build --no-cache --platform linux/amd64 -t "${APP_IMAGE}" --push .
+
+# Load environment variables from .env-uat for build args
+if [[ -f "${ENV_FILE}" ]]; then
+  export $(grep -v '^#' "${ENV_FILE}" | grep 'NEXT_PUBLIC_' | xargs)
+fi
+
+docker buildx build --no-cache --platform linux/amd64 \
+  --build-arg NEXT_PUBLIC_ENCRYPTION_KEY="${NEXT_PUBLIC_ENCRYPTION_KEY}" \
+  --build-arg NEXT_PUBLIC_RECAPTCHA_SITE_KEY="${NEXT_PUBLIC_RECAPTCHA_SITE_KEY}" \
+  -t "${APP_IMAGE}" --push .
 
 echo "📋 Copying environment file..."
 scp "${ENV_FILE}" "${SERVER_USER}@${SERVER_HOST}:${APP_DIR}/"

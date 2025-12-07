@@ -48,6 +48,12 @@ ENV SKIP_ENV_VALIDATION=$SKIP_ENV_VALIDATION
 # Enable standalone output for Docker builds
 ENV DOCKER_BUILD=true
 
+# ✅ Build-time environment variables for NEXT_PUBLIC_* (required for client-side code)
+ARG NEXT_PUBLIC_ENCRYPTION_KEY
+ARG NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+ENV NEXT_PUBLIC_ENCRYPTION_KEY=$NEXT_PUBLIC_ENCRYPTION_KEY
+ENV NEXT_PUBLIC_RECAPTCHA_SITE_KEY=$NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+
 # ✅ สร้าง production build (ถ้าไม่มี script build:prod จะรัน build ปกติ)
 RUN pnpm run build:prod || pnpm run build
 
