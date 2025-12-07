@@ -9,7 +9,16 @@ const nextConfig = {
 
   // Fix image loader under basePath
   images: {
-    domains: ['localhost', 'your-domain.com'],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'your-domain.com',
+      },
+    ],
     formats: ['image/webp', 'image/avif'],
     // path: '/ku-badminton-reservation/_next/image',
   },
@@ -65,7 +74,6 @@ const nextConfig = {
   poweredByHeader: false,
   trailingSlash: false,
 
-  eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
 };
 
