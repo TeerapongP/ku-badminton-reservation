@@ -175,7 +175,7 @@ docker run -d --name "${NGINX_NAME}" \
   -p 443:443 \
   -v "${NGINX_MAIN_CONF}:/etc/nginx/nginx.conf:ro" \
   -v "${NGINX_DEFAULT_CONF}:/etc/nginx/conf.d/default.conf:ro" \
-  -v "${UPLOADS_DIR}:/home/remotepang1/ku-badminton-app/uploads:ro" \
+  -v "${UPLOADS_DIR}:/home/remotepang1@pangvm/ku-badminton-app/uploads:ro" \
   --restart=unless-stopped \
   nginx:alpine
 
