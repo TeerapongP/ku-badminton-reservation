@@ -18,8 +18,14 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'your-domain.com',
       },
+      {
+        protocol: 'http',
+        hostname: '10.36.16.16',
+      },
     ],
     formats: ['image/webp', 'image/avif'],
+    // Disable optimization for /uploads/ paths (served directly by nginx)
+    unoptimized: process.env.NODE_ENV === 'production',
     // path: '/ku-badminton-reservation/_next/image',
   },
 
