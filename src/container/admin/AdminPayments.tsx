@@ -16,9 +16,10 @@ import {
     ArrowLeft,
     Calendar,
     RefreshCw,
+    X,
 } from "lucide-react";
 import SearchInput from "@/components/SearchInput";
-import { PaymentData, PaymentResponse } from "@/lib/PaymentData";
+import { PaymentData } from "@/lib/PaymentData";
 import { DropdownField } from "@/components/DropdownField";
 import Image from "next/image";
 
@@ -52,7 +53,8 @@ export default function AdminPaymentsContainer() {
     useEffect(() => {
         if (status === "loading") return;
 
-        if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super_admin")) {
+        // Ensure user has admin/super_admin role
+        if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin")) {
             toast.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
@@ -205,6 +207,7 @@ export default function AdminPaymentsContainer() {
     ];
 
     const formatAmount = (cents: number, currency: string) => {
+        // Assuming cents are always divided by 100 for display
         return `${(cents / 100).toLocaleString()} ${currency}`;
     };
 
@@ -219,7 +222,7 @@ export default function AdminPaymentsContainer() {
         );
     }
 
-    if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super_admin")) {
+    if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin")) {
         return null;
     }
 
@@ -339,8 +342,7 @@ export default function AdminPaymentsContainer() {
                 </div>
             </div>
 
-
-            {/* Payments List */}
+            {/* Payment Table */}
             <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-border tw-border-gray-100 tw-overflow-hidden">
                 <div className="tw-px-6 tw-py-4 tw-border-b tw-border-gray-100">
                     <div className="tw-flex tw-items-center tw-justify-between">
@@ -360,117 +362,147 @@ export default function AdminPaymentsContainer() {
                     </div>
                 ) : (
                     <>
-                        <div className="tw-space-y-4 tw-p-6">
-                            {payments.map((payment) => (
-                                <div key={payment.payment_id} className="tw-bg-gray-50 tw-rounded-xl tw-p-6 tw-border tw-border-gray-200">
-                                    <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-3 tw-gap-6">
-                                        {/* Payment Info */}
-                                        <div className="lg:tw-col-span-2">
-                                            <div className="tw-flex tw-items-start tw-justify-between tw-mb-4">
-                                                <div>
-                                                    <h3 className="tw-text-lg tw-font-bold tw-text-gray-800">
-                                                        {payment.user_name}
-                                                    </h3>
-                                                    <p className="tw-text-sm tw-text-gray-600">{payment.user_email}</p>
-                                                    <p className="tw-text-xs tw-text-gray-500">
-                                                        รหัสการจอง: {payment.reservation_id}
-                                                    </p>
+                        <div className="tw-overflow-x-auto">
+                            <table className="tw-w-full">
+                                <thead className="tw-bg-gray-50 tw-border-b tw-border-gray-200">
+                                    <tr>
+                                        <th className="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider">
+                                            สลิปการชำระเงิน
+                                        </th>
+                                        <th className="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider">
+                                            ผู้ชำระเงิน
+                                        </th>
+                                        <th className="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider">
+                                            รายละเอียดการจอง
+                                        </th>
+                                        <th className="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider">
+                                            จำนวนเงิน
+                                        </th>
+                                        <th className="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider">
+                                            สถานะ
+                                        </th>
+                                        <th className="tw-px-6 tw-py-4 tw-text-center tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider">
+                                            การดำเนินการ
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="tw-bg-white tw-divide-y tw-divide-gray-200">
+                                    {payments.map((payment) => (
+                                        <tr key={payment.payment_id} className="hover:tw-bg-gray-50 tw-transition-colors">
+                                            {/* Slip Image */}
+                                            <td className="tw-px-6 tw-py-4">
+                                                <div
+                                                    onClick={() => viewSlip(payment)}
+                                                    className="tw-relative tw-w-24 tw-h-32 tw-rounded-lg tw-overflow-hidden tw-shadow-md tw-cursor-pointer hover:tw-shadow-lg tw-transition-shadow"
+                                                >
+                                                    {payment?.slip_url ? (
+                                                        <Image
+                                                            src={payment.slip_url}
+                                                            alt="สลิปการชำระเงิน"
+                                                            fill
+                                                            className="tw-object-cover"
+                                                            sizes="96px"
+                                                        />
+                                                    ) : (
+                                                        <div className="tw-w-full tw-h-full tw-bg-gray-100 tw-flex tw-items-center tw-justify-center">
+                                                            <CreditCard className="tw-w-8 tw-h-8 tw-text-gray-400" />
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div className="tw-text-right">
-                                                    <p className="tw-text-2xl tw-font-bold tw-text-emerald-600">
-                                                        {formatAmount(payment.amount_cents, payment.currency)}
+                                            </td>
+
+                                            {/* User Info */}
+                                            <td className="tw-px-6 tw-py-4">
+                                                <div>
+                                                    <p className="tw-text-sm tw-font-semibold tw-text-gray-900">
+                                                        {payment.user_name}
                                                     </p>
-                                                    <p className="tw-text-xs tw-text-gray-500 tw-flex tw-items-center tw-justify-end">
+                                                    <p className="tw-text-sm tw-text-gray-600">
+                                                        {payment.user_email}
+                                                    </p>
+                                                    <p className="tw-text-xs tw-text-gray-500 tw-mt-1">
+                                                        รหัส: {payment.reservation_id}
+                                                    </p>
+                                                    <p className="tw-text-xs tw-text-gray-400 tw-flex tw-items-center tw-mt-1">
                                                         <Clock className="tw-w-3 tw-h-3 tw-mr-1" />
                                                         {new Date(payment.uploaded_at).toLocaleString('th-TH')}
                                                     </p>
                                                 </div>
-                                            </div>
+                                            </td>
 
-                                            <div className="tw-bg-white tw-rounded-lg tw-p-4 tw-border tw-border-gray-200">
-                                                <h4 className="tw-font-medium tw-text-gray-800 tw-mb-2 tw-flex tw-items-center">
-                                                    <Calendar className="tw-w-4 tw-h-4 tw-mr-2" />
-                                                    รายละเอียดการจอง
-                                                </h4>
-                                                <div className="tw-space-y-3">
+                                            {/* Booking Details */}
+                                            <td className="tw-px-6 tw-py-4">
+                                                <div className="tw-space-y-2">
                                                     {payment.booking_details.facilities.map((facility, index) => (
-                                                        <div key={index} className="tw-grid tw-grid-cols-2 tw-gap-4 tw-text-sm tw-p-3 tw-bg-gray-50 tw-rounded-lg">
-                                                            <div>
-                                                                <span className="tw-text-gray-500">สนาม:</span>
-                                                                <span className="tw-ml-2 tw-font-medium">{facility.facility_name}</span>
-                                                            </div>
-                                                            <div>
-                                                                <span className="tw-text-gray-500">คอร์ท:</span>
-                                                                <span className="tw-ml-2 tw-font-medium">{facility.court_name}</span>
-                                                            </div>
-                                                            <div>
-                                                                <span className="tw-text-gray-500">วันที่:</span>
-                                                                <span className="tw-ml-2 tw-font-medium">
-                                                                    {new Date(facility.play_date).toLocaleDateString('th-TH')}
-                                                                </span>
-                                                            </div>
-                                                            <div>
-                                                                <span className="tw-text-gray-500">เวลา:</span>
-                                                                <span className="tw-ml-2 tw-font-medium">
-                                                                    {facility.start_time}-{facility.end_time}
-                                                                </span>
-                                                            </div>
+                                                        <div key={index} className="tw-text-sm">
+                                                            <p className="tw-font-medium tw-text-gray-900">
+                                                                {facility.facility_name}
+                                                            </p>
+                                                            <p className="tw-text-gray-600">
+                                                                {facility.court_name}
+                                                            </p>
+                                                            <p className="tw-text-gray-500 tw-text-xs">
+                                                                <Calendar className="tw-w-3 tw-h-3 tw-inline tw-mr-1" />
+                                                                {new Date(facility.play_date).toLocaleDateString('th-TH')}
+                                                            </p>
+                                                            <p className="tw-text-gray-500 tw-text-xs">
+                                                                <Clock className="tw-w-3 tw-h-3 tw-inline tw-mr-1" />
+                                                                {facility.start_time} - {facility.end_time}
+                                                            </p>
                                                         </div>
                                                     ))}
-                                                    <div className="tw-pt-2 tw-border-t tw-border-gray-200">
-                                                        <div className="tw-flex tw-justify-between tw-text-sm">
-                                                            <span className="tw-text-gray-500">สถานะการจอง:</span>
-                                                            <span className={`tw-font-medium ${payment.booking_details.reservation_status === 'confirmed' ? 'tw-text-green-600' :
-                                                                payment.booking_details.reservation_status === 'pending' ? 'tw-text-orange-600' :
-                                                                    'tw-text-red-600'
-                                                                }`}>
-                                                                {payment.booking_details.reservation_status === 'confirmed' ? 'ยืนยันแล้ว' :
-                                                                    payment.booking_details.reservation_status === 'pending' ? 'รอยืนยัน' :
-                                                                        'ยกเลิก'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
                                                 </div>
-                                            </div>
-                                        </div>
+                                            </td>
 
-                                        {/* Actions */}
-                                        <div className="tw-flex tw-flex-col tw-space-y-3">
-                                            <Button
-                                                onClick={() => viewSlip(payment)}
-                                                variant="secondary"
-                                                className="tw-w-full tw-h-12 tw-text-lg tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-gray-200 tw-text-gray-700 tw-border-0 tw-outline-none tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-100 active:tw-bg-gray-200 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-bg-white focus:tw-ring-0 focus:tw-outline-none"
-                                            >
-                                                <Eye className="tw-w-5 tw-h-5 tw-mr-2 tw-text-gray-600" />
-                                                ดูสลิป
-                                            </Button>
+                                            {/* Amount */}
+                                            <td className="tw-px-6 tw-py-4">
+                                                <p className="tw-text-lg tw-font-bold tw-text-emerald-600">
+                                                    {formatAmount(payment.amount_cents, payment.currency)}
+                                                </p>
+                                            </td>
 
-                                            <Button
-                                                onClick={() => handleApprovePayment(payment.payment_id)}
-                                                disabled={payment.status !== 'pending'}
-                                                className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
-                                                colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
-                                            >
-                                                <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
-                                                    <CheckCircle className="tw-w-4 tw-h-4 tw-mr-2" />
-                                                    {payment.status === 'pending' ? 'อนุมัติ' :
+                                            {/* Status */}
+                                            <td className="tw-px-6 tw-py-4">
+                                                <span className={`tw-inline-flex tw-items-center tw-px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-semibold ${payment.status === 'pending'
+                                                    ? 'tw-bg-orange-100 tw-text-orange-800'
+                                                    : payment.status === 'succeeded'
+                                                        ? 'tw-bg-green-100 tw-text-green-800'
+                                                        : 'tw-bg-red-100 tw-text-red-800'
+                                                    }`}>
+                                                    {payment.status === 'pending' ? 'รอตรวจสอบ' :
                                                         payment.status === 'succeeded' ? 'อนุมัติแล้ว' : 'ปฏิเสธแล้ว'}
                                                 </span>
-                                            </Button>
+                                            </td>
 
-                                            <Button
-                                                onClick={() => openRejectModal(payment)}
-                                                disabled={payment.status !== 'pending'}
-                                                className="tw-w-auto tw-px-4 tw-h-12 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
-                                                colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl"
-                                            >
-                                                <XCircle className="tw-w-4 tw-h-4 tw-mr-2" />
-                                                {payment.status === 'pending' ? 'ปฏิเสธ' : 'ปฏิเสธแล้ว'}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                                            {/* Actions */}
+                                            <td className="tw-px-6 tw-py-4">
+                                                {/* ปรับ tw-justify-center เป็น tw-justify-between หรือใช้ tw-w-full */}
+                                                <div className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-w-full">
+                                                    <Button
+                                                        onClick={() => handleApprovePayment(payment.payment_id)}
+                                                        disabled={payment.status !== 'pending'}
+                                                        // เพิ่ม tw-flex-grow เพื่อให้ปุ่มยืดเต็มที่
+                                                        className="tw-px-3 tw-py-2 tw-text-sm tw-font-semibold tw-rounded-lg tw-transition-all tw-duration-200 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed tw-flex-grow"
+                                                        colorClass="tw-bg-emerald-500 hover:tw-bg-emerald-600 tw-text-white"
+                                                    >
+                                                        <CheckCircle className="tw-w-4 tw-h-4 tw-mx-auto" />
+                                                    </Button>
+
+                                                    <Button
+                                                        onClick={() => openRejectModal(payment)}
+                                                        disabled={payment.status !== 'pending'}
+                                                        // เพิ่ม tw-flex-grow เพื่อให้ปุ่มยืดเต็มที่
+                                                        className="tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-rounded-lg tw-transition-all tw-duration-200 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed tw-flex-grow"
+                                                        colorClass="tw-bg-rose-500 hover:tw-bg-rose-600 tw-text-white"
+                                                    >
+                                                        <XCircle className="tw-w-4 tw-h-4 tw-mx-auto" />
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
 
                         {/* Pagination */}
@@ -508,87 +540,65 @@ export default function AdminPaymentsContainer() {
                 )}
             </div>
 
-            {/* Slip Modal */}
+            {/* Slip Modal - Completed Section */}
             {showSlipModal && selectedPayment && (
                 <div className="tw-fixed tw-inset-0 tw-bg-black tw-bg-opacity-50 tw-flex tw-items-center tw-justify-center tw-z-50 tw-p-4">
-                    <div className="tw-bg-white tw-rounded-2xl tw-max-w-2xl tw-w-full tw-max-h-[90vh] tw-overflow-y-auto">
+                    <div className="tw-bg-white tw-rounded-2xl tw-max-w-2xl tw-w-full tw-max-h-[90vh] tw-overflow-y-auto tw-shadow-2xl">
+                        {/* Modal Header */}
                         <div className="tw-p-6 tw-border-b tw-border-gray-200">
                             <div className="tw-flex tw-items-center tw-justify-between">
-                                <h3 className="tw-text-xl tw-font-bold tw-text-gray-800">
-                                    สลิปการโอนเงิน
+                                <h3 className="tw-text-2xl tw-font-bold tw-text-gray-800">
+                                    สลิปการชำระเงิน
                                 </h3>
                                 <Button
                                     onClick={() => setShowSlipModal(false)}
-                                    variant="secondary"
-                                    className="tw-px-3 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-gray-100 tw-text-gray-600 tw-border tw-border-transparent tw-outline-none tw-flex tw-items-center tw-justify-center hover:tw-bg-gray-200 hover:tw-text-gray-800 active:tw-bg-gray-300 focus:tw-ring-0 focus:tw-outline-none"
+
+                                    className="
+    tw-p-2 
+    tw-rounded-full 
+    tw-text-gray-500                   
+    tw-transition 
+    tw-duration-200 
+    focus:tw-ring-2                     
+    focus:tw-ring-indigo-500/50 
+    tw-shadow-none                      
+    tw-border-none                      
+"
                                 >
-                                    ✕
+                                    <X className="tw-w-5 tw-h-5" />
                                 </Button>
                             </div>
+                            <p className="tw-text-sm tw-text-gray-500 tw-mt-1">
+                                ยอดเงิน: <span className="tw-font-medium tw-text-emerald-600">{formatAmount(selectedPayment.amount_cents, selectedPayment.currency)}</span>
+                            </p>
                         </div>
 
-                        <div className="tw-p-6">
-                            <div className="tw-mb-4">
-                                <p className="tw-font-medium tw-text-gray-800">{selectedPayment.user_name}</p>
-                                <p className="tw-text-sm tw-text-gray-600">
-                                    จำนวนเงิน: {formatAmount(selectedPayment.amount_cents, selectedPayment.currency)}
-                                </p>
-                            </div>
-
-                            <div className="tw-bg-white tw-rounded-lg tw-p-8 tw-border-2 tw-border-dashed tw-border-gray-300 tw-text-center">
-                                {selectedPayment?.slip_url ? (
-                                    <div className="tw-relative tw-w-full tw-max-w-md tw-mx-auto tw-aspect-[3/2] tw-rounded-lg tw-overflow-hidden tw-shadow-md">
-                                        <Image
-                                            src={selectedPayment.slip_url}
-                                            alt="สลิปการชำระเงิน"
-                                            fill
-                                            className="tw-object-contain tw-rounded-lg"
-                                            sizes="(max-width: 768px) 100vw, 50vw"
-                                        />
-                                    </div>
-                                ) : (
-                                    <>
-                                        <CreditCard className="tw-w-16 tw-h-16 tw-text-gray-400 tw-mx-auto tw-mb-4" />
-                                        <p className="tw-text-gray-500">
-                                            ยังไม่มีสลิปการชำระเงิน
-                                        </p>
-                                    </>
-                                )}
-
-                            </div>
-
-                            <div className="tw-flex tw-space-x-4 tw-mt-6">
-                                <Button
-                                    onClick={() => {
-                                        handleApprovePayment(selectedPayment.payment_id);
-                                        setShowSlipModal(false);
-                                    }}
-                                    className="tw-w-full tw-h-10  tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
-                                    colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
-                                >
-                                    <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
-                                        <CheckCircle className="tw-w-4 tw-h-4 tw-mr-2" />
-                                        อนุมัติ
-                                    </span>
-                                </Button>
-                                <Button
-                                    onClick={() => {
-                                        setShowSlipModal(false);
-                                        openRejectModal(selectedPayment);
-                                    }}
-                                    className="tw-w-full tw-px-4 tw-h-10 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
-                                    colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl"
-                                >
-                                    <XCircle className="tw-w-4 tw-h-4 tw-mr-2" />
-                                    ปฏิเสธ
-                                </Button>
-                            </div>
+                        {/* Modal Body: Slip Image */}
+                        <div className="tw-p-6 tw-flex tw-justify-center">
+                            {selectedPayment.slip_url ? (
+                                <div className="tw-relative tw-max-w-full tw-h-auto tw-rounded-lg tw-shadow-xl tw-overflow-hidden">
+                                    {/* Next/Image usage for optimization, adjust dimensions as needed */}
+                                    <Image
+                                        src={selectedPayment.slip_url}
+                                        alt="สลิปการชำระเงินขนาดเต็ม"
+                                        width={800}
+                                        height={1200}
+                                        className="tw-object-contain tw-max-h-[70vh] tw-w-full tw-h-auto"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="tw-text-center tw-py-12">
+                                    <XCircle className="tw-w-16 tw-h-16 tw-text-red-500 tw-mx-auto tw-mb-4" />
+                                    <p className="tw-text-gray-700 tw-text-lg tw-font-medium">ไม่พบภาพสลิปการชำระเงิน</p>
+                                </div>
+                            )}
                         </div>
+
                     </div>
                 </div>
             )}
 
-            {/* Reject Modal */}
+            {/* Reject Payment Modal */}
             {showRejectModal && selectedPayment && (
                 <RejectPaymentModal
                     visible={showRejectModal}
@@ -599,11 +609,7 @@ export default function AdminPaymentsContainer() {
                         amount_cents: selectedPayment.amount_cents,
                         currency: selectedPayment.currency
                     }}
-                    onConfirm={(reason: string) => {
-                        if (selectedPayment) {
-                            handleRejectPayment(selectedPayment.payment_id, reason);
-                        }
-                    }}
+                    onConfirm={(reason) => handleRejectPayment(selectedPayment.payment_id, reason)}
                 />
             )}
         </div>

@@ -18,6 +18,7 @@ import {
     XCircle,
     Image,
     Upload,
+    LandPlot
 } from "lucide-react";
 
 import { DashboardStats } from "@/lib/DashboardData";
@@ -137,7 +138,7 @@ export default function AdminDashboard() {
 
             if (data.success) {
                 setSystemStatus(data.data);
-            } 
+            }
         } catch (error) {
             console.error('Fetch system status error:', error);
         }
@@ -148,11 +149,11 @@ export default function AdminDashboard() {
         const now = new Date();
         const thailandTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
         const currentHour = thailandTime.getHours();
-        
+
         // ตรวจสอบว่าอยู่นอกช่วงเวลาที่อนุญาต (08:00 - 19:59 น.)
         if (currentHour < 8 || currentHour >= 20) {
             toast?.showError(
-                "ไม่สามารถเปิด/ปิดระบบได้", 
+                "ไม่สามารถเปิด/ปิดระบบได้",
                 "สามารถเปิด/ปิดระบบได้เฉพาะช่วงเวลา 08:00 - 19:59 น. เท่านั้น ระบบจะเปิดอัตโนมัติเวลา 08:00 น. และปิดอัตโนมัติเวลา 20:00 น."
             );
             return;
@@ -257,6 +258,14 @@ export default function AdminDashboard() {
             color: "tw-from-red-500 tw-to-red-600",
             hoverColor: "hover:tw-from-red-600 hover:tw-to-red-700",
             href: "/admin/audit"
+        },
+        {
+            title: "จัดการสนามแบต",
+            description: "ควบคุมการเปิด–ปิดสนามและอาคาร",
+            icon: LandPlot,
+            color: "tw-from-red-500 tw-to-red-600",
+            hoverColor: "hover:tw-from-red-600 hover:tw-to-red-700",
+            href: "/admin/court-management"
         }
     ];
 
@@ -434,7 +443,7 @@ export default function AdminDashboard() {
                         const now = new Date();
                         const thailandTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
                         const hour = thailandTime.getHours();
-                        
+
                         if (hour < 8) {
                             return (
                                 <div className="tw-mt-3 tw-p-3 tw-bg-orange-50 tw-border tw-border-orange-200 tw-rounded-lg">
@@ -447,7 +456,7 @@ export default function AdminDashboard() {
                                 </div>
                             );
                         }
-                        
+
                         if (hour >= 20) {
                             return (
                                 <div className="tw-mt-3 tw-p-3 tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg">
@@ -460,7 +469,7 @@ export default function AdminDashboard() {
                                 </div>
                             );
                         }
-                        
+
                         return null;
                     })()}
 

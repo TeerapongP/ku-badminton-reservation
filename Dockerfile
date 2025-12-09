@@ -85,6 +85,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 
 # ✅ ใช้ node_modules จาก builder (ที่ถูก prune แล้ว และ Prisma client ถูก generate สำหรับ Alpine แล้ว)
+# node_modules จะรวม .prisma และ @prisma อยู่แล้ว
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 USER nextjs
