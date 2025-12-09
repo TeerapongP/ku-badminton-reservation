@@ -10,7 +10,8 @@ services:
       - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./public/uploads:/var/www/uploads:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - uploads_data:/app/uploads:ro
     depends_on:
       - app
     networks:
@@ -32,7 +33,7 @@ services:
     depends_on:
       - db
     volumes:
-      - ./public/uploads:/app/public/uploads
+      - uploads_data:/app/uploads
 
   # MySQL Database (ใช้ database ที่มีอยู่แล้วบน server)
   db:
@@ -84,6 +85,7 @@ volumes:
   mysql_data:
   redis_data:
   log_cleanup_logs:
+  uploads_data:
 
 networks:
   app-network:
