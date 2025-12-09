@@ -16,7 +16,10 @@ FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
 # ถ้ามีพวก native deps (sharp/bcrypt) แล้วเจอ compile error ให้เปิดบรรทัดนี้
 # RUN apk add --no-cache python3 make g++
-RUN pnpm install --frozen-lockfile
+
+# ใช้ --no-frozen-lockfile เพื่อให้ยืดหยุ่นกับ config changes
+# สำหรับ production ควรใช้ --frozen-lockfile และ commit lockfile ที่ถูกต้อง
+RUN pnpm install --no-frozen-lockfile
 
 # =========================
 # Builder
