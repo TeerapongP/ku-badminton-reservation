@@ -8,8 +8,8 @@ import { Button } from "@/components/Button";
 import { useToast } from "@/components/ToastProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { encryptDataClient } from "@/types/encryption";
 import Loading from "@/components/Loading";
+import { encryptDataClient } from "@/lib/encryption";
 
 export default function LoginContainner() {
   const toast = useToast();
@@ -62,7 +62,6 @@ export default function LoginContainner() {
       // ตรวจสอบประเภทของ identifier
       const isStudentId = /^\d{8,10}$/.test(identifier);
       const isNationalId = /^\d{13}$/.test(identifier);
-      const isUsername = /^[a-zA-Z0-9_]{3,20}$/.test(identifier);
 
       // กำหนด loginType ตามลำดับความสำคัญ
       let loginType = 'username'; // default

@@ -25,7 +25,7 @@ import {
     BookingStatus
 } from "@/types/profile/booking-history";
 import { DateField } from "@/components/DateField";
-import { encryptDataClient } from "@/types/encryption";
+import { encryptDataClient } from "@/lib/encryption";
 
 const BookingHistoryContainer: React.FC = () => {
     const { data: session } = useSession();

@@ -29,7 +29,7 @@ export const CourtGrid: React.FC<CourtGridProps> = ({
 }) => {
     if (courtsLoading) {
         return (
-            <div className="tw-bg-white tw-rounded-2xl tw-shadow-xl tw-p-6 tw-mb-8 tw-border tw-border-gray-100">
+            <div className="tw-bg-white tw-rounded-2xl tw-shadow-xl tw-p-6 tw-mb-8 tw-border tw-border-indigo-100">
                 <div className="tw-flex tw-justify-center tw-py-12">
                     <Loading />
                 </div>
@@ -39,8 +39,8 @@ export const CourtGrid: React.FC<CourtGridProps> = ({
 
     if (courts.length === 0) {
         return (
-            <div className="tw-bg-white tw-rounded-2xl tw-shadow-xl tw-p-6 tw-mb-8 tw-border tw-border-gray-100">
-                <div className="tw-text-center tw-py-12 tw-text-gray-500 tw-bg-gray-100 tw-rounded-xl tw-border tw-border-dashed tw-border-gray-300">
+            <div className="tw-bg-white tw-rounded-2xl tw-shadow-xl tw-p-6 tw-mb-8 tw-border tw-border-indigo-100">
+                <div className="tw-text-center tw-py-12 tw-text-indigo-600 tw-bg-indigo-50 tw-rounded-xl tw-border tw-border-dashed tw-border-indigo-300">
                     ไม่พบสนามในอาคารนี้ กรุณาเลือกอาคารอื่น
                 </div>
             </div>
@@ -52,10 +52,10 @@ export const CourtGrid: React.FC<CourtGridProps> = ({
     const buttonText = isAllSelected ? 'ยกเลิกเลือกทั้งหมด' : 'เลือกสนามที่เปิดทั้งหมด';
 
     return (
-        <div className="tw-bg-white tw-rounded-2xl tw-shadow-xl tw-p-6 tw-mb-8 tw-border tw-border-gray-100">
+        <div className="tw-bg-white tw-rounded-2xl tw-shadow-xl tw-p-6 tw-mb-8 tw-border tw-border-indigo-100">
 
             <div className="tw-flex tw-flex-col sm:tw-flex-row tw-items-start sm:tw-items-center tw-justify-between tw-mb-6 tw-gap-4">
-                <h2 className="tw-text-2xl tw-font-bold tw-text-gray-900 tw-flex tw-items-center tw-gap-3">
+                <h2 className="tw-text-2xl tw-font-bold tw-text-slate-800 tw-flex tw-items-center tw-gap-3">
                     <Settings className="tw-w-6 tw-h-6 tw-text-indigo-700" />
                     สนามในอาคาร {selectedFacilityData?.name_th}
                 </h2>
@@ -140,17 +140,50 @@ export const CourtGrid: React.FC<CourtGridProps> = ({
                 </span>
             </div>
 
-            {/* Courts Grid */}
-            {/* <div className="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-3 xl:tw-grid-cols-4 tw-gap-4">
+            <div
+                className="
+    tw-grid 
+    tw-grid-cols-1 
+    sm:tw-grid-cols-2 
+    lg:tw-grid-cols-3 
+    xl:tw-grid-cols-4 
+    tw-gap-6 tw-mt-4
+  "
+            >
                 {courts.map((court) => (
-                    <CourtCard
+                    <div
                         key={court.court_id}
-                        court={court}
-                        isSelected={selectedCourts.includes(court.court_id)}
-                        onSelect={onCourtSelection}
-                    />
+                        className="
+        tw-transition-all tw-duration-300 
+        tw-transform hover:tw-scale-[1.03]
+        hover:tw-shadow-[0_4px_15px_rgba(79,70,229,0.35)]
+        hover:tw-border hover:tw-border-indigo-300
+        tw-rounded-xl
+      "
+                    >
+                        <CourtCard
+                            court={court}
+                            isSelected={selectedCourts.includes(court.court_id)}
+                            onSelect={onCourtSelection}
+                            bgCorlor="
+        /* Default State: ใช้ Sky Pastel Tone */
+        tw-bg-sky-50 
+        tw-text-gray-800
+        tw-border tw-border-sky-200 
+        tw-shadow-md tw-rounded-xl
+    "
+                            bgCorlorSelected="
+        /* Selected State: ใช้ Indigo Pastel Tone ที่เข้มกว่าเล็กน้อย */
+        tw-bg-indigo-100 
+        tw-text-indigo-800
+        tw-border-2 tw-border-indigo-600
+        tw-shadow-xl tw-rounded-xl
+    "
+                        />
+                    </div>
                 ))}
-            </div> */}
+            </div>
+
         </div>
     );
 };
