@@ -347,7 +347,7 @@ export default function StudentUpload() {
                                     </h3>
                                 </div>
                                 <div className="tw-bg-white/60 tw-backdrop-blur-sm tw-rounded-xl tw-p-4 tw-max-h-60 tw-overflow-y-auto tw-space-y-2">
-                                    {result.errors.map((error, index) => (
+                                    {result.errors.map((error: string, index: number) => (
                                         <div key={index} className="tw-flex tw-items-start tw-gap-3 tw-p-3 tw-bg-red-50/80 tw-rounded-lg">
                                             <div className="tw-w-6 tw-h-6 tw-rounded-full tw-bg-red-100 tw-flex tw-items-center tw-justify-center tw-flex-shrink-0 tw-mt-0.5">
                                                 <span className="tw-text-xs tw-font-bold tw-text-red-600">{index + 1}</span>

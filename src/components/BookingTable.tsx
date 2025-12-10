@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, Users, RefreshCw, AlertCircle } from 'lucide-react';
-import { BookingTableProps } from '@/lib/BookingTableProps';
+
 import Loading from './Loading';
 import { useRouter } from 'next/navigation';
+import { BookingTableProps } from '@/lib/BookingTableProps';
 
 /** ====== Utils (คงโครงเดิม + ใช้ซ้ำทั้ง 2 layout) ====== */
 const timeSlots: string[] = Array.from({ length: 11 }, (_, i) =>

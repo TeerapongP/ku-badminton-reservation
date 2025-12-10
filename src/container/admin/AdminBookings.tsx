@@ -28,7 +28,8 @@ import {
     ArrowLeft,
     Activity,
 } from "lucide-react";
-import { Booking, BookingsResponse, BookingActionRequest } from "@/lib/Booking";
+import { Booking } from "@/lib/Booking";
+
 const STATUS_CONFIG = {
     pending: {
         icon: Clock,
@@ -579,7 +580,7 @@ export default function AdminBookingsContainer() {
                                                     {formatDate(booking.play_date)}
                                                 </div>
                                                 <div className="tw-flex tw-flex-wrap tw-gap-1 tw-mt-1">
-                                                    {booking.time_slots.map((slot, index) => (
+                                                    {booking.time_slots.map((slot: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined, index: React.Key | null | undefined) => (
                                                         <span key={index} className="tw-px-2 tw-py-1 tw-bg-blue-100 tw-text-blue-800 tw-text-xs tw-font-medium tw-rounded-full">
                                                             {slot}
                                                         </span>
@@ -729,7 +730,7 @@ export default function AdminBookingsContainer() {
                                             <div className="tw-flex tw-justify-between tw-items-start">
                                                 <span className="tw-text-gray-600">เวลา:</span>
                                                 <div className="tw-flex tw-flex-wrap tw-gap-1">
-                                                    {selectedBooking.time_slots.map((slot, index) => (
+                                                    {selectedBooking.time_slots.map((slot: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined, index: React.Key | null | undefined) => (
                                                         <span key={index} className="tw-px-2 tw-py-1 tw-bg-blue-100 tw-text-blue-800 tw-text-xs tw-font-medium tw-rounded-full">
                                                             {slot}
                                                         </span>

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
 
 // GET - ดึงรายการ banners ที่ active สำหรับแสดงผล
 export async function GET(request: NextRequest) {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
             }
         });
 
-        const formattedBanners = banners.map(banner => ({
+        const formattedBanners = banners.map((banner: { banner_id: any; title: any; subtitle: any; image_path: any; display_order: any; }) => ({
             id: Number(banner.banner_id),
             title: banner.title,
             subtitle: banner.subtitle,

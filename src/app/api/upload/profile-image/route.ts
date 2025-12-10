@@ -10,8 +10,8 @@ import {
     ERROR_CODES,
     HTTP_STATUS,
     successResponse
-} from "@/lib/error-handler";
-import { withMiddleware } from "@/lib/api-middleware";
+} from "@/types/error-handler";
+import { CustomApiError, ERROR_CODES, HTTP_STATUS, successResponse, withErrorHandler } from '@/lib/error-handler';
 
 async function uploadHandler(request: NextRequest) {
     const formData = await request.formData();

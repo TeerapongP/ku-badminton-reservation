@@ -5,6 +5,7 @@ import { PaymentModal } from "@/components/PaymentModal";
 import { useToast } from "@/components/ToastProvider";
 import { ModalProps } from "@/lib/BookingData";
 
+
 /** Util เล็ก ๆ สำหรับฟอร์แมตค่าเงินบาท */
 function formatBaht(v: number | string) {
     const n = Number(v ?? 0);

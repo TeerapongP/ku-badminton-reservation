@@ -8,7 +8,7 @@ import { Button } from "@/components/Button";
 import { useToast } from "@/components/ToastProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { encryptDataClient } from "@/lib/encryption";
+import { encryptDataClient } from "@/types/encryption";
 import Loading from "@/components/Loading";
 
 export default function LoginContainner() {

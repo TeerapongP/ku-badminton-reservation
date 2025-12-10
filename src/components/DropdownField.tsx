@@ -1,5 +1,4 @@
 import { DropdownFieldProps } from "@/lib/DropdownFieldProps";
-import { DropdownOption } from "@/types/DropdownOption";
 import { Dropdown, DropdownChangeEvent } from 'primereact/dropdown';
 
 export const DropdownField: React.FC<DropdownFieldProps> = ({

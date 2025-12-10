@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/Auth";
-import { prisma } from "@/lib/prisma";
 import { decryptData, encryptData } from "@/lib/encryption";
+import { prisma } from "@/lib/prisma";
+
 
 // GET - ดึงข้อมูลโปรไฟล์
 export async function GET(

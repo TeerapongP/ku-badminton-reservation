@@ -20,9 +20,9 @@ import {
     Upload,
     LandPlot
 } from "lucide-react";
-
-import { DashboardStats } from "@/lib/DashboardData";
 import { Activity } from "@/lib/ActivityData";
+import { DashboardStats } from "@/lib/DashboardData";
+
 
 export default function AdminDashboard() {
     const router = useRouter();

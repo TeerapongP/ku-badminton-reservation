@@ -2,12 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import {
-    withErrorHandler,
-    CustomApiError,
-    ERROR_CODES,
-    HTTP_STATUS
-} from "@/lib/error-handler";
+import { CustomApiError, ERROR_CODES, HTTP_STATUS, withErrorHandler } from '@/lib/error-handler';
+
 
 async function imageHandler(
     request: NextRequest,

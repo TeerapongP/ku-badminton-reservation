@@ -1,19 +1,10 @@
 // src/app/api/auth/register/route.ts
 import { NextRequest } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import {
-  withErrorHandler,
-  validateRequired,
-  validateEmail,
-  validatePhone,
-  validatePostalCode,
-  CustomApiError,
-  ERROR_CODES,
-  HTTP_STATUS,
-  successResponse
-} from "@/lib/error-handler";
 import { withMiddleware } from "@/lib/api-middleware";
 import { decryptData } from "@/lib/encryption";
+import { CustomApiError, ERROR_CODES, HTTP_STATUS, validateRequired, validateEmail, validatePostalCode, validatePhone, successResponse, withErrorHandler } from "@/lib/error-handler";
+
 
 const prisma = new PrismaClient();
 

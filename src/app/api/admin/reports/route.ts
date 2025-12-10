@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/Auth';
 import { prisma } from '@/lib/prisma';
-import {
-    withErrorHandler,
-    CustomApiError,
-    ERROR_CODES,
-    HTTP_STATUS,
-    successResponse
-} from "@/lib/error-handler";
+import { CustomApiError, ERROR_CODES, HTTP_STATUS, successResponse, withErrorHandler } from '@/lib/error-handler';
 
 async function reportsHandler(request: NextRequest) {
     try {

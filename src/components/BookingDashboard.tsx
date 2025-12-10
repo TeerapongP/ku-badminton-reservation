@@ -4,7 +4,6 @@ import { MapPin, Calendar, Clock, XCircle, AlertTriangle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import BookingTable from "./BookingTable";
-
 import { DashboardBooking, DashboardBookingResponse } from '@/types/booking';
 
 // System Status Interface

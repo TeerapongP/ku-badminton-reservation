@@ -8,8 +8,8 @@ import Loading from "@/components/Loading";
 import { UserProfile } from "@/types/profile/types";
 import { InputField } from "@/components/InputField";
 import { Button } from "@/components/Button";
-import { RoleColors } from "@/lib/RoleColors";
-import { encryptDataClient } from "@/lib/encryption";
+import { RoleColors } from "@/types/RoleColors";
+import { encryptDataClient } from "@/types/encryption";
 import { statfs } from "fs";
 
 // Decrypt data on client side

@@ -9,8 +9,8 @@ import {
   ERROR_CODES,
   HTTP_STATUS,
   successResponse
-} from "@/lib/error-handler";
-import { withMiddleware, getClientInfo } from "@/lib/api-middleware";
+} from "@/types/error-handler";
+import { withMiddleware, getClientInfo } from "@/types/api-middleware";
 
 // จำกัดจำนวนครั้งที่ login ผิด
 const MAX_LOGIN_ATTEMPTS = 5;

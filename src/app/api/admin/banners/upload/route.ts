@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/Auth";
-import { writeFile, mkdir } from "fs/promises";
+import { mkdir, writeFile } from "fs/promises";
+import { randomBytes } from "crypto";
 import path from "path";
-import crypto from "crypto";
+
 
 export async function POST(request: NextRequest) {
     try {
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
 
         // สร้างชื่อไฟล์ใหม่
         const fileExtension = path.extname(file.name);
-        const fileName = `banner_${Date.now()}_${crypto.randomBytes(8).toString('hex')}${fileExtension}`;
+        const fileName = `banner_${Date.now()}_${randomBytes(8).toString('hex')}${fileExtension}`;
 
         // สร้างโฟลเดอร์ถ้ายังไม่มี
         const uploadDir = process.env.IMAGE_PATH

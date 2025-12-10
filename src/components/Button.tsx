@@ -1,5 +1,6 @@
 import { ButtonProps } from "@/lib/ButtonProps";
 
+
 interface ExtendedButtonProps extends ButtonProps {
   colorClass?: string;
 }

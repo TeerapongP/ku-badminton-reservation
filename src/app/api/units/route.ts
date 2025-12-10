@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { withMiddleware } from '@/lib/api-middleware';
+import { successResponse, withErrorHandler } from '@/lib/error-handler';
 
-import {
-    withErrorHandler,
-    successResponse
-} from "@/lib/error-handler";
-import { withMiddleware } from "@/lib/api-middleware";
 
 const prisma = new PrismaClient();
 

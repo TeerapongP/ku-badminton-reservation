@@ -21,7 +21,7 @@ import {
     MapPin,
     FileText
 } from "lucide-react";
-import { ReportData } from "@/lib/ReportData";
+
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -36,6 +36,7 @@ import {
     Filler
 } from 'chart.js';
 import { Line, Bar, Pie } from 'react-chartjs-2';
+import { ReportData } from "@/lib/ReportData";
 
 ChartJS.register(
     CategoryScale,
@@ -133,7 +134,7 @@ export default function AdminReportsContainer() {
             ['รายได้', 'รายได้รวม', '', data.revenueStats.total.toString()],
             ['รายได้', 'รายได้เฉลี่ยต่อการจอง', '', data.revenueStats.average.toFixed(2)],
             ['ผู้ใช้', 'ผู้ใช้ที่ใช้งานอยู่', data.userStats.activeUsers.toString(), ''],
-            ...data.facilityStats.map(facility => [
+            ...data.facilityStats.map((facility: { facilityName: any; bookings: { toString: () => any; }; revenue: { toString: () => any; }; }) => [
                 'สนาม',
                 facility.facilityName,
                 facility.bookings.toString(),
@@ -455,10 +456,10 @@ export default function AdminReportsContainer() {
                     <div className="tw-h-80">
                         <Line
                             data={{
-                                labels: reportData.dailyTrends?.map(item => new Date(item.date).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })) || [],
+                                labels: reportData.dailyTrends?.map((item: { date: string | number | Date; }) => new Date(item.date).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })) || [],
                                 datasets: [{
                                     label: 'รายได้',
-                                    data: reportData.dailyTrends?.map(item => item.revenue) || [],
+                                    data: reportData.dailyTrends?.map((item: { revenue: any; }) => item.revenue) || [],
                                     borderColor: '#3B82F6',
                                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
                                     borderWidth: 3,
@@ -531,10 +532,10 @@ export default function AdminReportsContainer() {
                     <div className="tw-h-80">
                         <Bar
                             data={{
-                                labels: reportData.dailyTrends?.map(item => new Date(item.date).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })) || [],
+                                labels: reportData.dailyTrends?.map((item: { date: string | number | Date; }) => new Date(item.date).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })) || [],
                                 datasets: [{
                                     label: 'การจอง',
-                                    data: reportData.dailyTrends?.map(item => item.bookings) || [],
+                                    data: reportData.dailyTrends?.map((item: { bookings: any; }) => item.bookings) || [],
                                     backgroundColor: '#10B981',
                                     borderColor: '#10B981',
                                     borderWidth: 1,
@@ -715,10 +716,10 @@ export default function AdminReportsContainer() {
                 <div className="tw-h-80">
                     <Bar
                         data={{
-                            labels: reportData.facilityStats?.map(item => item.facilityName) || [],
+                            labels: reportData.facilityStats?.map((item: { facilityName: any; }) => item.facilityName) || [],
                             datasets: [{
                                 label: 'การจอง',
-                                data: reportData.facilityStats?.map(item => item.bookings) || [],
+                                data: reportData.facilityStats?.map((item: { bookings: any; }) => item.bookings) || [],
                                 backgroundColor: '#10B981',
                                 borderColor: '#10B981',
                                 borderWidth: 1,
@@ -786,10 +787,10 @@ export default function AdminReportsContainer() {
                 <div className="tw-h-80">
                     <Bar
                         data={{
-                            labels: reportData.peakHours?.map(hour => hour.timeLabel) || [],
+                            labels: reportData.peakHours?.map((hour: { timeLabel: any; }) => hour.timeLabel) || [],
                             datasets: [{
                                 label: 'การจอง',
-                                data: reportData.peakHours?.map(hour => hour.bookings) || [],
+                                data: reportData.peakHours?.map((hour: { bookings: any; }) => hour.bookings) || [],
                                 backgroundColor: 'rgba(99, 102, 241, 0.8)',
                                 borderColor: 'rgb(99, 102, 241)',
                                 borderWidth: 1,
@@ -866,7 +867,7 @@ export default function AdminReportsContainer() {
                             </tr>
                         </thead>
                         <tbody>
-                            {reportData.userStats.topUsers?.map((user, index) => (
+                            {reportData.userStats.topUsers?.map((user: { userId: React.Key | null | undefined; username: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; role: string; bookings: number; totalSpent: number; }, index: number) => (
                                 <tr key={user.userId} className="tw-bg-white tw-border-b hover:tw-bg-gray-50">
                                     <td className="tw-px-6 tw-py-4 tw-font-medium tw-text-gray-900">
                                         #{index + 1}

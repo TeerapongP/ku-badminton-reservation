@@ -1,18 +1,21 @@
 export interface DashboardBooking {
-  id: string;
-  court_number: number;
-  court_name: string;
-  date: string; // YYYY-MM-DD format
-  time_slot: string; // HH:MM format
-  user_name: string;
-  status: 'confirmed' | 'pending' | 'cancelled' | 'available';
-  created_at: string;
+    court_id: string;
+    court_name: string;
+    court_number: number;
+    facility_name: string;
+    time_slot: string;
+    start_time: string;
+    end_time: string;
+    status: 'confirmed' | 'pending' | 'cancelled' | 'available';
+    user_name?: string;
+    user_email?: string;
+    user_phone?: string;
+    reservation_id?: string;
+    booking_date: string;
 }
 
 export interface DashboardBookingResponse {
-  success: boolean;
-  data: DashboardBooking[];
-  message?: string;
+    success: boolean;
+    data: DashboardBooking[];
+    message?: string;
 }
-
-export type DashboardBookingStatus = 'confirmed' | 'pending' | 'cancelled' | 'available';

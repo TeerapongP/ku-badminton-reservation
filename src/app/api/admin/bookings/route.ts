@@ -1,14 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/Auth';
 import { prisma } from '@/lib/prisma';
-import {
-    withErrorHandler,
-    CustomApiError,
-    ERROR_CODES,
-    HTTP_STATUS,
-    successResponse
-} from "@/lib/error-handler";
+import { authOptions } from '@/lib/Auth';
+import { CustomApiError, ERROR_CODES, HTTP_STATUS, successResponse, withErrorHandler } from '@/lib/error-handler';
+
 
 async function bookingsHandler(request: NextRequest) {
     try {

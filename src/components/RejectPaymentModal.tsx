@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { XCircle } from 'lucide-react';
-import { RejectPaymentModalProps } from '@/lib/PaymentData';
 import { Button } from './Button';
+import { RejectPaymentModalProps } from '@/lib/PaymentData';
 
 
 export const RejectPaymentModal: React.FC<RejectPaymentModalProps> = ({

@@ -10,18 +10,15 @@ import Loading from "@/components/Loading";
 import {
     Users,
     Plus,
-    Edit,
     Trash2,
     Shield,
     ShieldCheck,
-    Eye,
-    EyeOff,
     UserCheck,
     UserX,
     AlertTriangle
 } from "lucide-react";
-import { AdminUser, AdminFormData } from "@/lib/AdminUser";
 import { DropdownField } from "@/components/DropdownField";
+import { AdminUser, AdminFormData } from "@/lib/AdminUser";
 
 
 export default function AdminManage() {

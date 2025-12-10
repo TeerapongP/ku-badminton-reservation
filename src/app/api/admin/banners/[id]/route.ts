@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/Auth";
 import { prisma } from "@/lib/prisma";
 
+
 // PUT - อัปเดต banner
 export async function PUT(
     request: NextRequest,
