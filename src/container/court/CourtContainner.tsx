@@ -12,6 +12,7 @@ export interface Court {
     court_code: string;
     name: string;
     is_active: boolean;
+    is_booked?: boolean;     // เพิ่มสถานะการจอง
     image_path?: string | null;
 }
 
@@ -60,42 +61,65 @@ export default function CourtContainer() {
         router.push(`/courts-booking/${court.court_id}`);
     };
 
-    return (
-        <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-green-50 tw-via-emerald-50 tw-to-teal-50 tw-px-6">
-            <div className="tw-text-center">
-                <h1 className="tw-text-4xl md:tw-text-6xl tw-font-bold tw-bg-gradient-to-r tw-from-green-600 tw-via-emerald-600 tw-to-teal-600 tw-bg-clip-text tw-text-transparent tw-mb-3">
-                    สนามแบดมินตัน
-                </h1>
-                <p className="tw-text-base md:tw-text-lg tw-text-gray-700 tw-font-medium">มหาวิทยาลัยเกษตรศาสตร์</p>
-                <p className="tw-text-gray-500 tw-text-sm tw-mt-1">เลือกสนามที่คุณต้องการจอง</p>
-                <div className="tw-mt-5 tw-mb-5 tw-h-1.5 tw-w-28 tw-bg-gradient-to-r tw-from-green-500 tw-via-emerald-500 tw-to-teal-500 tw-mx-auto tw-rounded-full" />
-            </div>
+    // ฟังก์ชันสำหรับกำหนดสถานะ badge
+    const getCourtBadgeClass = (court: Court) => {
+        if (court.is_booked) return "tw-bg-blue-500/90 tw-text-white";
+        if (court.is_active) return "tw-bg-green-500/90 tw-text-white";
+        return "tw-bg-gray-500/90 tw-text-white";
+    };
 
-            {loading ? (
-                <Loading size="lg" text="กำลังโหลดข้อมูลสนาม..." color="emerald" fullScreen={false} />
-            ) : courts.length === 0 ? (
-                <div className="tw-text-center tw-mt-20">
-                    <div className="tw-inline-block tw-p-8 tw-bg-white tw-rounded-2xl tw-shadow-lg">
-                        <div className="tw-w-20 tw-h-20 tw-bg-gray-100 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mx-auto tw-mb-4">
-                            <svg className="tw-w-10 tw-h-10 tw-text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                            </svg>
-                        </div>
-                        <p className="tw-text-gray-600 tw-font-medium tw-text-lg">ไม่มีข้อมูลสนาม</p>
-                        <p className="tw-text-gray-400 tw-text-sm tw-mt-1">กรุณาลองใหม่อีกครั้งภายหลัง</p>
-                    </div>
+    const getCourtBadgeText = (court: Court) => {
+        if (court.is_booked) return "จองแล้ว";
+        if (court.is_active) return "พร้อมให้จอง";
+        return "ปิดปรับปรุง";
+    };
+
+    // ฟังก์ชันสำหรับกำหนดสีปุ่ม
+    const getButtonColorClass = (court: Court) => {
+        if (court.is_booked) return "tw-bg-blue-500 tw-text-white";
+        return "tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300";
+    };
+
+    const getButtonText = (court: Court, isLoading: boolean) => {
+        if (isLoading) return null; // จะแสดง loading component แทน
+        if (court.is_booked) return "จองแล้ว";
+        if (court.is_active) return "จองสนามเลย";
+        return "ยังไม่เปิดใช้งาน";
+    };
+
+    // Render empty state
+    const renderEmptyState = () => (
+        <div className="tw-text-center tw-mt-20">
+            <div className="tw-inline-block tw-p-8 tw-bg-white tw-rounded-2xl tw-shadow-lg">
+                <div className="tw-w-20 tw-h-20 tw-bg-gray-100 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mx-auto tw-mb-4">
+                    <svg className="tw-w-10 tw-h-10 tw-text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                    </svg>
                 </div>
-            ) : (
+                <p className="tw-text-gray-600 tw-font-medium tw-text-lg">ไม่มีข้อมูลสนาม</p>
+                <p className="tw-text-gray-400 tw-text-sm tw-mt-1">กรุณาลองใหม่อีกครั้งภายหลัง</p>
+            </div>
+        </div>
+    );
+
+    // Render content based on state
+    const renderContent = () => {
+        if (loading) {
+            return <Loading size="lg" text="กำลังโหลดข้อมูลสนาม..." color="emerald" fullScreen={false} />;
+        }
+
+        if (courts.length === 0) {
+            return renderEmptyState();
+        }
+
+        return (
                 <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-4 tw-gap-8 tw-max-w-7xl tw-mx-auto">
                     {courts.map((c) => (
                         <div key={c.court_id} className="tw-group">
                             <div className="tw-relative tw-bg-white tw-rounded-3xl tw-shadow-lg hover:tw-shadow-2xl tw-transition-all tw-duration-300 tw-overflow-hidden">
                                 <div className="tw-absolute tw-top-4 tw-right-4 tw-z-20">
-                                    <span
-                                        className={`tw-inline-flex tw-items-center tw-px-3 tw-py-1.5 tw-rounded-full tw-text-xs tw-font-bold tw-shadow tw-backdrop-blur-sm ${c.is_active ? "tw-bg-green-500/90 tw-text-white" : "tw-bg-gray-500/90 tw-text-white"
-                                            }`}
-                                    >
-                                        {c.is_active ? "พร้อมให้จอง" : "ปิดปรับปรุง"}
+                                    <span className={`tw-inline-flex tw-items-center tw-px-3 tw-py-1.5 tw-rounded-full tw-text-xs tw-font-bold tw-shadow tw-backdrop-blur-sm ${getCourtBadgeClass(c)}`}>
+                                        {getCourtBadgeText(c)}
                                     </span>
                                 </div>
 
@@ -117,10 +141,10 @@ export default function CourtContainer() {
                                     </h3>
                                     <Button
                                         onClick={() => handleBook(c)}
-                                        disabled={!c.is_active || bookingLoading === c.court_id}
+                                        disabled={!c.is_active || c.is_booked || bookingLoading === c.court_id}
                                         className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-xl tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-60 disabled:hover:tw-scale-100"
-                                        colorClass="tw-bg-gradient-to-r tw-from-emerald-500 tw-to-emerald-600 hover:tw-from-emerald-600 hover:tw-to-emerald-700 tw-text-white focus:tw-ring-4 focus:tw-ring-emerald-300"
-                                        aria-disabled={!c.is_active || bookingLoading === c.court_id}
+                                        colorClass={getButtonColorClass(c)}
+                                        aria-disabled={!c.is_active || c.is_booked || bookingLoading === c.court_id}
                                     >
                                         <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
                                             {bookingLoading === c.court_id ? (
@@ -128,10 +152,8 @@ export default function CourtContainer() {
                                                     <ButtonLoading size="sm" />
                                                     กำลังเข้าสู่หน้าจอง...
                                                 </>
-                                            ) : c.is_active ? (
-                                                "จองสนามเลย"
                                             ) : (
-                                                "ยังไม่เปิดใช้งาน"
+                                                getButtonText(c, false)
                                             )}
                                         </span>
                                     </Button>
@@ -142,7 +164,21 @@ export default function CourtContainer() {
                         </div>
                     ))}
                 </div>
-            )}
+        );
+    };
+
+    return (
+        <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-green-50 tw-via-emerald-50 tw-to-teal-50 tw-px-6">
+            <div className="tw-text-center">
+                <h1 className="tw-text-4xl md:tw-text-6xl tw-font-bold tw-bg-gradient-to-r tw-from-green-600 tw-via-emerald-600 tw-to-teal-600 tw-bg-clip-text tw-text-transparent tw-mb-3">
+                    สนามแบดมินตัน
+                </h1>
+                <p className="tw-text-base md:tw-text-lg tw-text-gray-700 tw-font-medium">มหาวิทยาลัยเกษตรศาสตร์</p>
+                <p className="tw-text-gray-500 tw-text-sm tw-mt-1">เลือกสนามที่คุณต้องการจอง</p>
+                <div className="tw-mt-5 tw-mb-5 tw-h-1.5 tw-w-28 tw-bg-gradient-to-r tw-from-green-500 tw-via-emerald-500 tw-to-teal-500 tw-mx-auto tw-rounded-full" />
+            </div>
+
+            {renderContent()}
         </div>
     );
 }

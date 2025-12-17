@@ -18,6 +18,7 @@ interface BlackoutForm {
 export interface BlackoutFormModalProps {
     show: boolean;
     courts: Court[];
+    selectedCourts: string[]; // เพิ่ม selectedCourts
     selectedFacility: Facility | undefined;
     blackoutForm: BlackoutForm;
     setBlackoutForm: React.Dispatch<React.SetStateAction<BlackoutForm>>;

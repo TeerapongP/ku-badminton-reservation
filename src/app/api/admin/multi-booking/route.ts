@@ -97,19 +97,19 @@ async function createMultiBookingHandler(req: NextRequest) {
         );
     }
 
-    // หา time slots ที่ตรงกับเวลาที่ระบุ
+    // หา time slots ที่ทับซ้อนกับช่วงเวลาที่ระบุ
     const weekday = bookingDateObj.getDay(); // 0 = Sunday, 1 = Monday, ...
     const timeSlots = await prisma.time_slots.findMany({
         where: {
             facility_id: BigInt(facility_id),
             weekday: weekday,
-            start_minute: { gte: startMinutes },
-            end_minute: { lte: endMinutes },
+            // เงื่อนไขสำหรับการทับซ้อน: slot เริ่มก่อนเวลาสิ้นสุด และ slot สิ้นสุดหลังเวลาเริ่มต้น
+            start_minute: { lt: endMinutes },
+            end_minute: { gt: startMinutes },
             is_active: true
         },
         orderBy: { start_minute: 'asc' }
     });
-
     if (timeSlots.length === 0) {
         throw new CustomApiError(
             ERROR_CODES.NOT_FOUND,

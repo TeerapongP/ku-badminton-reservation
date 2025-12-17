@@ -104,13 +104,26 @@ export const MultiBookingFormModal: React.FC<MultiBookingFormModalProps> = ({
     ">
                         <DateField
                             label=""
-                            value={multiBookingForm.booking_date ? new Date(multiBookingForm.booking_date) : null}
-                            onChange={(value) => setMultiBookingForm((prev) => ({
-                                ...prev,
-                                booking_date: value ? value.toISOString().split('T')[0] : ''
-                            }))}
+                            value={multiBookingForm.booking_date ? new Date(multiBookingForm.booking_date + 'T12:00:00') : null}
+                            onChange={(value) => {
+                                if (value) {
+                                    // แก้ปัญหา timezone โดยใช้ local date
+                                    const year = value.getFullYear();
+                                    const month = String(value.getMonth() + 1).padStart(2, '0');
+                                    const day = String(value.getDate()).padStart(2, '0');
+                                    const dateString = `${year}-${month}-${day}`;
+                                    setMultiBookingForm((prev) => ({
+                                        ...prev,
+                                        booking_date: dateString
+                                    }));
+                                } else {
+                                    setMultiBookingForm((prev) => ({
+                                        ...prev,
+                                        booking_date: ''
+                                    }));
+                                }
+                            }}
                             placeholder="เลือกวันที่ต้องการจอง"
-                            // ถ้า DateField รองรับ className ลองส่งเข้าไปเพื่อลบขอบเดิมออกครับ
                             className="tw-w-full tw-bg-transparent tw-border-0 tw-px-4 tw-py-3 tw-text-slate-700 tw-placeholder-slate-400 focus:tw-ring-0"
                         />
                     </div>
@@ -128,21 +141,20 @@ export const MultiBookingFormModal: React.FC<MultiBookingFormModalProps> = ({
                         <div className="tw-relative tw-transition-all tw-duration-200 tw-rounded-2xl tw-bg-slate-50 tw-border tw-border-slate-200 focus-within:tw-bg-white focus-within:tw-border-indigo-500 focus-within:tw-ring-4 focus-within:tw-ring-indigo-50">
                             <DateField
                                 label=""
-                                value={multiBookingForm.start_time ? new Date(`1970-01-01T${multiBookingForm.start_time}`) : null}
+                                // ไม่ให้มี default value - เริ่มต้นเป็น null เสมอ
+                                  value={multiBookingForm.start_time ? new Date(`1970-01-01T${multiBookingForm.start_time}`) : null}
                                 onChange={(value) => setMultiBookingForm((prev) => ({
                                     ...prev,
                                     start_time: value ? value.toTimeString().slice(0, 5) : ''
                                 }))}
                                 placeholder="00:00"
                                 timeOnly={true}
-                                minDate={new Date('1970-01-01T08:00:00')}
-                                maxDate={new Date('1970-01-01T20:00:00')}
                                 className="tw-w-full tw-bg-transparent tw-border-0 tw-px-4 tw-py-3 tw-text-slate-700 tw-font-medium tw-rounded-2xl focus:tw-ring-0 tw-outline-none"
                             />
                         </div>
                     </div>
 
-                    {/* เวลาสิ้นสุด */}
+                    {/* เวลาสิ้นสุด - แก้ไขตรงนี้ */}
                     <div className="tw-flex tw-flex-col tw-gap-2">
                         <div className="tw-flex tw-items-center tw-gap-2 tw-px-1">
                             <div className="tw-w-1 tw-h-4 tw-bg-red-400 tw-rounded-full" />
@@ -154,14 +166,13 @@ export const MultiBookingFormModal: React.FC<MultiBookingFormModalProps> = ({
                             <DateField
                                 label=""
                                 value={multiBookingForm.end_time ? new Date(`1970-01-01T${multiBookingForm.end_time}`) : null}
+                                // 2. แก้จาก start_time เป็น end_time
                                 onChange={(value) => setMultiBookingForm((prev) => ({
                                     ...prev,
                                     end_time: value ? value.toTimeString().slice(0, 5) : ''
                                 }))}
                                 placeholder="00:00"
                                 timeOnly={true}
-                                minDate={multiBookingForm.start_time ? new Date(`1970-01-01T${multiBookingForm.start_time}`) : new Date('1970-01-01T08:00:00')}
-                                maxDate={new Date('1970-01-01T20:00:00')}
                                 className="tw-w-full tw-bg-transparent tw-border-0 tw-px-4 tw-py-3 tw-text-slate-700 tw-font-medium tw-rounded-2xl focus:tw-ring-0 tw-outline-none"
                             />
                         </div>

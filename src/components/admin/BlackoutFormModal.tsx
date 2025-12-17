@@ -10,6 +10,7 @@ import { BlackoutFormModalProps } from '../../types/BlackoutForm';
 export const BlackoutFormModal: React.FC<BlackoutFormModalProps> = ({
     show,
     courts,
+    selectedCourts,
     selectedFacility,
     blackoutForm,
     setBlackoutForm,
@@ -18,6 +19,12 @@ export const BlackoutFormModal: React.FC<BlackoutFormModalProps> = ({
     onClose
 }) => {
     if (!show) return null;
+
+    // สร้างรายชื่อสนามที่เลือก
+    const selectedCourtNames = selectedCourts.map((courtId: string) => {
+        const court = courts.find((c) => c.court_id === courtId);
+        return court?.name || `สนาม ${court?.court_code}`;
+    });
 
     // แยกวันที่และเวลาออกจาก ISO String
     const getSplitDateTime = (dt: string) => {
@@ -33,7 +40,12 @@ export const BlackoutFormModal: React.FC<BlackoutFormModalProps> = ({
 
     const handleDateChange = (type: 'start' | 'end', date: Date | null) => {
         if (!date) return;
-        const dateValue = date.toISOString().split('T')[0];
+        // แก้ปัญหา timezone โดยใช้ local date
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateValue = `${year}-${month}-${day}`;
+        
         setBlackoutForm((prev) => {
             const field = type === 'start' ? 'start_datetime' : 'end_datetime';
             const currentTime = prev[field].split('T')[1] || (type === 'start' ? '00:00' : '23:59');
@@ -57,20 +69,40 @@ export const BlackoutFormModal: React.FC<BlackoutFormModalProps> = ({
             onClose={onClose}
         >
             <form onSubmit={handleCreateBlackout} className="tw-space-y-6">
+                {/* แสดงรายการสนามที่เลือก */}
+                <div className="tw-bg-slate-50 tw-rounded-2xl tw-p-5 tw-border tw-border-slate-100">
+                    <div className="tw-flex tw-items-center tw-justify-between tw-mb-3">
+                        <h4 className="tw-text-sm tw-font-bold tw-text-slate-500 tw-uppercase tw-tracking-wider">
+                            สนามที่เลือก
+                        </h4>
+                        <span className="tw-bg-red-100 tw-text-red-700 tw-text-xs tw-font-bold tw-px-2.5 tw-py-1 tw-rounded-lg">
+                            {selectedCourts.length} สนาม
+                        </span>
+                    </div>
 
-                {/* เลือกสนาม */}
-                <DropdownField
-                    label="สนามที่ต้องการปิด"
-                    value={blackoutForm.court_id}
-                    onChange={(value: string | number) => setBlackoutForm((prev) => ({ ...prev, court_id: String(value) }))}
-                    options={[
-                        { label: `ปิดทั้งอาคาร (${selectedFacility?.name_th})`, value: '' },
-                        ...courts.map((court) => ({
-                            label: court.name || `สนาม ${court.court_code}`,
-                            value: court.court_id
-                        }))
-                    ]}
-                />
+                    {/* รายการสนามแบบ Badge Tags */}
+                    <div className="tw-flex tw-flex-wrap tw-gap-2 tw-max-h-32 tw-overflow-y-auto tw-pr-2 custom-scrollbar">
+                        {selectedCourtNames.length > 0 ? (
+                            selectedCourtNames.map((name: string, index: number) => (
+                                <div
+                                    key={`court-tag-${name}-${index}`}
+                                    className="
+                                        tw-flex tw-items-center tw-gap-1.5
+                                        tw-bg-white tw-border tw-border-slate-200 
+                                        tw-px-3 tw-py-1.5 tw-rounded-xl
+                                        tw-text-sm tw-font-medium tw-text-slate-700
+                                        tw-shadow-sm
+                                    "
+                                >
+                                    <div className="tw-w-1.5 tw-h-1.5 tw-bg-red-500 tw-rounded-full" />
+                                    {name}
+                                </div>
+                            ))
+                        ) : (
+                            <span className="tw-text-sm tw-text-slate-400 tw-italic">ยังไม่ได้เลือกสนาม</span>
+                        )}
+                    </div>
+                </div>
 
                 {/* วันที่และเวลาเริ่มต้น */}
                 <div className="tw-grid tw-grid-cols-2 tw-gap-4">
@@ -78,7 +110,7 @@ export const BlackoutFormModal: React.FC<BlackoutFormModalProps> = ({
                         <label className="tw-text-sm tw-font-bold tw-text-slate-600 tw-px-1">วันที่เริ่มต้น</label>
                         <div className="tw-bg-slate-50 tw-rounded-2xl tw-border tw-border-slate-200 focus-within:tw-ring-4 focus-within:tw-ring-indigo-50 focus-within:tw-border-indigo-500 tw-transition-all">
                             <DateField
-                                value={new Date(startSplit.date)}
+                                value={new Date(startSplit.date + 'T12:00:00')}
                                 onChange={(date) => handleDateChange('start', date)}
                                 placeholder="เลือกวันที่"
                                 showIcon={false}
@@ -107,11 +139,11 @@ export const BlackoutFormModal: React.FC<BlackoutFormModalProps> = ({
                         <label className="tw-text-sm tw-font-bold tw-text-slate-600 tw-px-1">วันที่สิ้นสุด</label>
                         <div className="tw-bg-slate-50 tw-rounded-2xl tw-border tw-border-slate-200 focus-within:tw-ring-4 focus-within:tw-ring-indigo-50 focus-within:tw-border-indigo-500 tw-transition-all">
                             <DateField
-                                value={new Date(endSplit.date)}
+                                value={new Date(endSplit.date + 'T12:00:00')}
                                 onChange={(date) => handleDateChange('end', date)}
                                 placeholder="เลือกวันที่"
                                 showIcon={false}
-                                minDate={new Date(startSplit.date)}
+                                minDate={new Date(startSplit.date + 'T12:00:00')}
                                 className="tw-border-0 tw-bg-transparent"
                             />
                         </div>

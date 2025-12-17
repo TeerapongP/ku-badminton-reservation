@@ -157,6 +157,10 @@ export default function CourtManagement() {
                 toast?.showSuccess("สำเร็จ", "ปิดสนามเรียบร้อยแล้ว");
                 setShowBlackoutForm(false);
                 setBlackoutForm({ court_id: '', start_datetime: '', end_datetime: '', reason: '' });
+                // Refresh ข้อมูลสนามหลังจากปิดสนามสำเร็จ
+                if (selectedFacility) {
+                    fetchCourts(selectedFacility);
+                }
             } else {
                 toast?.showError("เกิดข้อผิดพลาด", data.message || "ไม่สามารถปิดสนามได้");
             }
@@ -195,11 +199,17 @@ export default function CourtManagement() {
 
             if (data.success) {
                 toast?.showSuccess("สำเร็จ", `จองสนาม ${selectedCourts.length} สนามเรียบร้อยแล้ว`);
+                
+                // Refresh ข้อมูลสนามหลังจากจองสำเร็จ (ไม่ส่งพารามิเตอร์เพื่อแสดงการจองทั้งหมด)
+                if (selectedFacility) {
+                    fetchCourts(selectedFacility);
+                }
+                
                 setShowMultiBookingForm(false);
                 setMultiBookingForm({ booking_date: '', start_time: '', end_time: '', note: '' });
                 setSelectedCourts([]);
             } else {
-                toast?.showError("เกิดข้อผิดพลาด", data.message || "ไม่สามารถจองสนามได้");
+                toast?.showError("เกิดข้อผิดพลาด", data.message ?? "ไม่สามารถจองสนามได้");
             }
         } catch (error) {
             console.error('Error creating multi-booking:', error);
@@ -272,6 +282,7 @@ export default function CourtManagement() {
             <BlackoutFormModal
                 show={showBlackoutForm}
                 courts={courts}
+                selectedCourts={selectedCourts}
                 selectedFacility={selectedFacilityData}
                 blackoutForm={blackoutForm}
                 setBlackoutForm={setBlackoutForm}

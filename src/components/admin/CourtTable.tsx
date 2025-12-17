@@ -2,19 +2,7 @@ import React from 'react';
 import { Settings, EyeOff, Plus, CheckCircle2, Circle } from 'lucide-react';
 import { Button } from '@/components/Button';
 import Loading from '@/components/Loading';
-import { Court } from '@/lib/Court';
-import { Facility } from '@/lib/Facility';
-
-interface CourtTableProps {
-    courts: Court[];
-    selectedCourts: string[];
-    selectedFacilityData: Facility | undefined;
-    courtsLoading: boolean;
-    onCourtSelection: (courtId: string) => void;
-    onSelectAllCourts: () => void;
-    onShowBlackoutForm: () => void;
-    onShowMultiBookingForm: () => void;
-}
+import { CourtTableProps } from '@/lib/CourtTableProps';
 
 export const CourtTable: React.FC<CourtTableProps> = ({
     courts,
@@ -162,42 +150,97 @@ export const CourtTable: React.FC<CourtTableProps> = ({
                     <tbody className="tw-divide-y tw-divide-slate-100">
                         {courts.map((court) => {
                             const isSelected = selectedCourts.includes(court.court_id);
+                            const isDisabled = !court.is_active || court.is_blackout || court.is_booked; // เช็คว่าสนามปิดอยู่หรือจองแล้ว
+
+                            // Extract status rendering logic
+                            const renderCourtStatus = () => {
+                                if (court.is_blackout) {
+                                    return (
+                                        <div className="tw-flex tw-flex-col">
+                                            <span className="tw-inline-flex tw-items-center tw-w-fit tw-px-2.5 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-bold tw-bg-orange-50 tw-text-orange-600 tw-border tw-border-orange-100">
+                                                <span className="tw-w-1.5 tw-h-1.5 tw-bg-orange-500 tw-rounded-full tw-animate-pulse"></span>
+                                                <span className="tw-ml-1.5">ปิดชั่วคราว</span>
+                                            </span>
+                                            {court.blackout_info?.reason && (
+                                                <span className="tw-text-xs tw-mt-1 tw-text-slate-400 tw-italic">
+                                                    "{court.blackout_info.reason}"
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                }
+                                
+                                if (court.is_booked) {
+                                    return (
+                                        <span className="tw-inline-flex tw-items-center tw-px-2.5 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-bold tw-bg-blue-50 tw-text-blue-600 tw-border tw-border-blue-100">
+                                            <span className="tw-w-1.5 tw-h-1.5 tw-bg-blue-500 tw-rounded-full tw-mr-1.5"></span>
+                                            จองแล้ว
+                                        </span>
+                                    );
+                                }
+                                
+                                if (court.is_active) {
+                                    return (
+                                        <span className="tw-inline-flex tw-items-center tw-px-2.5 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-bold tw-bg-emerald-50 tw-text-emerald-600 tw-border tw-border-emerald-100">
+                                            <span className="tw-w-1.5 tw-h-1.5 tw-bg-emerald-500 tw-rounded-full tw-mr-1.5"></span>
+                                            พร้อมให้บริการ
+                                        </span>
+                                    );
+                                }
+                                
+                                return (
+                                    <span className="tw-inline-flex tw-items-center tw-px-2.5 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-bold tw-bg-red-50 tw-text-red-600 tw-border tw-border-red-100">
+                                        ปิดให้บริการ
+                                    </span>
+                                );
+                            };
+
                             return (
                                 <tr
                                     key={court.court_id}
-                                    onClick={() => onCourtSelection(court.court_id)}
+                                    onClick={() => !isDisabled && onCourtSelection(court.court_id)} // คลิกได้เฉพาะสนามที่เปิด
                                     className={`
-                                        tw-cursor-pointer tw-transition-colors
-                                        ${isSelected ? 'tw-bg-indigo-50/50' : 'hover:tw-bg-slate-50'}
-                                    `}
+                    tw-transition-all tw-duration-200
+                    ${isDisabled
+                                            ? 'tw-bg-slate-50/50 tw-cursor-not-allowed tw-opacity-60'
+                                            : isSelected
+                                                ? 'tw-bg-indigo-50/70'
+                                                : 'tw-cursor-pointer hover:tw-bg-slate-50'}
+                `}
                                 >
+                                    {/* Column: เลือก */}
                                     <td className="tw-px-6 tw-py-4">
-                                        {isSelected ? (
-                                            <CheckCircle2 className="tw-w-6 tw-h-6 tw-text-indigo-600" />
+                                        {isDisabled ? (
+                                            <Circle className="tw-w-6 tw-h-6 tw-text-slate-200" /> // ไอคอนจางๆ สำหรับสนามที่เลือกไม่ได้
+                                        ) : isSelected ? (
+                                            <CheckCircle2 className="tw-w-6 tw-h-6 tw-text-indigo-600 tw-animate-in tw-zoom-in-75 tw-duration-200" />
                                         ) : (
-                                            <Circle className="tw-w-6 tw-h-6 tw-text-slate-300" />
+                                            <Circle className="tw-w-6 tw-h-6 tw-text-slate-300 group-hover:tw-text-indigo-300" />
                                         )}
                                     </td>
+
+                                    {/* Column: ชื่อสนาม */}
                                     <td className="tw-px-6 tw-py-4">
-                                        <div className="tw-font-bold tw-text-slate-800 tw-text-lg">
+                                        <div className={`tw-font-bold tw-text-lg ${isDisabled ? 'tw-text-slate-400' : 'tw-text-slate-800'}`}>
                                             {court.name ?? `สนาม ${court.court_id}`}
                                         </div>
+                                        {isDisabled && (
+                                            <span className="tw-text-[10px] tw-font-bold tw-text-slate-400 tw-uppercase">
+                                                ไม่สามารถเลือกได้
+                                            </span>
+                                        )}
                                     </td>
+
+                                    {/* Column: ประเภท */}
                                     <td className="tw-px-6 tw-py-4">
-                                        <span className="tw-text-sm tw-text-slate-500 tw-bg-slate-100 tw-px-2 tw-py-1 tw-rounded-md">
+                                        <span className={`tw-text-sm tw-px-2 tw-py-1 tw-rounded-md ${isDisabled ? 'tw-bg-slate-100 tw-text-slate-400' : 'tw-bg-slate-100 tw-text-slate-500'}`}>
                                             {court.court_type ?? 'ทั่วไป'}
                                         </span>
                                     </td>
+
+                                    {/* Column: สถานะ */}
                                     <td className="tw-px-6 tw-py-4">
-                                        {court.is_active ? (
-                                            <span className="tw-inline-flex tw-items-center tw-px-2.5 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-medium tw-bg-emerald-100 tw-text-emerald-800">
-                                                เปิดให้บริการ
-                                            </span>
-                                        ) : (
-                                            <span className="tw-inline-flex tw-items-center tw-px-2.5 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-medium tw-bg-red-100 tw-text-red-800">
-                                                ปิดให้บริการ
-                                            </span>
-                                        )}
+                                        {renderCourtStatus()}
                                     </td>
                                 </tr>
                             );
