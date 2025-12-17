@@ -9,12 +9,12 @@ import { useToast } from "@/components/ToastProvider";
 import { Button } from '@/components/Button';
 import Loading from '@/components/Loading';
 import { BlackoutFormModal } from '@/components/admin/BlackoutFormModal';
-import { CourtGrid } from '@/components/admin/CourtGrid';
 import { FacilitySelector } from '@/components/admin/FacilitySelector';
 import { MultiBookingFormModal } from '@/components/admin/MultiBookingFormModal';
 
 import { Court } from '@/lib/Court';
 import { Facility } from '@/lib/Facility';
+import { CourtTable } from '@/components/admin/CourtTable';
 
 // --- Main Component: CourtManagement ---
 export default function CourtManagement() {
@@ -256,7 +256,7 @@ export default function CourtManagement() {
 
             {/* Courts Display and Actions */}
             {selectedFacility && (
-                <CourtGrid
+                <CourtTable
                     courts={courts}
                     selectedCourts={selectedCourts}
                     selectedFacilityData={selectedFacilityData}

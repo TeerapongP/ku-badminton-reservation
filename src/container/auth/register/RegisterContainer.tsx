@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import {
     prefixTitleOptions,
 } from '@/constants/options';
-import { hashPassword, encryptDataClient } from '@/types/encryption';
+import { encryptDataClient, hashPassword } from "@/lib/encryption";
 
 export default function RegisterContainner() {
     const toast = useToast();

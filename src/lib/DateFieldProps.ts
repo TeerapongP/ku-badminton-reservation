@@ -9,4 +9,12 @@ export interface DateFieldProps {
   showIcon?:boolean;
   disabled?: boolean;
   className?: string;
+  timeOnly?:boolean
+  minTime?:Time,
+  maxTime?:Time
+}
+
+export interface Time {
+  hours: number;
+  minutes: number;
 }

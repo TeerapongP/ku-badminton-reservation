@@ -189,7 +189,7 @@ export default function Navbar() {
             <span className="tw-text-2xl tw-font-extrabold tw-tracking-tight">
               <span className="tw-text-cyan-300">KU</span>
             </span>
-            <span className="tw-text-lg tw-text-cyan-100/90">court booking</span>
+            <span className="tw-text-lg tw-text-cyan-100/90">court booking (ทดสอบ)</span>
           </Link>
 
           <div className="tw-hidden md:tw-flex tw-items-center tw-gap-3 tw-ml-auto">

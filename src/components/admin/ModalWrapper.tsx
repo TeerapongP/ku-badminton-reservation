@@ -8,20 +8,47 @@ interface ModalWrapperProps {
 }
 
 export const ModalWrapper: React.FC<ModalWrapperProps> = ({ children, title, onClose }) => (
-    <div className="tw-fixed tw-inset-0 tw-bg-black tw-bg-opacity-60 tw-backdrop-blur-sm tw-flex tw-items-center tw-justify-center tw-z-50 tw-p-4">
-        <div className="tw-bg-white tw-rounded-3xl tw-shadow-2xl tw-p-6 sm:tw-p-8 tw-w-full tw-max-w-md tw-mx-auto tw-transform tw-transition-all tw-duration-300 tw-scale-100">
-            <div className="tw-flex tw-items-center tw-justify-between tw-mb-6 tw-pb-2 tw-border-b tw-border-gray-100">
-                <h3 className="tw-text-2xl tw-font-bold tw-text-gray-900 tw-flex tw-items-center tw-gap-2">
-                    {title}
-                </h3>
+    <div className="tw-fixed tw-inset-0 tw-z-50 tw-flex tw-items-center tw-justify-center tw-p-4">
+        <button 
+            className="tw-absolute tw-inset-0 tw-bg-slate-900/60 tw-backdrop-blur-[6px] tw-transition-opacity tw-border-0 tw-p-0 tw-cursor-default" 
+            onClick={onClose}
+            aria-label="Close modal"
+        />
+
+        <div className="
+            tw-relative tw-bg-white tw-w-full tw-max-w-md tw-mx-auto
+            tw-rounded-[2rem] tw-shadow-[0_20px_50px_rgba(0,0,0,0.2)]
+            tw-overflow-hidden tw-border tw-border-slate-100
+            tw-transform tw-transition-all
+        ">
+            <div className="tw-px-8 tw-pt-8 tw-pb-4 tw-flex tw-items-center tw-justify-between">
+                <div className="tw-flex tw-flex-col">
+                    <h3 className="tw-text-2xl tw-font-extrabold tw-text-slate-800 tw-tracking-tight tw-flex tw-items-center tw-gap-3">
+                        {title}
+                    </h3>
+                    <div className="tw-h-1 tw-w-8 tw-bg-indigo-600 tw-rounded-full tw-mt-1" /> 
+                </div>
+
                 <button
                     onClick={onClose}
-                    className="tw-text-gray-400 hover:tw-text-gray-600 tw-p-2 tw-rounded-full hover:tw-bg-gray-100 tw-transition"
+                    className="
+                        tw-group tw-flex tw-items-center tw-justify-center
+                        tw-w-10 tw-h-10 tw-rounded-full
+                        tw-bg-slate-50 tw-text-slate-400
+                        tw-transition-all tw-duration-200
+                        hover:tw-bg-red-50 hover:tw-text-red-500
+                        tw-border-0 tw-outline-none
+                    "
                 >
-                    <X className="tw-w-6 tw-h-6" />
+                    <X className="tw-w-5 tw-h-5 tw-transition-transform group-hover:tw-rotate-90" />
                 </button>
             </div>
-            {children}
+
+            <div className="tw-px-8 tw-pb-8">
+                <div className="tw-text-slate-600">
+                    {children}
+                </div>
+            </div>
         </div>
     </div>
 );

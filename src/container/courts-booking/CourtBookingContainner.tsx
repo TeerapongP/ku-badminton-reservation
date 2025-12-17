@@ -243,25 +243,61 @@ export default function CourtBookingContainer() {
                     </div>
                 </div>
                 <div className="tw-mt-6 tw-mb-10 tw-bg-gradient-to-r tw-from-emerald-50 tw-to-teal-50 tw-p-6 tw-rounded-2xl tw-border tw-border-emerald-200">
-                    <label className="tw-font-bold tw-text-emerald-800 tw-block tw-mb-3 tw-flex tw-items-center tw-gap-2">
-                        <span className="tw-w-8 tw-h-8 tw-bg-emerald-600 tw-text-white tw-rounded-full tw-flex tw-items-center tw-justify-center tw-text-sm tw-font-bold">
-                            1
-                        </span>
-                        กรุณาเลือกวันที่ต้องการจอง
-                        {timeSlotParam && (
-                            <span className="tw-ml-2 tw-px-3 tw-py-1 tw-bg-blue-100 tw-text-blue-800 tw-rounded-full tw-text-sm tw-font-medium">
-                                เวลา: {timeSlotParam}
-                            </span>
-                        )}
-                    </label>
-                    <DateField
-                        value={selectedDate}
-                        onChange={setSelectedDate}
-                        showIcon
-                        minDate={today || undefined}
-                        placeholder="เลือกวันที่ต้องการจอง"
-                        required
-                    />
+                    <div className="tw-flex tw-flex-col tw-gap-4">
+                        {/* Stepper Label Section */}
+                        <div className="tw-flex tw-flex-wrap tw-items-center tw-justify-between tw-gap-3 tw-px-1">
+                            <label className="tw-flex tw-items-center tw-gap-3">
+                                {/* Step Number Badge */}
+                                <span className="
+                tw-w-8 tw-h-8 
+                tw-bg-emerald-600 tw-text-white 
+                tw-rounded-xl tw-flex tw-items-center tw-justify-center 
+                tw-text-sm tw-font-bold tw-shadow-sm
+            ">
+                                    1
+                                </span>
+
+                                {/* Main Label Text */}
+                                <span className="tw-text-lg tw-font-bold tw-text-slate-800 tw-tracking-tight">
+                                    กรุณาเลือกวันที่ต้องการจอง
+                                </span>
+                            </label>
+
+                            {/* Selected Time Badge (if exists) */}
+                            {timeSlotParam && (
+                                <div className="
+                tw-flex tw-items-center tw-gap-2 
+                tw-px-4 tw-py-1.5 
+                tw-bg-blue-50 tw-text-blue-700 
+                tw-rounded-2xl tw-border tw-border-blue-100 
+                tw-text-sm tw-font-bold tw-shadow-sm
+            ">
+                                    <span className="tw-w-2 tw-h-2 tw-bg-blue-400 tw-rounded-full tw-animate-pulse" />
+                                    เวลา: {timeSlotParam}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Input Field Section */}
+                        <div className="
+        tw-relative tw-transition-all tw-duration-200
+        tw-rounded-2xl tw-bg-slate-50 tw-border tw-border-slate-200
+        focus-within:tw-bg-white focus-within:tw-border-indigo-500 
+        focus-within:tw-ring-4 focus-within:tw-ring-indigo-50
+    ">
+                            <DateField
+                                value={today}
+                                disabled
+                                onChange={setSelectedDate}
+                                showIcon={true}
+                                minDate={today || undefined}
+                                placeholder="เลือกวันที่ต้องการจอง"
+                                required={true}
+                                // ปรับแต่ง class ภายใน DateField ให้ดูสะอาด
+                                className="tw-w-full tw-bg-transparent tw-border-0 tw-px-4 tw-py-4 tw-text-slate-700 tw-font-medium tw-outline-none"
+                            />
+                        </div>
+                    </div>
                     {timeSlotParam && (
                         <div className="tw-mt-3 tw-p-3 tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg">
                             <div className="tw-flex tw-items-center tw-gap-2 tw-text-blue-800">

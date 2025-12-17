@@ -1,17 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import crypto from 'crypto';
-import {
-    withErrorHandler,
-    validateRequired,
-    CustomApiError,
-    ERROR_CODES,
-    HTTP_STATUS,
-    successResponse
-} from "@/types/error-handler";
+import { withMiddleware } from '@/lib/api-middleware';
 import { CustomApiError, ERROR_CODES, HTTP_STATUS, successResponse, withErrorHandler } from '@/lib/error-handler';
+
 
 async function uploadHandler(request: NextRequest) {
     const formData = await request.formData();
