@@ -14,6 +14,8 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # =========================
 FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
+# Copy prisma directory ก่อน install เพื่อให้ postinstall script (prisma generate) ทำงานได้
+COPY prisma ./prisma
 # ถ้ามีพวก native deps (sharp/bcrypt) แล้วเจอ compile error ให้เปิดบรรทัดนี้
 # RUN apk add --no-cache python3 make g++
 

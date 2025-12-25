@@ -1,19 +1,51 @@
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 
 const prisma = new PrismaClient();
 
+// Helper function to safely convert cell value to string
+function cellValueToString(value) {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    // For complex objects (dates, formulas, etc.), try to get text representation
+    if (value && typeof value === 'object' && 'text' in value) {
+        return String(value.text);
+    }
+    return String(value);
+}
+
 async function readExcelFile(filePath) {
     try {
-        const workbook = XLSX.readFile(filePath);
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(filePath);
+        const worksheet = workbook.worksheets[0];
         
-        // อ่านข้อมูลโดยใช้ชื่อ column จาก header
-        const data = XLSX.utils.sheet_to_json(worksheet, { 
-            defval: '', // ค่า default สำหรับ cell ว่าง
+        if (!worksheet) {
+            throw new Error('ไม่พบ worksheet ในไฟล์');
+        }
+
+        // อ่าน header row (row 1)
+        const headers = [];
+        worksheet.getRow(1).eachCell((cell, colNumber) => {
+            headers[colNumber] = cellValueToString(cell.value);
+        });
+
+        // อ่านข้อมูล rows (เริ่มจาก row 2)
+        const data = [];
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return; // ข้าม header row
+            
+            const rowData = {};
+            row.eachCell((cell, colNumber) => {
+                const header = headers[colNumber];
+                if (header) {
+                    rowData[header] = cellValueToString(cell.value);
+                }
+            });
+            data.push(rowData);
         });
 
         console.log(`📂 อ่านข้อมูลจากไฟล์: ${path.basename(filePath)}`);

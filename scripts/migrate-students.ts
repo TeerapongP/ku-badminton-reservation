@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as path from 'path';
@@ -17,10 +17,46 @@ interface StudentData {
 
 async function readExcelFile(filePath: string): Promise<StudentData[]> {
     try {
-        const workbook = XLSX.readFile(filePath);
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const data = XLSX.utils.sheet_to_json(worksheet);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(filePath);
+        const worksheet = workbook.worksheets[0];
+        
+        if (!worksheet) {
+            throw new Error('ไม่พบ worksheet ในไฟล์');
+        }
+
+        // Helper function to safely convert cell value to string
+        const cellValueToString = (value: any): string => {
+            if (value === null || value === undefined) return '';
+            if (typeof value === 'string') return value;
+            if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+            // For complex objects (dates, formulas, etc.), try to get text representation
+            if (value && typeof value === 'object' && 'text' in value) {
+                return String(value.text);
+            }
+            return String(value);
+        };
+
+        // อ่าน header row (row 1)
+        const headers: string[] = [];
+        worksheet.getRow(1).eachCell((cell, colNumber) => {
+            headers[colNumber] = cellValueToString(cell.value);
+        });
+
+        // อ่านข้อมูล rows (เริ่มจาก row 2)
+        const data: any[] = [];
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return; // ข้าม header row
+            
+            const rowData: any = {};
+            row.eachCell((cell, colNumber) => {
+                const header = headers[colNumber];
+                if (header) {
+                    rowData[header] = cellValueToString(cell.value);
+                }
+            });
+            data.push(rowData);
+        });
 
         console.log(`📖 อ่านข้อมูลจากไฟล์: ${filePath}`);
         console.log(`📊 พบข้อมูล ${data.length} รายการ`);

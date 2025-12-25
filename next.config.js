@@ -72,9 +72,12 @@ const nextConfig = {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
 
-  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
-    return config;
-  },
+  // Turbopack config (Next.js 16+ uses Turbopack by default)
+  turbopack: {},
+  
+  // Webpack config removed - using Turbopack instead
+  // If you need webpack-specific configs, migrate them to Turbopack
+  // See: https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
 
   compress: true,
   poweredByHeader: false,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 
@@ -20,11 +19,53 @@ export async function POST(request: NextRequest) {
 
         // อ่านไฟล์ Excel
         const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        const workbook = XLSX.read(buffer, { type: 'buffer' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const data = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const buffer = Buffer.from(bytes) as any;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+        const worksheet = workbook.worksheets[0];
+        
+        if (!worksheet) {
+            return NextResponse.json(
+                { success: false, error: 'ไม่พบ worksheet ในไฟล์' },
+                { status: 400 }
+            );
+        }
+
+        // แปลง worksheet เป็น array of objects
+        const data: any[] = [];
+        const headers: string[] = [];
+        
+        // Helper function to safely convert cell value to string
+        const cellValueToString = (value: any): string => {
+            if (value === null || value === undefined) return '';
+            if (typeof value === 'string') return value;
+            if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+            // For complex objects (dates, formulas, etc.), try to get text representation
+            if (value && typeof value === 'object' && 'text' in value) {
+                return String(value.text);
+            }
+            return String(value);
+        };
+
+        // อ่าน header row (row 1)
+        worksheet.getRow(1).eachCell((cell, colNumber) => {
+            headers[colNumber] = cellValueToString(cell.value);
+        });
+
+        // อ่านข้อมูล rows (เริ่มจาก row 2)
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return; // ข้าม header row
+            
+            const rowData: any = {};
+            row.eachCell((cell, colNumber) => {
+                const header = headers[colNumber];
+                if (header) {
+                    rowData[header] = cellValueToString(cell.value);
+                }
+            });
+            data.push(rowData);
+        });
 
         if (data.length === 0) {
             return NextResponse.json(
