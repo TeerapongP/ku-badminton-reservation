@@ -51,7 +51,7 @@ export const CourtTable: React.FC<CourtTableProps> = ({
                 <div className="tw-flex tw-gap-4">
                     <Button
                         onClick={onShowBlackoutForm}
-                        disabled={courts.length === 0}
+                        disabled={selectedCourts.length === 0}
                         className="
             tw-flex-1 tw-h-12 
             tw-flex tw-items-center tw-justify-center tw-gap-2 

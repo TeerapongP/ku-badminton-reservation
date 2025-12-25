@@ -34,16 +34,16 @@ Cypress.on('window:before:load', (win) => {
 Cypress.on('uncaught:exception', (err, runnable) => {
     // Returning false here prevents Cypress from failing the test
     // on uncaught exceptions. Use carefully!
-
+    
     // Ignore specific errors that might occur during testing
     if (err.message.includes('ResizeObserver loop limit exceeded')) {
         return false
     }
-
+    
     if (err.message.includes('Non-Error promise rejection captured')) {
         return false
     }
-
+    
     // Let other errors fail the test
     return true
 })
@@ -60,7 +60,7 @@ beforeEach(() => {
 chai.use((chai, utils) => {
     chai.Assertion.addMethod('beVisibleAndContain', function (text) {
         const obj = this._obj
-
+        
         new chai.Assertion(obj).to.be.visible
         new chai.Assertion(obj).to.contain(text)
     })
@@ -70,3 +70,4 @@ chai.use((chai, utils) => {
 Cypress.config('defaultCommandTimeout', 10000)
 Cypress.config('requestTimeout', 10000)
 Cypress.config('responseTimeout', 10000)
+
