@@ -11,11 +11,14 @@ WORKDIR /app
 # Copy package files
 COPY package.json ./
 
-# Install dependencies using npm (simpler for cron container)
-RUN npm install --only=production
-
-# Copy Prisma schema and generate client
+# Copy Prisma schema ก่อน install เพื่อให้ postinstall script ทำงานได้
 COPY prisma ./prisma
+
+# Install dependencies using npm (simpler for cron container)
+# ใช้ --ignore-scripts เพื่อไม่ให้รัน postinstall script (จะ generate prisma แยก)
+RUN npm install --only=production --ignore-scripts
+
+# Generate Prisma Client
 RUN npx prisma generate
 
 # Copy cleanup script
