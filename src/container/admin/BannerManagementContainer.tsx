@@ -520,7 +520,7 @@ const BannerManagementContainer: React.FC = () => {
                                     {/* Image Upload */}
                                     <div>
                                         <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
-                                            รูปภาพ Banner *
+                                            รูปภาพ Banner <span className="tw-text-red-500">*</span>
                                         </label>
 
                                         {previewImage && (
