@@ -30,8 +30,8 @@ export function PaymentModal({
     const [previewUrl, setPreviewUrl] = useState<string>("");
     const [isUploading, setIsUploading] = useState(false);
 
-    // QR Code path (served by nginx)
-    const qrCodeUrl = "/uploads/payments/IMG_2178.JPG";
+    // QR Code path (served via API route)
+    const qrCodeUrl = "/api/images/payments/IMG_2178.JPG";
 
     // Handle file selection
     const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {

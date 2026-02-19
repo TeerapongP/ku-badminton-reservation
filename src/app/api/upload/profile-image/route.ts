@@ -144,8 +144,8 @@ async function uploadHandler(request: NextRequest) {
         // Prepend IV to encrypted filename
         encryptedFilenameResponse = iv.toString('hex') + ':' + encryptedFilenameResponse;
 
-        // Create cipher for image path (use direct path like banner)
-        const publicPath = `/uploads/profiles/${encryptedFilename}`;
+        // Create cipher for image path (use API route instead of direct path)
+        const publicPath = `/api/images/profiles/${encryptedFilename}`;
         const pathIv = crypto.randomBytes(16);
         const pathCipher = crypto.createCipheriv(algorithm, keyHash, pathIv);
         let encryptedImagePath = pathCipher.update(publicPath, 'utf8', 'hex');

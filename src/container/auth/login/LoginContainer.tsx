@@ -184,7 +184,6 @@ export default function LoginContainner() {
           <p className="tw-text-xs tw-text-gray-500 tw-mt-2">
             • นิสิต: รหัสนิสิต 8-10 หลัก<br />
             • บุคลากร/บุคคลทั่วไป: เลขบัตรประชาชน 13 หลัก<br />
-            • Admin: Username (3-20 ตัวอักษร)
           </p>
         </div>
 

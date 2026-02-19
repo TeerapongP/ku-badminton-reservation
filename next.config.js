@@ -51,6 +51,13 @@ const nextConfig = {
         ],
       },
       {
+        source: '/api/uploads/(.*)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+        ],
+      },
+      {
         source: '/api/images/(.*)',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
@@ -65,7 +72,9 @@ const nextConfig = {
   },
 
   async rewrites() {
-    return [];
+    return [
+      // No rewrite needed - API route matches the path structure
+    ];
   },
 
   env: {

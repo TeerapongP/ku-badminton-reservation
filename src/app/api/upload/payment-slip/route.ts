@@ -124,8 +124,8 @@ async function uploadPaymentSlipHandler(request: NextRequest) {
         );
     }
 
-    // Return file info (no encryption needed for payment slips)
-    const publicPath = `/uploads/payment-slips/${filename}`;
+    // Return file info (use API route for serving images)
+    const publicPath = `/api/images/payment-slips/${filename}`;
 
     return successResponse({
         filename,

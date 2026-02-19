@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
         const bytes = await file.arrayBuffer();
         await writeFile(filePath, Buffer.from(bytes));
 
-        // สร้าง URL สำหรับเข้าถึงไฟล์
-        const fileUrl = `/uploads/banners/${fileName}`;
+        // สร้าง URL สำหรับเข้าถึงไฟล์ (use API route)
+        const fileUrl = `/api/images/banners/${fileName}`;
 
         return NextResponse.json({
             success: true,

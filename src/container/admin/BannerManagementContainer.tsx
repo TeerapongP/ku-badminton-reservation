@@ -563,7 +563,7 @@ const BannerManagementContainer: React.FC = () => {
                                     {/* Title */}
                                     <div>
                                         <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
-                                            ชื่อ Banner *
+                                            ชื่อ Banner <span className="tw-text-red-500">*</span>
                                         </label>
                                         <InputField
                                             type="text"

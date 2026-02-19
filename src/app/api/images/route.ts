@@ -11,20 +11,6 @@ export async function GET(req: NextRequest, { params }: { params: { path?: strin
         const baseDir = process.env.IMAGE_PATH || '/app/public/uploads'
         const segments = params.path ?? []
 
-        // ไม่มี path -> ส่งตัวอย่าง (เหมือน fallback ปัจจุบันแต่ 200/400 ตามต้องการ)
-        if (segments.length === 0) {
-            return new Response(JSON.stringify({
-                error: 'Image path required',
-                message: 'Please specify image path: /api/images/[path]',
-                examples: [
-                    '/api/images/profiles/image.jpg',
-                    '/api/images/facilities/facility.png',
-                    '/api/images/courts/court.webp',
-                    '/api/images/banners/banner.jpg',
-                ],
-            }), { status: 400, headers: { 'content-type': 'application/json' } })
-        }
-
         // ตรวจไดเรกทอรีชั้นแรกให้เป็น allowed เท่านั้น
         const top = segments[0]
         if (!ALLOWED_DIRS.has(top)) {

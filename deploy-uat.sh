@@ -6,18 +6,16 @@ cd "$(dirname "$0")"   # run from this script's directory
 # ---- Config (local) ----
 APP_IMAGE="thirapongp/ku-badminton-reservation:latest"
 APP_NAME="ku-badminton-uat"
-NGINX_NAME="ku-nginx"
 APP_NET="ku-net"
-APP_DIR="/home/remotepang1/ku-badminton-app"
+APP_DIR="/home/bookingkps/ku-badminton-app"
 ENV_FILE=".env-uat"
 APP_PORT="3000"
-HOST_PORT="80" # auto fallback to 8080
-NGINX_CONF="${APP_DIR}/nginx/default.conf"
+HOST_PORT="8080"
 UPLOADS_DIR="${APP_DIR}/uploads"
-SUDO_PASS="pang_0320_VM"   # ⚠️ password of user 'remotepang1' on the server
-SSH_PASS="pang_0320_VM"    # SSH password (same as sudo for this user)
-SERVER_USER="remotepang1"
-SERVER_HOST="10.36.16.16"
+SUDO_PASS="Al96yvOZ@"   # ⚠️ password of user 'bookingkps' on the server
+SSH_PASS="Al96yvOZ@"    # SSH password (same as sudo for this user)
+SERVER_USER="bookingkps"
+SERVER_HOST="158.108.196.150"
 
 # ---- Local sanity checks ----
 if [[ ! -f "${ENV_FILE}" ]]; then
@@ -64,11 +62,6 @@ docker buildx build --no-cache --platform linux/amd64 \
 echo "📋 Copying environment file..."
 scp "${ENV_FILE}" "${SERVER_USER}@${SERVER_HOST}:${APP_DIR}/"
 
-echo "📋 Copying nginx config files..."
-ssh "${SERVER_USER}@${SERVER_HOST}" "mkdir -p '${APP_DIR}/nginx/conf.d'"
-scp "nginx/nginx.conf" "${SERVER_USER}@${SERVER_HOST}:${APP_DIR}/nginx/"
-scp "nginx/conf.d/default.conf" "${SERVER_USER}@${SERVER_HOST}:${APP_DIR}/nginx/conf.d/"
-
 echo "📋 Copying log cleanup files..."
 ssh "${SERVER_USER}@${SERVER_HOST}" "mkdir -p '${APP_DIR}/docker/cron' '${APP_DIR}/scripts' '${APP_DIR}/prisma'"
 scp "docker/cron/Dockerfile.cron" "${SERVER_USER}@${SERVER_HOST}:${APP_DIR}/docker/cron/"
@@ -86,19 +79,17 @@ set -euo pipefail
 # ---- Config (remote) ----
 APP_IMAGE="thirapongp/ku-badminton-reservation:latest"
 APP_NAME="ku-badminton-uat"
-NGINX_NAME="ku-nginx"
 APP_NET="ku-net"
-APP_DIR="/home/remotepang1/ku-badminton-app"
+APP_DIR="/home/bookingkps/ku-badminton-app"
 ENV_FILE=".env-uat"
 APP_PORT="3000"
-HOST_PORT="80"
-NGINX_CONF="${APP_DIR}/nginx/default.conf"
+HOST_PORT="8080"
 UPLOADS_DIR="${APP_DIR}/uploads"
 
 # ---- Folders & permissions ----
 echo "📁 Ensuring base directories and permissions..."
 echo "$SUDO_PASS" | sudo -S mkdir -p "${UPLOADS_DIR}"/{profiles,facilities,courts,payments,payment-slips,banners,temp}
-echo "$SUDO_PASS" | sudo -S chown -R remotepang1:remotepang1 "${UPLOADS_DIR}" || true
+echo "$SUDO_PASS" | sudo -S chown -R bookingkps:bookingkps "${UPLOADS_DIR}" || true
 echo "$SUDO_PASS" | sudo -S chmod -R 777 "${UPLOADS_DIR}" || true
 echo "$SUDO_PASS" | sudo -S find "${UPLOADS_DIR}" -type d -exec chmod 2777 {} \; || true
 
@@ -127,9 +118,10 @@ if [[ ! -f "${ENV_FILE}" ]]; then echo "❌ ${ENV_FILE} not found in ${APP_DIR}"
 docker run -d --name "${APP_NAME}" \
   --env-file "${ENV_FILE}" \
   --network "${APP_NET}" \
+  -p 8080:3000 \
   -e HOST=0.0.0.0 \
   -e PORT="${APP_PORT}" \
-  -e IMAGE_PATH="${UPLOADS_DIR}/" \
+  -e IMAGE_PATH="/app/uploads" \
   -v "${UPLOADS_DIR}:/app/uploads:rw" \
   --restart=unless-stopped \
   "${APP_IMAGE}"
@@ -147,38 +139,6 @@ docker exec "${APP_NAME}" /bin/sh -c 'whoami && id' || true
 echo "⏳ Waiting for app to start..."
 sleep 5
 
-# ---- Host port pick ----
-HOST_PORT="80"
-
-
-# ---- Use uploaded nginx config files ----
-echo "🛠️ Using nginx config from uploaded files..."
-NGINX_MAIN_CONF="${APP_DIR}/nginx/nginx.conf"
-NGINX_DEFAULT_CONF="${APP_DIR}/nginx/conf.d/default.conf"
-
-# ---- Test nginx config ----
-echo "🧪 Pre-testing nginx config (safe mode)..."
-docker run --rm \
-  --entrypoint "" \
-  --network "${APP_NET}" \
-  -v "${NGINX_MAIN_CONF}:/etc/nginx/nginx.conf:ro" \
-  -v "${NGINX_DEFAULT_CONF}:/etc/nginx/conf.d/default.conf:ro" \
-  nginx:alpine nginx -t || echo "⚠️ Ignore nginx test warnings"
-
-
-# ---- Nginx container ----
-echo "🌐 (Re)starting nginx on :${HOST_PORT} ..."
-docker rm -f "${NGINX_NAME}" 2>/dev/null || true
-docker run -d --name "${NGINX_NAME}" \
-  --network "${APP_NET}" \
-  -p ${HOST_PORT}:80 \
-  -p 443:443 \
-  -v "${NGINX_MAIN_CONF}:/etc/nginx/nginx.conf:ro" \
-  -v "${NGINX_DEFAULT_CONF}:/etc/nginx/conf.d/default.conf:ro" \
-  -v "${UPLOADS_DIR}:/home/remotepang1/ku-badminton-app/uploads:ro" \
-  --restart=unless-stopped \
-  nginx:alpine
-
 # ---- Health check ----
 echo "🩺 Health check..."
 echo "🔍 Checking if Next.js app is responding..."
@@ -186,21 +146,6 @@ for i in $(seq 1 30); do
   if docker exec "${APP_NAME}" /bin/sh -c 'curl -fsS http://localhost:3000/ >/dev/null 2>&1'; then
     echo "✅ Next.js app is responding"; break; fi; sleep 2
   [ "$i" -eq 30 ] && { echo "❌ Next.js app not responding"; docker logs "${APP_NAME}" --tail 50; }
-done
-
-echo "🔍 Checking nginx proxy..."
-for i in $(seq 1 20); do
-  # Check if nginx is responding (even 404 is OK, means it's working)
-  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${HOST_PORT}/" 2>/dev/null || echo "000")
-  if [[ "$HTTP_CODE" =~ ^[2-4][0-9][0-9]$ ]]; then
-    echo "✅ Nginx proxy OK (HTTP $HTTP_CODE)"; break; fi; sleep 1
-  [ "$i" -eq 20 ] && { 
-    echo "❌ Nginx proxy not responding"
-    echo "📝 Nginx logs:"
-    docker logs "${NGINX_NAME}" --tail 50
-    echo "📝 App logs:"
-    docker logs "${APP_NAME}" --tail 30
-  }
 done
 
 # ---- Log Cleanup Cron Container ----
@@ -238,20 +183,17 @@ else
   echo "⚠️ Log cleanup Dockerfile not found, skipping cron setup"
 fi
 
-echo "📊 Containers:"
-docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | sed 's/^/  /'
-
 echo "📝 App logs (last 60 lines):"
 docker logs "${APP_NAME}" --tail 60 || true
 
 echo "🧹 Log cleanup cron logs (if available):"
 docker logs "${LOG_CLEANUP_NAME}" --tail 20 2>/dev/null || echo "Log cleanup container not running"
 
-echo "ℹ️ If firewall enabled, allow: sudo ufw allow ${HOST_PORT}/tcp"
+echo "ℹ️ If firewall enabled, allow: sudo ufw allow 8080/tcp"
 EOSSH
 
 echo "✅ UAT deployment completed!"
-echo "🌐 App should be available at: http://10.36.16.16 (or :8080 if 80 is used)"
+echo "🌐 App should be available at: http://158.108.196.150:8080"
 echo ""
 echo "🧹 Log Cleanup System:"
 echo "  - Container: ku-log-cleanup"

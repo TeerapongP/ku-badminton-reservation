@@ -157,10 +157,10 @@ export default function RegisterContainner() {
         if (!nationnalId.trim()) return "กรุณากรอกรหัสบัตรประชาชน";
         if (nationnalId && !/^\d{13}$/.test(nationnalId)) return "เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก";
 
-        // Staff validation
-        if (userType === "staff") {
-            if (!office) return "กรุณาเลือกหน่วยงาน";
-        }
+        // Staff validation - ไม่บังคับกรอกหน่วยงานและตำแหน่งงาน
+        // if (userType === "staff") {
+        //     if (!office) return "กรุณาเลือกหน่วยงาน";
+        // }
 
         return null;
     };
@@ -364,8 +364,8 @@ export default function RegisterContainner() {
                                 value={office}
                                 onChange={setOffice}
                                 options={officeOptions}
+                                disabled={true}
                                 optionLabel="label"
-                                required
                             />
                         </div>
                         <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-12">
@@ -374,8 +374,8 @@ export default function RegisterContainner() {
                                 value={jobtitle}
                                 onChange={setJobtitle}
                                 options={subUnitOption}
+                                disabled={true}
                                 optionLabel="label"
-                                required
                             />
                         </div>
                     </>

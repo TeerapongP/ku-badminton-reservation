@@ -13,6 +13,11 @@ async function imageHandler(
         const resolvedParams = await context.params;
         const imagePath = resolvedParams.path.join('/');
 
+        console.log('[Upload API] Request received:', {
+            url: request.url,
+            imagePath,
+            params: resolvedParams.path
+        });
 
         if (!imagePath) {
             throw new CustomApiError(
@@ -23,13 +28,22 @@ async function imageHandler(
         }
 
         const baseUploadPath = process.env.IMAGE_PATH 
-            ? process.env.IMAGE_PATH.replace(/\/$/, '') 
+            ? process.env.IMAGE_PATH.replace(/\/$/, '') // Remove trailing slash
             : join(process.cwd(), 'public', 'uploads');
         
         const fullImagePath = join(baseUploadPath, imagePath);
 
+        console.log('[Upload API] Attempting to serve:', {
+            imagePath,
+            baseUploadPath,
+            fullImagePath,
+            exists: existsSync(fullImagePath),
+            IMAGE_PATH_env: process.env.IMAGE_PATH
+        });
+
         // Check if file exists
         if (!existsSync(fullImagePath)) {
+            console.error('[Upload API] File not found:', fullImagePath);
             throw new CustomApiError(
                 ERROR_CODES.NOT_FOUND,
                 'ไม่พบรูปภาพที่ต้องการ',
@@ -64,6 +78,11 @@ async function imageHandler(
                 break;
         }
 
+        console.log('[Upload API] Serving file:', {
+            size: imageBuffer.length,
+            contentType
+        });
+
         // Convert Buffer to Uint8Array for Response (more compatible)
         const uint8Array = new Uint8Array(imageBuffer);
 
@@ -82,7 +101,7 @@ async function imageHandler(
             throw error;
         }
 
-        console.error('Image serving error:', error);
+        console.error('Upload API serving error:', error);
         throw new CustomApiError(
             ERROR_CODES.INTERNAL_SERVER_ERROR,
             'เกิดข้อผิดพลาดในการโหลดรูปภาพ',
