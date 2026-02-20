@@ -12,8 +12,8 @@ ENV_FILE=".env-uat"
 APP_PORT="3000"
 HOST_PORT="8080"
 UPLOADS_DIR="${APP_DIR}/uploads"
-SUDO_PASS="Al96yvOZ@"   # ⚠️ password of user 'bookingkps' on the server
-SSH_PASS="Al96yvOZ@"    # ssh password (same as sudo for this user)
+SUDO_PASS="Al96yvOZ@"   # set via environment variable
+SUDO_PASS="Al96yvOZ@"     # set via environment variable
 SERVER_USER="bookingkps"
 SERVER_HOST="158.108.196.150"
 
