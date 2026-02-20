@@ -31,7 +31,7 @@ async function checkBookingSystemStatus(request: NextRequest) {
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Debug NextAuth requests
   if (request.nextUrl.pathname.startsWith('/api/auth/')) {
     console.log("🔍 NextAuth request:", {
@@ -106,6 +106,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     } catch (error) {
       // Token ไม่ถูกต้อง redirect ไป login
+      console.error('Token validation error:', error);
       return NextResponse.redirect(new URL("/login", request.url));
     }
   }
