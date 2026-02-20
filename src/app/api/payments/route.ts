@@ -45,10 +45,13 @@ async function createPaymentHandler(request: NextRequest) {
             );
         }
 
-        // ตรวจสอบว่ามี payment record อยู่แล้วหรือไม่
+        // ตรวจสอบว่ามี payment record อยู่แล้วหรือไม่ (with ownership check)
         const existingPayment = await prisma.payments.findFirst({
             where: {
-                reservation_id: BigInt(reservationId)
+                reservation_id: BigInt(reservationId),
+                reservations: {
+                    user_id: BigInt(session.user.id)
+                }
             }
         });
 

@@ -9,7 +9,8 @@ async function rejectPaymentHandler(request: NextRequest) {
         const session = await getServerSession(authOptions);
 
         // ตรวจสอบสิทธิ์ admin
-        if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'super_admin' && session.user.role !== 'super_admin')) {
+        const ADMIN_ROLES = ['admin', 'super_admin'] as const;
+        if (!session?.user || !ADMIN_ROLES.includes(session.user.role as any)) {
             throw new CustomApiError(
                 ERROR_CODES.UNAUTHORIZED,
                 'ไม่มีสิทธิ์เข้าถึง',
@@ -44,6 +45,7 @@ async function rejectPaymentHandler(request: NextRequest) {
             include: {
                 reservations: {
                     include: {
+                        facilities: true,
                         users: {
                             select: {
                                 user_id: true,
@@ -65,6 +67,10 @@ async function rejectPaymentHandler(request: NextRequest) {
             );
         }
 
+        // Note: Facility-level authorization not implemented
+        // All admins can manage all facilities
+        // TODO: Create facility_admins table if facility-level permissions needed
+        
         if (payment.status !== 'pending') {
             throw new CustomApiError(
                 ERROR_CODES.VALIDATION_ERROR,

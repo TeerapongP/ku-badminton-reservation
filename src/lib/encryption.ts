@@ -2,19 +2,19 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
 /**
- * เข้ารหัสข้อมูลด้วย AES-256-CBC (Server-side only)
+ * เข้ารหัสข้อมูลด้วย AES-256-GCM (Authenticated Encryption)
  * @param data - ข้อมูลที่ต้องการเข้ารหัส
- * @returns ข้อมูลที่เข้ารหัสแล้ว ในรูปแบบ "iv:encrypted"
+ * @returns ข้อมูลที่เข้ารหัสแล้ว ในรูปแบบ "iv:authTag:encrypted"
  */
 export function encryptData(data: string): string {
   const key = process.env.SECRET_KEY;
-  if (!key) {
-    throw new Error("SECRET_KEY not found in environment variables");
+  if (!key || key.length !== 64) {
+    throw new Error("SECRET_KEY must be 64 hex characters (32 bytes)");
   }
 
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv(
-    "aes-256-cbc",
+    "aes-256-gcm",
     Buffer.from(key, "hex"),
     iv
   );
@@ -22,23 +22,26 @@ export function encryptData(data: string): string {
   let encrypted = cipher.update(data, "utf8", "hex");
   encrypted += cipher.final("hex");
 
-  return iv.toString("hex") + ":" + encrypted;
+  // Get authentication tag for GCM mode
+  const authTag = cipher.getAuthTag().toString("hex");
+
+  return `${iv.toString("hex")}:${authTag}:${encrypted}`;
 }
 
 /**
- * เข้ารหัสข้อมูลด้วย AES-256-CBC (Client-side)
+ * เข้ารหัสข้อมูลด้วย AES-256-GCM (Client-side)
  * @param data - ข้อมูลที่ต้องการเข้ารหัส
  * @param key - encryption key (hex string)
- * @returns ข้อมูลที่เข้ารหัสแล้ว ในรูปแบบ "iv:encrypted"
+ * @returns ข้อมูลที่เข้ารหัสแล้ว ในรูปแบบ "iv:authTag:encrypted"
  */
 export function encryptDataClient(data: string, key: string): string {
-  if (!key) {
-    throw new Error("Encryption key is required");
+  if (!key || key.length !== 64) {
+    throw new Error("Encryption key must be 64 hex characters (32 bytes)");
   }
 
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv(
-    "aes-256-cbc",
+    "aes-256-gcm",
     Buffer.from(key, "hex"),
     iv
   );
@@ -46,7 +49,9 @@ export function encryptDataClient(data: string, key: string): string {
   let encrypted = cipher.update(data, "utf8", "hex");
   encrypted += cipher.final("hex");
 
-  return iv.toString("hex") + ":" + encrypted;
+  const authTag = cipher.getAuthTag().toString("hex");
+
+  return `${iv.toString("hex")}:${authTag}:${encrypted}`;
 }
 
 /**
@@ -70,29 +75,44 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 /**
- * ถอดรหัสข้อมูลที่เข้ารหัสด้วย AES-256-CBC
- * @param encryptedData - ข้อมูลที่เข้ารหัส ในรูปแบบ "iv:encrypted"
+ * ถอดรหัสข้อมูลที่เข้ารหัสด้วย AES-256-GCM
+ * @param encryptedData - ข้อมูลที่เข้ารหัส ในรูปแบบ "iv:authTag:encrypted"
  * @returns ข้อมูลที่ถอดรหัสแล้ว
  */
 export function decryptData(encryptedData: string): string {
   const key = process.env.SECRET_KEY;
-  if (!key) {
-    throw new Error("SECRET_KEY not found in environment variables");
+  if (!key || key.length !== 64) {
+    throw new Error("SECRET_KEY must be 64 hex characters (32 bytes)");
   }
 
   const parts = encryptedData.split(":");
-  if (parts.length !== 2) {
+  
+  // Support both old CBC format (2 parts) and new GCM format (3 parts) for migration
+  if (parts.length === 2) {
+    // Legacy CBC decryption
+    const iv = Buffer.from(parts[0], "hex");
+    const encrypted = parts[1];
+    const decipher = crypto.createDecipheriv("aes-256-cbc", Buffer.from(key, "hex"), iv);
+    let decrypted = decipher.update(encrypted, "hex", "utf8");
+    decrypted += decipher.final("utf8");
+    return decrypted;
+  }
+  
+  if (parts.length !== 3) {
     throw new Error("Invalid encrypted data format");
   }
 
-  const iv = Buffer.from(parts[0], "hex");
-  const encrypted = parts[1];
+  const [ivHex, authTagHex, encrypted] = parts;
+  const iv = Buffer.from(ivHex, "hex");
+  const authTag = Buffer.from(authTagHex, "hex");
 
   const decipher = crypto.createDecipheriv(
-    "aes-256-cbc",
+    "aes-256-gcm",
     Buffer.from(key, "hex"),
     iv
   );
+  
+  decipher.setAuthTag(authTag);
 
   let decrypted = decipher.update(encrypted, "hex", "utf8");
   decrypted += decipher.final("utf8");

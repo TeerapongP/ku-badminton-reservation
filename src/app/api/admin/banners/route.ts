@@ -113,12 +113,42 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { title, subtitle, image_path, is_active = true, display_order } = body;
+        let { title, subtitle, image_path, is_active = true, display_order } = body;
 
         // Validation
         if (!title || !image_path) {
             return NextResponse.json(
                 { success: false, error: "กรุณากรอกข้อมูลให้ครบถ้วน" },
+                { status: 400 }
+            );
+        }
+
+        // Sanitize HTML to prevent XSS
+        const sanitizeHtml = (input: string): string => {
+            return input
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#x27;')
+                .replace(/\//g, '&#x2F;');
+        };
+
+        title = sanitizeHtml(title);
+        if (subtitle) {
+            subtitle = sanitizeHtml(subtitle);
+        }
+
+        // Validate length
+        if (title.length > 255) {
+            return NextResponse.json(
+                { success: false, error: "ชื่อยาวเกินไป" },
+                { status: 400 }
+            );
+        }
+
+        if (subtitle && subtitle.length > 500) {
+            return NextResponse.json(
+                { success: false, error: "คำบรรยายยาวเกินไป" },
                 { status: 400 }
             );
         }

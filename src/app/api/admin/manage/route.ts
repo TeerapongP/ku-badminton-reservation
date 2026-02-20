@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session?.user || (session.user.role !== 'super_admin' && session.user.role !== 'super_admin')) {
+        if (!session?.user || session.user.role !== 'super_admin') {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
         }
 
         // ตรวจสอบ role ที่อนุญาต
-        if (!['admin', 'super_admin', 'super_admin'].includes(role)) {
+        if (!['admin', 'super_admin'].includes(role)) {
             return NextResponse.json(
                 { success: false, error: "Role ไม่ถูกต้อง" },
                 { status: 400 }
@@ -209,13 +209,51 @@ export async function PUT(req: NextRequest) {
             );
         }
 
+        // Get target user
+        const targetUser = await prisma.users.findUnique({
+            where: { user_id: BigInt(id) },
+            select: { role: true, user_id: true }
+        });
+
+        if (!targetUser) {
+            return NextResponse.json(
+                { success: false, error: "ไม่พบผู้ใช้" },
+                { status: 404 }
+            );
+        }
+
+        // Prevent role escalation attacks
+        const ADMIN_ROLES = ['admin', 'super_admin'];
+        const isTargetAdmin = ADMIN_ROLES.includes(targetUser.role);
+        const isNewRoleAdmin = role && ADMIN_ROLES.includes(role);
+
+        // Only super_admin can change admin roles
+        if (isTargetAdmin || isNewRoleAdmin) {
+            // Count remaining super_admins
+            const superAdminCount = await prisma.users.count({
+                where: {
+                    role: 'super_admin',
+                    status: 'active'
+                }
+            });
+
+            // Prevent removing last super_admin
+            if (superAdminCount <= 1 && targetUser.role === 'super_admin' &&
+                (role !== 'super_admin' || status === 'inactive')) {
+                return NextResponse.json(
+                    { success: false, error: "ไม่สามารถลบ super_admin คนสุดท้ายได้" },
+                    { status: 400 }
+                );
+            }
+        }
+
         const updateData: any = {};
 
         if (username) updateData.username = username;
         if (email) updateData.email = email;
         if (first_name) updateData.first_name = first_name;
         if (last_name) updateData.last_name = last_name;
-        if (role && ['admin', 'super_admin', 'super_admin'].includes(role)) updateData.role = role;
+        if (role && ['admin', 'super_admin'].includes(role)) updateData.role = role;
         if (status && ['active', 'inactive', 'suspended'].includes(status)) updateData.status = status;
 
         if (password) {

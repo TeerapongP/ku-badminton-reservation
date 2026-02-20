@@ -82,12 +82,6 @@ export async function middleware(request: NextRequest) {
       isSystemOpen,
     });
 
-    // TODO: ปิดการเช็คระบบชั่วคราวสำหรับ development
-    // if (!isSystemOpen) {
-    //   console.log("🚫 Redirecting to home page - system closed");
-    //   // ระบบปิด redirect กลับไปหน้าแรก
-    //   return NextResponse.redirect(new URL("/", request.url));
-    // }
   }
 
   // ตรวจสอบ token เฉพาะ protected routes

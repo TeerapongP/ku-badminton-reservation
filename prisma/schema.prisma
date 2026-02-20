@@ -4,9 +4,8 @@ generator client {
 }
 
 datasource db {
-  provider          = "mysql"
-  url               = env("DATABASE_URL")
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 model api_logs {
@@ -171,8 +170,24 @@ model facilities {
   pricing_rules          pricing_rules[]
   reservations           reservations[]
   time_slots             time_slots[]
+  facility_admins        facility_admins[]
 
   @@index([active], map: "idx_facility_active")
+}
+
+model facility_admins {
+  id            BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  facility_id   BigInt     @db.UnsignedBigInt
+  admin_user_id BigInt     @db.UnsignedBigInt
+  created_at    DateTime   @default(now()) @db.DateTime(0)
+  updated_at    DateTime   @default(now()) @db.DateTime(0)
+  
+  facilities    facilities @relation(fields: [facility_id], references: [facility_id], onDelete: Cascade, map: "fk_facility_admin_facility")
+  users         users      @relation(fields: [admin_user_id], references: [user_id], onDelete: Cascade, map: "fk_facility_admin_user")
+  
+  @@unique([facility_id, admin_user_id], map: "uq_facility_admin")
+  @@index([facility_id], map: "idx_facility_admin_facility")
+  @@index([admin_user_id], map: "idx_facility_admin_user")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -420,6 +435,7 @@ model users {
   reservations      reservations[]
   staff_profile     staff_profile?
   student_profile   student_profile?
+  facility_admins   facility_admins[]
 
   @@index([role], map: "idx_users_role")
 }

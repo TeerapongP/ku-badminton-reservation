@@ -20,7 +20,7 @@ const nextConfig = {
       },
       {
         protocol: 'http',
-        hostname: '10.36.16.16',
+        hostname: '158.108.196.150',
       },
     ],
     formats: ['image/webp', 'image/avif'],
@@ -34,14 +34,42 @@ const nextConfig = {
 
   // Security headers
   async headers() {
+    const isProduction = process.env.NODE_ENV === 'production';
+    
     return [
       {
         source: '/(.*)',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          { key: 'X-Permitted-Cross-Domain-Policies', value: 'none' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), payment=()'
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: https:",
+              "font-src 'self' data:",
+              "connect-src 'self'",
+              "frame-src https://www.google.com",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "frame-ancestors 'none'",
+              ...(isProduction ? ["upgrade-insecure-requests"] : [])
+            ].join('; ')
+          },
+          ...(isProduction ? [{
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload'
+          }] : [])
         ],
       },
       {

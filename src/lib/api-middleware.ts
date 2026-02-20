@@ -129,12 +129,36 @@ export async function logRequest(
 }
 
 // CORS middleware
-export function setCorsHeaders(response: NextResponse): NextResponse {
-    response.headers.set('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGINS || '*');
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    response.headers.set('Access-Control-Max-Age', '86400');
-    return response;
+const ALLOWED_ORIGINS = [
+  'https://yourdomain.com',
+  'https://www.yourdomain.com',
+  ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000'] : [])
+];
+
+export function setCorsHeaders(response: NextResponse, request: NextRequest): NextResponse {
+  const origin = request.headers.get('origin');
+  
+  // Validate origin
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    response.headers.set('Access-Control-Allow-Origin', origin);
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+  } else if (process.env.NODE_ENV === 'development') {
+    // Allow localhost in development only
+    response.headers.set('Access-Control-Allow-Origin', origin || '*');
+  }
+  
+  // Restrict methods per endpoint
+  const path = request.nextUrl.pathname;
+  const allowedMethods = path.startsWith('/api/admin')
+    ? 'GET, POST, PUT, DELETE'
+    : 'GET, POST';
+  
+  response.headers.set('Access-Control-Allow-Methods', allowedMethods);
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
+  response.headers.set('Access-Control-Max-Age', '600'); // 10 minutes
+  response.headers.set('Access-Control-Expose-Headers', 'X-RateLimit-Limit, X-RateLimit-Remaining');
+  
+  return response;
 }
 
 // Security headers middleware
@@ -288,7 +312,7 @@ export function withMiddleware(
 
             // Apply security headers
             response = setSecurityHeaders(response);
-            response = setCorsHeaders(response);
+            response = setCorsHeaders(response, request);
 
         } catch (err) {
             error = err;
@@ -321,7 +345,7 @@ export function withMiddleware(
 
             // Apply headers to error response
             response = setSecurityHeaders(response);
-            response = setCorsHeaders(response);
+            response = setCorsHeaders(response, request);
         } finally {
             // Log the request
             await logRequest(request, response, error);

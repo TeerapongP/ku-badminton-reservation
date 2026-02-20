@@ -27,11 +27,52 @@ async function imageHandler(
             );
         }
 
+        // Validate path doesn't contain traversal
+        if (imagePath.includes('..') || imagePath.includes('~') || imagePath.includes('\\')) {
+            throw new CustomApiError(
+                ERROR_CODES.FORBIDDEN,
+                'Invalid file path',
+                HTTP_STATUS.FORBIDDEN
+            );
+        }
+
+        // Whitelist allowed directories
+        const allowedDirs = ['profiles', 'slips', 'banners'];
+        const firstDir = resolvedParams.path[0];
+        if (!allowedDirs.includes(firstDir)) {
+            throw new CustomApiError(
+                ERROR_CODES.FORBIDDEN,
+                'Access denied',
+                HTTP_STATUS.FORBIDDEN
+            );
+        }
+
+        // Validate file extension
+        const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+        const path = require('path');
+        const ext = path.extname(imagePath).toLowerCase();
+        if (!allowedExtensions.includes(ext)) {
+            throw new CustomApiError(
+                ERROR_CODES.FORBIDDEN,
+                'Invalid file type',
+                HTTP_STATUS.FORBIDDEN
+            );
+        }
+
         const baseUploadPath = process.env.IMAGE_PATH 
             ? process.env.IMAGE_PATH.replace(/\/$/, '') // Remove trailing slash
             : join(process.cwd(), 'public', 'uploads');
         
-        const fullImagePath = join(baseUploadPath, imagePath);
+        const fullImagePath = path.resolve(baseUploadPath, imagePath);
+
+        // Ensure resolved path is still within base directory
+        if (!fullImagePath.startsWith(path.resolve(baseUploadPath))) {
+            throw new CustomApiError(
+                ERROR_CODES.FORBIDDEN,
+                'Access denied',
+                HTTP_STATUS.FORBIDDEN
+            );
+        }
 
         console.log('[Upload API] Attempting to serve:', {
             imagePath,

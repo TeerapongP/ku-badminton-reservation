@@ -9,7 +9,8 @@ async function reportsHandler(request: NextRequest) {
         const session = await getServerSession(authOptions);
 
         // ตรวจสอบสิทธิ์ admin
-        if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'super_admin' && session.user.role !== 'super_admin')) {
+        const ADMIN_ROLES = ['admin', 'super_admin'] as const;
+        if (!session?.user || !ADMIN_ROLES.includes(session.user.role as any)) {
             throw new CustomApiError(
                 ERROR_CODES.UNAUTHORIZED,
                 'ไม่มีสิทธิ์เข้าถึง',

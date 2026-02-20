@@ -248,21 +248,38 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 5 * 60 * 60, // 5 ชั่วโมง
+    maxAge: 30 * 60, // 30 minutes
+    updateAge: 5 * 60, // Refresh every 5 minutes
   },
   jwt: {
-    maxAge: 5 * 60 * 60, // 5 ชั่วโมง
+    maxAge: 30 * 60, // 30 minutes
   },
 
   debug: process.env.NODE_ENV === 'development', // Enable debug in development
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       console.log("🔑 JWT callback:", { user: !!user, tokenId: token.id });
+      
+      // Rotate token on update
+      if (trigger === 'update') {
+        token.iat = Math.floor(Date.now() / 1000);
+      }
+      
       if (user) {
         token.id = user.id;
         token.username = user.username;
         token.role = user.role;
         token.isFirstLogin = (user as any).isFirstLogin;
+        
+        // Check if password was changed since token issued
+        const dbUser = await prisma.users.findUnique({
+          where: { user_id: BigInt(user.id) },
+          select: { updated_at: true }
+        });
+        
+        if (dbUser) {
+          token.passwordChangedAt = dbUser.updated_at.getTime();
+        }
       }
       return token;
     },
@@ -272,6 +289,15 @@ export const authOptions: NextAuthOptions = {
         role: token.role,
         isFirstLogin: token.isFirstLogin
       });
+      
+      // Validate token hasn't been invalidated
+      if (token.passwordChangedAt) {
+        const tokenIssuedAt = (token.iat as number) * 1000;
+        if (tokenIssuedAt < (token.passwordChangedAt as number)) {
+          throw new Error('Token invalidated - password changed');
+        }
+      }
+      
       if (token) {
         session.user.id = token.id as string;
         session.user.username = token.username as string;

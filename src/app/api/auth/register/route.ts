@@ -66,6 +66,17 @@ async function registerHandler(req: NextRequest) {
     );
   }
 
+  // Whitelist allowed registration roles - prevent privilege escalation
+  const ALLOWED_REGISTRATION_ROLES = ['student', 'demonstration_student', 'staff', 'guest'];
+  if (!ALLOWED_REGISTRATION_ROLES.includes(role)) {
+    throw new CustomApiError(
+      ERROR_CODES.FORBIDDEN,
+      'ไม่สามารถสมัครสมาชิกด้วย role นี้ได้',
+      HTTP_STATUS.FORBIDDEN,
+      { field: "role" }
+    );
+  }
+
   // ถอดรหัส national_id ถ้ามี
   if (national_id) {
     try {
@@ -145,8 +156,19 @@ async function registerHandler(req: NextRequest) {
     );
   }
 
-  // รหัสผ่าน: ฝั่งหน้าเว็บส่ง hash มาแล้ว
-  const password_hash: string = password;
+  // Hash password on server-side (NOT client-side)
+  // Validate password strength
+  if (password.length < 8) {
+    throw new CustomApiError(
+      ERROR_CODES.VALIDATION_ERROR,
+      'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร',
+      HTTP_STATUS.BAD_REQUEST,
+      { field: "password" }
+    );
+  }
+
+  const bcrypt = require('bcryptjs');
+  const password_hash = await bcrypt.hash(password, 12);
 
   // ---------- Transaction ----------
   const result = await prisma.$transaction(async (tx) => {
