@@ -16,7 +16,7 @@ export default function LoginContainner() {
   const { login } = useAuth();
   const router = useRouter();
 
-  const [identifier, setIdentifier] = useState(''); // รหัสนิสิตหรือบัตรประชาชน
+  const [identifier, setIdentifier] = useState(''); 
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -32,7 +32,7 @@ export default function LoginContainner() {
     // ตรวจสอบรูปแบบ
     const isStudentId = /^\d{8,10}$/.test(identifier);
     const isNationalId = /^\d{13}$/.test(identifier);
-    const isUsername = /^[a-zA-Z0-9_]{3,20}$/.test(identifier);
+    const isUsername = /^\w{3,20}$/.test(identifier);
 
     // อนุญาตให้ใช้ได้ทั้ง student_id, national_id, และ username
     if (!isStudentId && !isNationalId && !isUsername) {
@@ -152,10 +152,6 @@ export default function LoginContainner() {
 
   return (
     <div className="tw-mx-4 tw-my-4">
-
-      {/* <h2 className="tw-text-2xl sm:tw-text-3xl lg:tw-text-4xl tw-font-bold tw-text-gray-800 tw-mb-4 sm:tw-mb-6 lg:tw-mb-4 tw-mt-[60px]">
-        เข้าสู่ระบบ
-      </h2> */}
       <div className="tw-flex tw-items-center tw-justify-between tw-mb-4 sm:tw-mb-6 lg:tw-mb-4 ">
         <h2 className="tw-text-2xl sm:tw-text-3xl lg:tw-text-4xl tw-font-bold tw-text-gray-800">
           เข้าสู่ระบบ

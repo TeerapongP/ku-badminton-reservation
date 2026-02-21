@@ -5,9 +5,11 @@ import { prisma } from "./prisma";
 import { encryptData, decryptData } from "./encryption";
 
 // Ensure database connection
-prisma.$connect().catch((error: any) => {
+try {
+  await prisma.$connect();
+} catch (error: any) {
   console.error("Failed to connect to database:", error);
-});
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -253,6 +255,36 @@ export const authOptions: NextAuthOptions = {
   },
   jwt: {
     maxAge: 30 * 60, // 30 minutes
+  },
+  // [SECURITY FIX] - Secure cookie configuration
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
+    },
+    callbackUrl: {
+      name: `__Secure-next-auth.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
+    },
+    csrfToken: {
+      name: `__Host-next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
+    }
   },
 
   debug: process.env.NODE_ENV === 'development', // Enable debug in development

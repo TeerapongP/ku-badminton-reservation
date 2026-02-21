@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/Auth';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 export async function POST(req: NextRequest) {
     try {
+        // [SECURITY FIX] - Require super_admin authentication
+        const session = await getServerSession(authOptions);
+        
+        if (!session || session.user.role !== 'super_admin') {
+            return NextResponse.json(
+                { success: false, error: "ไม่มีสิทธิ์เข้าถึง - ต้องเป็น Super Admin เท่านั้น" },
+                { status: 403 }
+            );
+        }
+
         const body = await req.json();
         const { username, password, email, first_name, last_name } = body;
 

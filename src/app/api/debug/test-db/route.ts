@@ -1,7 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/Auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
+    // [SECURITY FIX] - Disable in production
+    if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json(
+            { error: 'Not found' },
+            { status: 404 }
+        );
+    }
+
+    // [SECURITY FIX] - Require super_admin authentication
+    const session = await getServerSession(authOptions);
+    
+    if (!session || session.user.role !== 'super_admin') {
+        return NextResponse.json(
+            { error: 'Unauthorized' },
+            { status: 401 }
+        );
+    }
+
     try {
         console.log("🔍 Testing database connection...");
 

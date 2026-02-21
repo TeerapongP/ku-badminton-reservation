@@ -29,9 +29,17 @@ export async function GET(request: NextRequest) {
 // POST - เรียกใช้ scheduled task ทันที (สำหรับ cron job)
 export async function POST(request: NextRequest) {
   try {
-    // ตรวจสอบ authorization header สำหรับ cron job
+    // [SECURITY FIX] - Fail securely if secret not configured
     const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET || 'default-secret';
+    const cronSecret = process.env.CRON_SECRET;
+    
+    if (!cronSecret || cronSecret === 'default-secret' || cronSecret.length < 32) {
+      console.error('CRON_SECRET not properly configured - must be at least 32 characters');
+      return NextResponse.json(
+        { success: false, error: "Service misconfigured" },
+        { status: 500 }
+      );
+    }
     
     if (authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json(

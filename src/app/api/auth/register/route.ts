@@ -67,7 +67,8 @@ async function registerHandler(req: NextRequest) {
   }
 
   // Whitelist allowed registration roles - prevent privilege escalation
-  const ALLOWED_REGISTRATION_ROLES = ['student', 'demonstration_student', 'staff', 'guest'];
+  // [SECURITY FIX] - Remove demonstration_student from public registration
+  const ALLOWED_REGISTRATION_ROLES = ['student', 'staff', 'guest'];
   if (!ALLOWED_REGISTRATION_ROLES.includes(role)) {
     throw new CustomApiError(
       ERROR_CODES.FORBIDDEN,
@@ -156,19 +157,29 @@ async function registerHandler(req: NextRequest) {
     );
   }
 
-  // Hash password on server-side (NOT client-side)
-  // Validate password strength
-  if (password.length < 8) {
+  // [SECURITY FIX] - Enforce strong password policy (12+ chars, complexity)
+  if (password.length < 12) {
     throw new CustomApiError(
       ERROR_CODES.VALIDATION_ERROR,
-      'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร',
+      'รหัสผ่านต้องมีความยาวอย่างน้อย 12 ตัวอักษร',
       HTTP_STATUS.BAD_REQUEST,
       { field: "password" }
     );
   }
 
+  // Require uppercase, lowercase, number, and special character
+  if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(password)) {
+    throw new CustomApiError(
+      ERROR_CODES.VALIDATION_ERROR,
+      'รหัสผ่านต้องประกอบด้วยตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก ตัวเลข และอักขระพิเศษ (@$!%*?&)',
+      HTTP_STATUS.BAD_REQUEST,
+      { field: "password" }
+    );
+  }
+
+  // [SECURITY FIX] - Always hash passwords server-side with strong rounds
   const bcrypt = require('bcryptjs');
-  const password_hash = await bcrypt.hash(password, 12);
+  const password_hash = await bcrypt.hash(password, 14); // Increased from 12 to 14 rounds
 
   // ---------- Transaction ----------
   const result = await prisma.$transaction(async (tx) => {

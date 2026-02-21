@@ -1,10 +1,22 @@
+import { authOptions } from "@/lib/Auth";
 import { decryptData } from "@/lib/encryption";
-import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { NextRequest, NextResponse } from "next/server";
 
 
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { encryptedData } = await req.json();
+    // [SECURITY FIX] - Require authentication
+    const session = await getServerSession(authOptions);
+    
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "ไม่ได้รับอนุญาต - กรุณาเข้าสู่ระบบ" },
+        { status: 401 }
+      );
+    }
+
+    const { encryptedData } = await request.json();
 
     if (!encryptedData) {
       return NextResponse.json(

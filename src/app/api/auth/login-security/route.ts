@@ -258,7 +258,7 @@ async function getFailedLoginCount(userId: bigint): Promise<number> {
     });
 }
 
-// ฟังก์ชันบันทึก log
+// [SECURITY FIX] - Sanitize and log auth attempts securely
 async function logAuthAttempt({
     userId,
     usernameInput,
@@ -272,25 +272,28 @@ async function logAuthAttempt({
     success: boolean;
     clientInfo: any;
 }) {
+    // [SECURITY FIX] - Sanitize username input to prevent log injection
+    const sanitizedUsername = usernameInput
+        .replace(/[^\w@.-]/g, '') // Remove special characters except email chars
+        .substring(0, 255); // Limit length
+
     await prisma.auth_log.create({
         data: {
             user_id: userId,
-            username_input: usernameInput,
+            username_input: sanitizedUsername,
             action: success ? 'login_success' : 'login_fail',
-            ip: clientInfo.ip,
-            user_agent: clientInfo.userAgent,
+            ip: clientInfo.ip?.substring(0, 45) || 'unknown', // Limit IP length
+            user_agent: clientInfo.userAgent?.substring(0, 512) || 'unknown', // Limit user agent length
             created_at: new Date()
         }
     });
 
-    // บันทึก detailed log ในตารางแยก (ถ้ามี)
+    // [SECURITY FIX] - Don't log sensitive data in console
     console.log('Auth Log:', {
-        userId,
+        userId: userId ? '[REDACTED]' : null,
         action,
         success,
-        ip: clientInfo.ip,
-        browser: clientInfo.browser,
-        os: clientInfo.os,
+        ip: clientInfo.ip?.substring(0, 15) + '...', // Partial IP only
         timestamp: clientInfo.timestamp
     });
 }

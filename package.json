@@ -22,7 +22,9 @@
     "cypress:report": "cypress run --reporter json --reporter-options output=cypress/results/results.json && node scripts/generate-test-report.js",
     "test:all": "cypress run --reporter spec --reporter json --reporter-options output=cypress/results/results.json && node scripts/generate-test-report.js",
     "test:recaptcha": "cypress run --spec 'cypress/e2e/auth/recaptcha-simple.cy.ts'",
-    "test:recaptcha:open": "cypress open --e2e --browser chrome"
+    "test:recaptcha:open": "cypress open --e2e --browser chrome",
+    "audit": "pnpm audit",
+    "audit:fix": "pnpm audit --fix"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

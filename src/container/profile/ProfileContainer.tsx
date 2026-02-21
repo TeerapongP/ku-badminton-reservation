@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { User, Calendar, Edit2, Save, X, Camera, Shield, CreditCard, Users, Mail, Phone } from "lucide-react";
+import { User, Calendar, Edit2, Save, X, Camera, Shield, CreditCard, Users, Mail } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ToastProvider";
 import Loading from "@/components/Loading";
@@ -110,11 +110,10 @@ const ProfileContainer: React.FC = () => {
     }, [userData?.profile_photo_url, decryptedImageUrl]);
 
     const decryptImageUrl = async (encryptedUrl: string) => {
-        // Check if URL is already decrypted (starts with http or /)
-        if (encryptedUrl.startsWith('http') || encryptedUrl.startsWith('/')) {
-            setDecryptedImageUrl(encryptedUrl);
-            return;
-        }
+    if (encryptedUrl.startsWith('http') || encryptedUrl.startsWith('/')) {
+        setDecryptedImageUrl(encryptedUrl);
+        return;
+    }
 
         try {
             const response = await fetch('/api/decrypt/image-path', {
@@ -132,6 +131,7 @@ const ProfileContainer: React.FC = () => {
                 setDecryptedImageUrl('/images/avatar_profile.jpg');
             }
         } catch (error) {
+            console.error('Failed to decrypt image URL:', error);
             setDecryptedImageUrl('/images/avatar_profile.jpg');
         }
     };
@@ -271,7 +271,7 @@ const ProfileContainer: React.FC = () => {
     };
 
     const handleViewBookings = () => {
-        window.location.href = "/profile/bookings";
+        globalThis.location.href = "/profile/bookings";
     };
 
     const getRoleBadgeColor = (role: keyof RoleColors): string => {
@@ -425,19 +425,7 @@ const ProfileContainer: React.FC = () => {
 
                             {/* Actions */}
                             <div className="sm:tw-ml-auto tw-w-full sm:tw-w-auto">
-                                {!isEditing ? (
-                                    <Button
-                                        onClick={handleEdit}
-                                        className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
-                                        colorClass="tw-bg-blue-600 tw-text-white tw-rounded-lg hover:tw-bg-blue-700 focus:tw-ring-4 focus:tw-ring-blue-300"
-                                    >
-                                        <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
-                                            <Edit2 size={18} />
-                                            แก้ไขโปรไฟล์
-                                        </span>
-                                    </Button>
-
-                                ) : (
+                                {isEditing ? (
                                     <div className="tw-flex tw-gap-2 tw-flex-col sm:tw-flex-row">
                                         <Button
                                             onClick={handleSave}
@@ -474,6 +462,17 @@ const ProfileContainer: React.FC = () => {
                                         </Button>
 
                                     </div>
+                                ) : (
+                                    <Button
+                                        onClick={handleEdit}
+                                        className="tw-w-full tw-h-12 tw-text-lg tw-font-semibold tw-shadow-lg tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-xl hover:tw-scale-105 active:tw-scale-95 tw-relative tw-overflow-hidden tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
+                                        colorClass="tw-bg-blue-600 tw-text-white tw-rounded-lg hover:tw-bg-blue-700 focus:tw-ring-4 focus:tw-ring-blue-300"
+                                    >
+                                        <span className="tw-relative tw-flex tw-items-center tw-justify-center tw-gap-2">
+                                            <Edit2 size={18} />
+                                            แก้ไขโปรไฟล์
+                                        </span>
+                                    </Button>
                                 )}
                             </div>
                         </div>

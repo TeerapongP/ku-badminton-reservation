@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { readFile } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { NextRequest } from 'next/server';
+import { readFile } from 'node:fs/promises';
+import { join, resolve, extname } from 'node:path';
+import { existsSync } from 'node:fs';
 import { CustomApiError, ERROR_CODES, HTTP_STATUS, withErrorHandler } from '@/lib/error-handler';
 
 
@@ -22,11 +22,51 @@ async function imageHandler(
             );
         }
 
+        // [SECURITY FIX] - Validate path doesn't contain traversal
+        if (imagePath.includes('..') || imagePath.includes('~') || imagePath.includes('\\')) {
+            throw new CustomApiError(
+                ERROR_CODES.FORBIDDEN,
+                'Invalid file path',
+                HTTP_STATUS.FORBIDDEN
+            );
+        }
+
+        // [SECURITY FIX] - Whitelist allowed directories
+        const allowedDirs = ['profiles', 'payment-slips', 'banners', 'facilities', 'courts', 'payments'];
+        const firstDir = resolvedParams.path[0];
+        if (!allowedDirs.includes(firstDir)) {
+            throw new CustomApiError(
+                ERROR_CODES.FORBIDDEN,
+                'Access denied',
+                HTTP_STATUS.FORBIDDEN
+            );
+        }
+
+        // [SECURITY FIX] - Validate file extension
+        const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+        const ext = extname(imagePath).toLowerCase();
+        if (!allowedExtensions.includes(ext)) {
+            throw new CustomApiError(
+                ERROR_CODES.FORBIDDEN,
+                'Invalid file type',
+                HTTP_STATUS.FORBIDDEN
+            );
+        }
+
         const baseUploadPath = process.env.IMAGE_PATH 
             ? process.env.IMAGE_PATH.replace(/\/$/, '') 
             : join(process.cwd(), 'public', 'uploads');
         
-        const fullImagePath = join(baseUploadPath, imagePath);
+        const fullImagePath = resolve(baseUploadPath, imagePath);
+
+        // [SECURITY FIX] - Ensure resolved path is still within base directory
+        if (!fullImagePath.startsWith(resolve(baseUploadPath))) {
+            throw new CustomApiError(
+                ERROR_CODES.FORBIDDEN,
+                'Access denied',
+                HTTP_STATUS.FORBIDDEN
+            );
+        }
 
         // Check if file exists
         if (!existsSync(fullImagePath)) {
@@ -42,7 +82,7 @@ async function imageHandler(
 
         // Determine content type based on file extension
         const extension = imagePath.split('.').pop()?.toLowerCase();
-        let contentType = 'image/jpeg'; // default
+        let contentType = 'image/jpeg';
 
         switch (extension) {
             case 'png':
@@ -57,11 +97,6 @@ async function imageHandler(
             case 'svg':
                 contentType = 'image/svg+xml';
                 break;
-            case 'jpg':
-            case 'jpeg':
-            default:
-                contentType = 'image/jpeg';
-                break;
         }
 
         // Convert Buffer to Uint8Array for Response (more compatible)
@@ -72,7 +107,7 @@ async function imageHandler(
             status: 200,
             headers: {
                 'Content-Type': contentType,
-                'Cache-Control': 'public, max-age=31536000, immutable', // Cache for 1 year
+                'Cache-Control': 'public, max-age=31536000, immutable', 
                 'Content-Length': imageBuffer.length.toString(),
             },
         });

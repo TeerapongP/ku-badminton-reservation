@@ -63,8 +63,8 @@ ENV NEXT_PUBLIC_RECAPTCHA_SITE_KEY=$NEXT_PUBLIC_RECAPTCHA_SITE_KEY
 RUN pnpm run build:prod || pnpm run build
 
 # ✅ ตัด dev deps ออก เหลือเฉพาะ production (ยังคง @prisma/client + engines)
-# ใช้ --ignore-scripts เพื่อไม่ให้รัน postinstall script (prisma generate) เพราะ generate แล้วในบรรทัด 44
-RUN pnpm prune --prod --ignore-scripts
+# ใช้ --prod เพื่อติดตั้งเฉพาะ production dependencies
+RUN pnpm install --prod --frozen-lockfile
 
 # =========================
 # Runner (Production)

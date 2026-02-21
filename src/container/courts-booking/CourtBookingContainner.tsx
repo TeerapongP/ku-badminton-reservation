@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
@@ -11,8 +11,6 @@ import { BookingConfirmationModal } from "@/components/BookingConfirmationModa";
 import Loading from "@/components/Loading";
 import { CourtView } from "@/types/CourtView";
 import { Slot } from "@/types/Slot";
-
-
 
 export default function CourtBookingContainer() {
     const params = useParams<{ id?: string }>();
@@ -39,6 +37,7 @@ export default function CourtBookingContainer() {
     const [slots, setSlots] = useState<Slot[]>([]);
     const [visible, setVisible] = useState<boolean>(false);
     const [today, setToday] = useState<Date | null>(null);
+    const hasShownAuthError = useRef(false);
 
     // map response จาก API → รูปแบบที่จอใช้
     function mapServerToView(s: any): CourtView {
@@ -84,6 +83,11 @@ export default function CourtBookingContainer() {
     };
 
     async function fetchCourtDetails(): Promise<CourtView | null> {
+        if (!session) {
+            setLoading(false);
+            return null;
+        }
+
         try {
             const res = await fetch(`/api/court-details?courtId=${courtId}`, {
                 cache: "no-store",
@@ -149,9 +153,7 @@ export default function CourtBookingContainer() {
 
         if (matchingSlot) {
             setSelectedSlot(matchingSlot.id);
-            // toast?.showSuccess("เลือกเวลาอัตโนมัติ", `เลือกช่วงเวลา ${matchingSlot.label} แล้ว`);
         } else {
-            // หากไม่พบ slot ที่ตรงกัน หรือ slot ไม่ว่าง
             const foundSlot = slots.find(slot => slot.label.startsWith(timeSlotParam));
             if (foundSlot) {
                 toast?.showWarn("ช่วงเวลาไม่ว่าง", `ช่วงเวลา ${foundSlot.label} ถูกจองแล้ว`);
@@ -183,14 +185,14 @@ export default function CourtBookingContainer() {
 
     // Check authentication
     useEffect(() => {
-        if (status === "loading") return; // Still loading session
+        if (status === "loading") return;
 
-        if (!session) {
+        if (status === "unauthenticated" && !hasShownAuthError.current) {
+            hasShownAuthError.current = true;
             toast?.showError("กรุณาเข้าสู่ระบบ", "คุณต้องเข้าสู่ระบบก่อนจองสนาม");
             router.push("/login");
-            return;
         }
-    }, [session, status, router, toast]);
+    }, [status]);
 
     const handleSelectSlot = (slot: Slot) => {
         if (slot.status !== "available") return;
@@ -228,7 +230,9 @@ export default function CourtBookingContainer() {
                     </div>
                     <div>
                         <h4 className="tw-text-3xl md:tw-text-4xl tw-font-bold tw-text-transparent tw-bg-clip-text tw-bg-gradient-to-r tw-from-emerald-600 tw-to-teal-600">
-                            {loading ? "กำลังโหลด..." : court ? court.name : "ไม่พบข้อมูลคอร์ท"}
+                            {loading && "กำลังโหลด..."}
+                            {!loading && court && court.name}
+                            {!loading && !court && "ไม่พบข้อมูลคอร์ท"}
                         </h4>
                         {!loading && court && (
                             <p className="tw-text-gray-600">
