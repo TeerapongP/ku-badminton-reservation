@@ -14,10 +14,10 @@ const nextConfig = {
         protocol: 'http',
         hostname: 'localhost',
       },
-      {
-        protocol: 'https',
-        hostname: 'your-domain.com',
-      },
+      // {
+      //   protocol: 'https',
+      //   hostname: 'your-domain.com',
+      // },
       {
         protocol: 'http',
         hostname: '158.108.196.150',
@@ -49,27 +49,29 @@ const nextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=(), payment=()'
           },
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: https:",
-              "font-src 'self' data:",
-              "connect-src 'self'",
-              "frame-src https://www.google.com",
-              "object-src 'none'",
-              "base-uri 'self'",
-              "form-action 'self'",
-              "frame-ancestors 'none'",
-              ...(isProduction ? ["upgrade-insecure-requests"] : [])
-            ].join('; ')
-          },
-          ...(isProduction ? [{
-            key: 'Strict-Transport-Security',
-            value: 'max-age=63072000; includeSubDomains; preload'
-          }] : [])
+          // TODO: Enable CSP with upgrade-insecure-requests when SSL is configured
+          // {
+          //   key: 'Content-Security-Policy',
+          //   value: [
+          //     "default-src 'self'",
+          //     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com",
+          //     "style-src 'self' 'unsafe-inline'",
+          //     "img-src 'self' data: https:",
+          //     "font-src 'self' data:",
+          //     "connect-src 'self'",
+          //     "frame-src https://www.google.com",
+          //     "object-src 'none'",
+          //     "base-uri 'self'",
+          //     "form-action 'self'",
+          //     "frame-ancestors 'none'",
+          //     "upgrade-insecure-requests"
+          //   ].join('; ')
+          // },
+          // TODO: Enable HSTS when SSL is configured
+          // ...(isProduction ? [{
+          //   key: 'Strict-Transport-Security',
+          //   value: 'max-age=63072000; includeSubDomains; preload'
+          // }] : [])
         ],
       },
       {

@@ -1,4 +1,4 @@
-// src/types/next-auth.d.ts
+// types/next-auth.d.ts
 import { DefaultSession, DefaultUser } from "next-auth";
 import { DefaultJWT } from "next-auth/jwt";
 

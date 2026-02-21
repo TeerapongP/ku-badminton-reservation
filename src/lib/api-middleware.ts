@@ -1,61 +1,74 @@
 // src/lib/api-middleware.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 import { prisma } from '@/lib/prisma';
 import { CustomApiError, ERROR_CODES, HTTP_STATUS } from './error-handler';
 
-// Rate limiting configuration
+// [SECURITY FIX: SonarQube S109] - Constants
+const IP_MAX_LENGTH = 45;
+const USER_AGENT_MAX_LENGTH = 512;
+const CORS_MAX_AGE = '600';
+
 const RATE_LIMITS = {
-    default: { requests: 100, window: 60 * 1000 }, // 100 requests per minute
-    auth: { requests: 10, window: 60 * 1000 }, // 10 requests per minute for auth endpoints
-    upload: { requests: 20, window: 60 * 1000 }, // 20 requests per minute for uploads
-    sensitive: { requests: 5, window: 60 * 1000 }, // 5 requests per minute for sensitive operations
+    default:   { requests: 100, window: 60 * 1000 },
+    auth:      { requests: 10,  window: 60 * 1000 },
+    upload:    { requests: 20,  window: 60 * 1000 },
+    sensitive: { requests: 5,   window: 60 * 1000 },
 } as const;
 
-// In-memory rate limit store (in production, use Redis)
+// [SECURITY FIX: OWASP A05] - ใส่ domain จริงจาก env เพื่อไม่ hardcode
+const ALLOWED_ORIGINS: string[] = [
+    ...(process.env.ALLOWED_ORIGIN ? [process.env.ALLOWED_ORIGIN] : []),
+    ...(process.env.ALLOWED_ORIGIN_WWW ? [process.env.ALLOWED_ORIGIN_WWW] : []),
+    ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000'] : []),
+];
+
+// [SECURITY WARNING: OWASP A04] - In-memory rate limit store
+//  NOT suitable for production with multiple server instances
+// Replace with Redis: https://github.com/vercel/kv
+// Or use: upstash/ratelimit with Redis adapter
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
-// Get client information
+// ─────────────────────────────────────────
+// Client Info
+// ─────────────────────────────────────────
 export function getClientInfo(request: NextRequest) {
-    // Use request.headers directly instead of headers() function
-    const forwarded = request.headers.get('x-forwarded-for');
-    const realIP = request.headers.get('x-real-ip');
-    const cfConnectingIP = request.headers.get('cf-connecting-ip');
-    const ip = forwarded?.split(',')[0]?.trim() || realIP || cfConnectingIP || '127.0.0.1';
+    const cfIP    = request.headers.get('cf-connecting-ip');
+    const realIP  = request.headers.get('x-real-ip');
+    const fwdIP   = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+
+    // Priority: Cloudflare > x-real-ip > x-forwarded-for (least trusted)
+    const ip = (cfIP ?? realIP ?? fwdIP ?? '127.0.0.1').substring(0, IP_MAX_LENGTH);
 
     return {
         ip,
-        userAgent: request.headers.get('user-agent') || 'unknown',
-        referer: request.headers.get('referer') || null,
-        origin: request.headers.get('origin') || null,
+        userAgent: (request.headers.get('user-agent') ?? 'unknown').substring(0, USER_AGENT_MAX_LENGTH),
+        referer:   request.headers.get('referer'),
+        origin:    request.headers.get('origin'),
         timestamp: new Date(),
     };
 }
 
-// Rate limiting middleware
+// ─────────────────────────────────────────
+// Rate Limiting
+// ─────────────────────────────────────────
 export async function rateLimit(
     request: NextRequest,
     type: keyof typeof RATE_LIMITS = 'default'
 ): Promise<void> {
-    const clientInfo = getClientInfo(request);
-    const key = `${type}:${clientInfo.ip}`;
+    const { ip } = getClientInfo(request);
+    const key = `${type}:${ip}`;
     const limit = RATE_LIMITS[type];
     const now = Date.now();
 
     // Clean up expired entries
     for (const [k, v] of rateLimitStore.entries()) {
-        if (v.resetTime < now) {
-            rateLimitStore.delete(k);
-        }
+        if (v.resetTime < now) rateLimitStore.delete(k);
     }
 
     const current = rateLimitStore.get(key);
 
-    if (!current) {
-        rateLimitStore.set(key, { count: 1, resetTime: now + limit.window });
-        return;
-    }
-
-    if (current.resetTime < now) {
+    if (!current || current.resetTime < now) {
         rateLimitStore.set(key, { count: 1, resetTime: now + limit.window });
         return;
     }
@@ -65,103 +78,87 @@ export async function rateLimit(
             ERROR_CODES.RATE_LIMIT_EXCEEDED,
             `เกินขอบเขตการใช้งาน กรุณารอ ${Math.ceil((current.resetTime - now) / 1000)} วินาที`,
             HTTP_STATUS.TOO_MANY_REQUESTS,
-            {
-                limit: limit.requests,
-                window: limit.window / 1000,
-                resetTime: current.resetTime,
-            }
+            { limit: limit.requests, window: limit.window / 1000, resetTime: current.resetTime }
         );
     }
 
     current.count++;
 }
 
-// Request logging middleware
+// ─────────────────────────────────────────
+// Request Logging
+// ─────────────────────────────────────────
 export async function logRequest(
     request: NextRequest,
     response?: NextResponse,
-    error?: any
+    error?: unknown
 ): Promise<void> {
     try {
         const clientInfo = getClientInfo(request);
         const url = new URL(request.url);
+        const isCustomApiError = error instanceof CustomApiError;
 
-        const logData = {
-            method: request.method,
-            path: url.pathname,
-            query: url.search,
-            ip: clientInfo.ip,
-            userAgent: clientInfo.userAgent,
-            referer: clientInfo.referer,
-            origin: clientInfo.origin,
-            statusCode: response?.status || (error ? 500 : 200),
-            timestamp: clientInfo.timestamp,
-            error: error ? {
-                message: error.message,
-                code: error.code || 'UNKNOWN',
-                stack: error.stack,
-            } : null,
-        };
+        if (process.env.NODE_ENV === 'development') {
+            console.log('API Request:', JSON.stringify({
+                method:     request.method,
+                path:       url.pathname,
+                ip:         clientInfo.ip,
+                statusCode: response?.status ?? (error ? 500 : 200),
+                // [SECURITY FIX: OWASP A09] - error code เท่านั้น ไม่มี stack trace
+                errorCode:  isCustomApiError ? error.code : (error ? 'UNKNOWN' : null),
+            }));
+        }
 
-        // Log to console (in production, use proper logging service)
-        console.log('API Request:', JSON.stringify(logData, null, 2));
-
-        // Optionally log to database for important endpoints
+        // Log ลง DB เฉพาะ auth endpoint หรือ error
         if (url.pathname.includes('/auth/') || error) {
             await prisma.api_logs.create({
                 data: {
-                    method: request.method,
-                    path: url.pathname,
+                    method:       request.method,
+                    path:         url.pathname,
                     query_params: url.search || null,
-                    ip: clientInfo.ip,
-                    user_agent: clientInfo.userAgent,
-                    status_code: logData.statusCode,
-                    error_message: error?.message || null,
-                    created_at: new Date(),
+                    ip:           clientInfo.ip,
+                    user_agent:   clientInfo.userAgent,
+                    status_code:  response?.status ?? 500,
+                    // [SECURITY FIX: OWASP A05] - Generic message เท่านั้น ไม่มี stack trace
+                    error_message: error ? 'Request error occurred' : null,
+                    created_at:   new Date(),
                 },
-            }).catch((dbError) => {
-                console.error('Failed to log to database:', dbError);
+            }).catch((dbError: unknown) => {
+                console.error('Failed to write api_log:', dbError instanceof Error ? dbError.message : 'Unknown');
             });
         }
     } catch (logError) {
-        console.error('Logging error:', logError);
+        console.error('logRequest error:', logError instanceof Error ? logError.message : 'Unknown');
     }
 }
 
-// CORS middleware
-const ALLOWED_ORIGINS = [
-  'https://yourdomain.com',
-  'https://www.yourdomain.com',
-  ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000'] : [])
-];
-
+// ─────────────────────────────────────────
+// CORS Headers
+// ─────────────────────────────────────────
 export function setCorsHeaders(response: NextResponse, request: NextRequest): NextResponse {
-  const origin = request.headers.get('origin');
-  
-  // Validate origin
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    response.headers.set('Access-Control-Allow-Origin', origin);
-    response.headers.set('Access-Control-Allow-Credentials', 'true');
-  } else if (process.env.NODE_ENV === 'development') {
-    // Allow localhost in development only
-    response.headers.set('Access-Control-Allow-Origin', origin || '*');
-  }
-  
-  // Restrict methods per endpoint
-  const path = request.nextUrl.pathname;
-  const allowedMethods = path.startsWith('/api/admin')
-    ? 'GET, POST, PUT, DELETE'
-    : 'GET, POST';
-  
-  response.headers.set('Access-Control-Allow-Methods', allowedMethods);
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
-  response.headers.set('Access-Control-Max-Age', '600'); // 10 minutes
-  response.headers.set('Access-Control-Expose-Headers', 'X-RateLimit-Limit, X-RateLimit-Remaining');
-  
-  return response;
+    const origin = request.headers.get('origin');
+
+    // [SECURITY FIX: OWASP A05] - Strict origin whitelist, ไม่มี wildcard fallback
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+        response.headers.set('Access-Control-Allow-Origin', origin);
+        response.headers.set('Access-Control-Allow-Credentials', 'true');
+    }
+
+    const path = request.nextUrl.pathname;
+    const allowedMethods = path.startsWith('/api/admin')
+        ? 'GET, POST, PUT, DELETE'
+        : 'GET, POST';
+
+    response.headers.set('Access-Control-Allow-Methods', allowedMethods);
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
+    response.headers.set('Access-Control-Max-Age', CORS_MAX_AGE);
+
+    return response;
 }
 
-// Security headers middleware
+// ─────────────────────────────────────────
+// Security Headers
+// ─────────────────────────────────────────
 export function setSecurityHeaders(response: NextResponse): NextResponse {
     response.headers.set('X-Content-Type-Options', 'nosniff');
     response.headers.set('X-Frame-Options', 'DENY');
@@ -176,14 +173,16 @@ export function setSecurityHeaders(response: NextResponse): NextResponse {
     return response;
 }
 
-// Request validation middleware
+// ─────────────────────────────────────────
+// Request Validation
+// ─────────────────────────────────────────
 export async function validateRequest(
     request: NextRequest,
     options: {
-        methods?: string[];
-        requireAuth?: boolean;
+        methods?:            string[];
+        requireAuth?:        boolean;
         requireContentType?: string;
-        maxBodySize?: number;
+        maxBodySize?:        number;
     } = {}
 ): Promise<void> {
     const { methods = [], requireAuth = false, requireContentType, maxBodySize } = options;
@@ -195,6 +194,22 @@ export async function validateRequest(
             `Method ${request.method} not allowed`,
             HTTP_STATUS.METHOD_NOT_ALLOWED
         );
+    }
+
+    // [SECURITY FIX: OWASP A01] - Auth validation ที่ implement จริง
+    if (requireAuth) {
+        const token = await getToken({
+            req: request as Parameters<typeof getToken>[0]['req'],
+            secret: process.env.NEXTAUTH_SECRET,
+        });
+
+        if (!token?.id) {
+            throw new CustomApiError(
+                ERROR_CODES.UNAUTHORIZED,
+                'กรุณาเข้าสู่ระบบ',
+                HTTP_STATUS.UNAUTHORIZED
+            );
+        }
     }
 
     // Content-Type validation
@@ -212,32 +227,19 @@ export async function validateRequest(
     // Body size validation
     if (maxBodySize && request.method !== 'GET') {
         const contentLength = request.headers.get('content-length');
-        if (contentLength && parseInt(contentLength) > maxBodySize) {
+        if (contentLength && parseInt(contentLength, 10) > maxBodySize) {
             throw new CustomApiError(
                 ERROR_CODES.VALIDATION_ERROR,
-                `Request body too large. Maximum size: ${maxBodySize} bytes`,
+                `Request body too large. Maximum: ${maxBodySize} bytes`,
                 HTTP_STATUS.BAD_REQUEST
             );
         }
     }
-
-    // Auth validation (if required)
-    if (requireAuth) {
-        const authorization = request.headers.get('authorization');
-        if (!authorization) {
-            throw new CustomApiError(
-                ERROR_CODES.UNAUTHORIZED,
-                'Authorization header required',
-                HTTP_STATUS.UNAUTHORIZED
-            );
-        }
-
-        // Add your auth validation logic here
-        // For example, JWT token validation
-    }
 }
 
-// Maintenance mode check
+// ─────────────────────────────────────────
+// Maintenance Mode
+// ─────────────────────────────────────────
 export async function checkMaintenanceMode(): Promise<void> {
     if (process.env.MAINTENANCE_MODE === 'true') {
         throw new CustomApiError(
@@ -248,11 +250,13 @@ export async function checkMaintenanceMode(): Promise<void> {
     }
 }
 
-// Health check for database connection
+// ─────────────────────────────────────────
+// Database Health (เรียกใช้เฉพาะ /api/health)
+// ─────────────────────────────────────────
 export async function checkDatabaseHealth(): Promise<void> {
     try {
         await prisma.$queryRaw`SELECT 1`;
-    } catch (error) {
+    } catch {
         throw new CustomApiError(
             ERROR_CODES.SERVICE_UNAVAILABLE,
             'ไม่สามารถเชื่อมต่อฐานข้อมูลได้',
@@ -261,96 +265,73 @@ export async function checkDatabaseHealth(): Promise<void> {
     }
 }
 
-// Comprehensive API middleware wrapper
+// ─────────────────────────────────────────
+// Main Middleware Wrapper
+// ─────────────────────────────────────────
 export function withMiddleware(
     handler: (request: NextRequest) => Promise<NextResponse>,
     options: {
-        rateLimit?: keyof typeof RATE_LIMITS;
-        methods?: string[];
-        requireAuth?: boolean;
-        requireContentType?: string;
-        maxBodySize?: number;
-        skipHealthCheck?: boolean;
+        rateLimit?:            keyof typeof RATE_LIMITS;
+        methods?:              string[];
+        requireAuth?:          boolean;
+        requireContentType?:   string;
+        maxBodySize?:          number;
         skipMaintenanceCheck?: boolean;
     } = {}
 ) {
     return async (request: NextRequest): Promise<NextResponse> => {
-        let response: NextResponse;
-        let error: any = null;
+        let response: NextResponse | undefined;
+        let caughtError: unknown = null;
 
         try {
-            // Maintenance mode check
             if (!options.skipMaintenanceCheck) {
                 await checkMaintenanceMode();
             }
 
-            // Database health check
-            if (!options.skipHealthCheck) {
-                await checkDatabaseHealth();
-            }
-
-            // Request validation
             await validateRequest(request, {
-                methods: options.methods,
-                requireAuth: options.requireAuth,
+                methods:            options.methods,
+                requireAuth:        options.requireAuth,
                 requireContentType: options.requireContentType,
-                maxBodySize: options.maxBodySize,
+                maxBodySize:        options.maxBodySize,
             });
 
-            // Rate limiting
             if (options.rateLimit) {
                 await rateLimit(request, options.rateLimit);
             }
 
-            // Handle OPTIONS request for CORS
-            if (request.method === 'OPTIONS') {
-                response = new NextResponse(null, { status: 200 });
-            } else {
-                // Execute the actual handler
-                response = await handler(request);
-            }
+            response = request.method === 'OPTIONS'
+                ? new NextResponse(null, { status: 200 })
+                : await handler(request);
 
-            // Apply security headers
             response = setSecurityHeaders(response);
             response = setCorsHeaders(response, request);
 
         } catch (err) {
-            error = err;
+            caughtError = err;
 
-            // Handle errors
-            if (err instanceof CustomApiError) {
-                response = NextResponse.json(
-                    {
-                        success: false,
-                        error: {
-                            code: err.code,
-                            message: err.message,
-                            details: err.details,
-                        },
-                    },
+            response = err instanceof CustomApiError
+                ? NextResponse.json(
+                    { success: false, error: { code: err.code, message: err.message } },
                     { status: err.statusCode }
-                );
-            } else {
-                response = NextResponse.json(
-                    {
-                        success: false,
-                        error: {
-                            code: ERROR_CODES.INTERNAL_SERVER_ERROR,
-                            message: 'เกิดข้อผิดพลาดภายในระบบ',
-                        },
-                    },
+                )
+                : NextResponse.json(
+                    // [SECURITY FIX: OWASP A05] - Generic message ไม่เปิดเผย detail
+                    { success: false, error: { code: ERROR_CODES.INTERNAL_SERVER_ERROR, message: 'เกิดข้อผิดพลาดภายในระบบ' } },
                     { status: HTTP_STATUS.INTERNAL_SERVER_ERROR }
                 );
-            }
 
-            // Apply headers to error response
             response = setSecurityHeaders(response);
             response = setCorsHeaders(response, request);
+
         } finally {
-            // Log the request
-            await logRequest(request, response, error);
+            if (response) {
+                await logRequest(request, response, caughtError ?? undefined);
+            }
         }
 
-        return response;
+        return response ?? NextResponse.json(
+            { success: false, error: { code: ERROR_CODES.INTERNAL_SERVER_ERROR, message: 'เกิดข้อผิดพลาดภายในระบบ' } },
+            { status: HTTP_STATUS.INTERNAL_SERVER_ERROR }
+        );
     };
 }
