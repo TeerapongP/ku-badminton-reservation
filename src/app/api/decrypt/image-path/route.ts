@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 export async function POST(request: NextRequest) {
     try {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Decrypt the image path
-        const encryptionKey = process.env.UPLOAD_ENCRYPTION_KEY || 'default-key-change-in-production';
+        const encryptionKey = process.env.UPLOAD_ENCRYPTION_KEY || '';
         const algorithm = 'aes-256-cbc';
         
         try {
@@ -33,8 +33,9 @@ export async function POST(request: NextRequest) {
             let decryptedPath = decipher.update(encryptedData, 'hex', 'utf8');
             decryptedPath += decipher.final('utf8');
 
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
             return NextResponse.json({
-                imagePath: decryptedPath
+                imagePath: `${baseUrl}/api${decryptedPath}`
             });
         } catch (decryptError) {
             return NextResponse.json(
