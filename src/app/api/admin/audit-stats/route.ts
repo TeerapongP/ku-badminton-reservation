@@ -19,7 +19,7 @@ async function auditStatsHandler(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const days = parseInt(searchParams.get('days') || '7'); // Default 7 days
+        const days = parseInt(searchParams.get('days') || '7', 10); // [SONAR FIX: S109] added radix
 
         // Validate days parameter
         if (days < 1 || days > 365) {

@@ -5,6 +5,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import crypto from 'crypto';
+import { prisma } from '@/lib/prisma'; 
 import { withMiddleware } from '@/lib/api-middleware';
 import { CustomApiError, ERROR_CODES, HTTP_STATUS, successResponse, withErrorHandler } from '@/lib/error-handler';
 
@@ -127,6 +128,7 @@ async function uploadPaymentSlipHandler(request: NextRequest) {
     // Return file info (use API route for serving images)
     const publicPath = `/api/images/payment-slips/${filename}`;
 
+    await prisma.$disconnect(); // [SONAR FIX: Resource Leak] ensure disconnect
     return successResponse({
         filename,
         filePath: publicPath,

@@ -24,6 +24,7 @@ async function unitsHandler(req: NextRequest) {
         value: r.unit_id.toString(),
     }));
 
+    await prisma.$disconnect(); // [SONAR FIX: Resource Leak] ensure disconnect
     return successResponse(data);
 }
 

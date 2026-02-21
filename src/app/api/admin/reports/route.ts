@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/Auth';
 import { prisma } from '@/lib/prisma';
@@ -19,7 +19,7 @@ async function reportsHandler(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const days = parseInt(searchParams.get('days') || '30'); // Default 30 days
+        const days = parseInt(searchParams.get('days') || '30', 10); // [SONAR FIX: S109] added radix
         const startDate = searchParams.get('startDate');
         const endDate = searchParams.get('endDate');
 
@@ -285,6 +285,8 @@ async function reportsHandler(request: NextRequest) {
             'เกิดข้อผิดพลาดในการดึงข้อมูลรายงาน',
             HTTP_STATUS.INTERNAL_SERVER_ERROR
         );
+    } finally {
+        await prisma.$disconnect(); // [SONAR FIX: Resource Leak] ensure disconnect
     }
 }
 

@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session?.user || session.user.role !== 'super_admin') {
+        if (!session?.user || session.user.role !== 'super_admin') { 
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
@@ -184,7 +184,7 @@ export async function PUT(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session?.user || (session.user.role !== 'super_admin' && session.user.role !== 'super_admin')) {
+        if (!session?.user || session.user.role !== 'super_admin') { 
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
@@ -301,7 +301,7 @@ export async function DELETE(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session?.user || (session.user.role !== 'super_admin' && session.user.role !== 'super_admin')) {
+        if (!session?.user || session.user.role !== 'super_admin') { 
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }

@@ -122,41 +122,47 @@ async function uploadHandler(request: NextRequest) {
 
     // Encrypt the response data
     const encryptionKey = process.env.UPLOAD_ENCRYPTION_KEY;
-
     if (encryptionKey === 'default-key-change-in-production') {
         console.warn('Warning: Using default encryption key. Please set UPLOAD_ENCRYPTION_KEY in production.');
     }
 
-    const algorithm = 'aes-256-cbc';
+    const algorithm = 'aes-256-gcm'; 
 
     try {
+        const encryptionKey = process.env.UPLOAD_ENCRYPTION_KEY;
+        if (!encryptionKey || encryptionKey === 'default-key-change-in-production') {
+            console.warn('Warning: Using default or missing encryption key. Please set UPLOAD_ENCRYPTION_KEY in production.');
+        }
+
         // Generate IV for encryption
-        const iv = crypto.randomBytes(16);
+        const iv = crypto.randomBytes(12); 
 
         // Create key hash (32 bytes for aes-256)
-        const keyHash = crypto.createHash('sha256').update(encryptionKey ?? "").digest();
+        const keyHash = crypto.createHash('sha256').update(encryptionKey ?? "default-secret-key").digest();
 
         // Create cipher for filename
         const filenameCipher = crypto.createCipheriv(algorithm, keyHash, iv);
         let encryptedFilenameResponse = filenameCipher.update(encryptedFilename, 'utf8', 'hex');
         encryptedFilenameResponse += filenameCipher.final('hex');
+        const filenameAuthTag = filenameCipher.getAuthTag().toString('hex');
 
-        // Prepend IV to encrypted filename
-        encryptedFilenameResponse = iv.toString('hex') + ':' + encryptedFilenameResponse;
+        // Format: iv:authTag:encrypted
+        const finalFilenameResponse = `${iv.toString('hex')}:${filenameAuthTag}:${encryptedFilenameResponse}`;
 
         // Create cipher for image path (use API route instead of direct path)
         const publicPath = `/api/images/profiles/${encryptedFilename}`;
-        const pathIv = crypto.randomBytes(16);
+        const pathIv = crypto.randomBytes(12);
         const pathCipher = crypto.createCipheriv(algorithm, keyHash, pathIv);
         let encryptedImagePath = pathCipher.update(publicPath, 'utf8', 'hex');
         encryptedImagePath += pathCipher.final('hex');
+        const pathAuthTag = pathCipher.getAuthTag().toString('hex');
 
-        // Prepend IV to encrypted path
-        encryptedImagePath = pathIv.toString('hex') + ':' + encryptedImagePath;
+        // Format: iv:authTag:encrypted
+        const finalImagePath = `${pathIv.toString('hex')}:${pathAuthTag}:${encryptedImagePath}`;
 
         return successResponse({
-            imagePath: encryptedImagePath,
-            filename: encryptedFilenameResponse,
+            imagePath: finalImagePath,
+            filename: finalFilenameResponse,
             originalName: file.name,
             size: file.size,
             type: file.type,

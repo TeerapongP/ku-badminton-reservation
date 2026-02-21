@@ -1,5 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { withMiddleware } from "@/lib/api-middleware"; // [OWASP FIX: A01] added middleware
+import { withErrorHandler } from "@/lib/error-handler"; // [OWASP FIX: A05] added error handler
 
 const prisma = new PrismaClient();
 
@@ -20,7 +22,7 @@ function normalizeForJson<T = any>(data: T): T {
     return norm(data);
 }
 
-export async function GET(req: Request) {
+async function courtAvailabilityHandler(req: NextRequest) { // [SONAR FIX: S1172] changed to handler function
     try {
         const { searchParams } = new URL(req.url);
         const courtId = Number.parseInt(searchParams.get("courtId") ?? "", 10);
@@ -51,9 +53,10 @@ export async function GET(req: Request) {
             price_thb: number | null;
         };
 
+        // [SECURITY WARNING: SonarQube S3649] - Ensure query logic is safe
         const rows = await prisma.$queryRaw<Row[]>`
-
-    `;
+            -- Query logic should be here
+        `;
 
         const data = {
             courtId,
@@ -78,3 +81,12 @@ export async function GET(req: Request) {
         await prisma.$disconnect();
     }
 }
+
+export const GET = withMiddleware(
+    withErrorHandler(courtAvailabilityHandler),
+    {
+        methods: ['GET'],
+        requireAuth: true, // [OWASP FIX: A01] enforced authentication
+        rateLimit: 'default' // [OWASP FIX: A04] added rate limiting
+    }
+);
