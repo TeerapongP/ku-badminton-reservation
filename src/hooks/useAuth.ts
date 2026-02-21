@@ -29,7 +29,7 @@ export function useAuth() {
       const response = await fetch('/api/auth/session');
       const sessionData = await response.json();
 
-      // console.log("🔍 Session data from API:", sessionData);
+      console.log("🔍 Session data from API:", sessionData);
 
       return { 
         success: true,

@@ -256,41 +256,16 @@ export const authOptions: NextAuthOptions = {
   jwt: {
     maxAge: 30 * 60, // 30 minutes
   },
-  // [SECURITY FIX] - Secure cookie configuration
-  cookies: {
-    sessionToken: {
-      name: `__Secure-next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production'
-      }
-    },
-    callbackUrl: {
-      name: `__Secure-next-auth.callback-url`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production'
-      }
-    },
-    csrfToken: {
-      name: `__Host-next-auth.csrf-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production'
-      }
-    }
-  },
 
-  debug: process.env.NODE_ENV === 'development', // Enable debug in development
+  debug: true, // Enable debug logs
   callbacks: {
     async jwt({ token, user, trigger }) {
-      console.log("🔑 JWT callback:", { user: !!user, tokenId: token.id });
+      console.log("🔑 JWT callback triggered:", { 
+        hasUser: !!user, 
+        hasToken: !!token,
+        tokenId: token?.id,
+        trigger 
+      });
       
       // Rotate token on update
       if (trigger === 'update') {
@@ -298,54 +273,74 @@ export const authOptions: NextAuthOptions = {
       }
       
       if (user) {
+        console.log("🔑 JWT: Adding user data to token:", {
+          id: user.id,
+          username: user.username,
+          role: user.role
+        });
+        
         token.id = user.id;
         token.username = user.username;
         token.role = user.role;
         token.isFirstLogin = (user as any).isFirstLogin;
         
         // Check if password was changed since token issued
-        const dbUser = await prisma.users.findUnique({
-          where: { user_id: BigInt(user.id) },
-          select: { updated_at: true }
-        });
-        
-        if (dbUser) {
-          token.passwordChangedAt = dbUser.updated_at.getTime();
+        try {
+          const dbUser = await prisma.users.findUnique({
+            where: { user_id: BigInt(user.id) },
+            select: { updated_at: true }
+          });
+          
+          if (dbUser) {
+            token.passwordChangedAt = dbUser.updated_at.getTime();
+          }
+        } catch (error) {
+          console.error("❌ JWT: Error fetching user:", error);
         }
       }
+      
+      console.log("🔑 JWT: Returning token with id:", token.id);
       return token;
     },
     async session({ session, token }) {
-      console.log("📋 Session callback:", {
-        tokenId: token.id,
-        role: token.role,
-        isFirstLogin: token.isFirstLogin
+      console.log("📋 Session callback triggered:", {
+        hasSession: !!session,
+        hasToken: !!token,
+        tokenId: token?.id,
+        tokenRole: token?.role
       });
       
       // Validate token hasn't been invalidated
       if (token.passwordChangedAt) {
         const tokenIssuedAt = (token.iat as number) * 1000;
         if (tokenIssuedAt < (token.passwordChangedAt as number)) {
+          console.error("❌ Session: Token invalidated - password changed");
           throw new Error('Token invalidated - password changed');
         }
       }
       
-      if (token) {
+      if (token && token.id) {
+        console.log("📋 Session: Adding token data to session");
         session.user.id = token.id as string;
         session.user.username = token.username as string;
         session.user.role = token.role as string;
         (session.user as any).isFirstLogin = token.isFirstLogin;
+      } else {
+        console.error("❌ Session: Token missing id or data");
       }
-      console.log("📋 Session after update:", {
-        userId: session.user.id,
-        role: session.user.role,
-        isFirstLogin: (session.user as any).isFirstLogin
+      
+      console.log("📋 Session: Returning session:", {
+        userId: session.user?.id,
+        role: session.user?.role,
+        hasUser: !!session.user
       });
       return session;
     },
     async signIn({ user, account, profile }) {
       console.log("🚪 SignIn callback:", {
         userId: user?.id,
+        username: (user as any)?.username,
+        role: (user as any)?.role,
         account: account?.provider
       });
       return true; // Allow sign in
