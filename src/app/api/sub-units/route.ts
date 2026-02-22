@@ -1,18 +1,35 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/Auth';
+import { prisma } from '@/lib/prisma'; // A05 — singleton แทน new PrismaClient()
 
 export async function GET(req: Request) {
     try {
+        // A01 — ตรวจสอบ auth ก่อนเสมอ
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return NextResponse.json(
+                { success: false, error: 'กรุณาเข้าสู่ระบบ' },
+                { status: 401 }
+            );
+        }
+
         const { searchParams } = new URL(req.url);
         const unitId = searchParams.get('unitId');
-        const q = (searchParams.get('q') || '').trim();
-        const take = Math.min(Number(searchParams.get('take') || 100), 500);
+        const q      = (searchParams.get('q') ?? '').trim().slice(0, 100); // จำกัดความยาว search
+        const take   = Math.min(Math.max(Number(searchParams.get('take') ?? 100), 1), 500);
 
         if (!unitId) {
             return NextResponse.json(
                 { success: false, error: 'unitId is required' },
+                { status: 400 }
+            );
+        }
+
+        // A03 — validate unitId ก่อน BigInt() กัน crash
+        if (!/^\d+$/.test(unitId.trim()) || unitId.trim() === '0') {
+            return NextResponse.json(
+                { success: false, error: 'unitId ไม่ถูกต้อง' },
                 { status: 400 }
             );
         }
@@ -27,16 +44,21 @@ export async function GET(req: Request) {
             take,
         });
 
-        const data = rows.map((r: { sub_unit_id: { toString: () => any; }; name_th: any; }) => ({
+        const data = rows.map((r) => ({
             label: r.name_th,
-            name: r.name_th,
+            name:  r.name_th,
             value: r.sub_unit_id.toString(),
         }));
 
         return NextResponse.json({ success: true, data });
-    } catch (err: any) {
+
+    } catch (error) {
+        // A09 — log จริงๆ แต่ไม่ expose error detail ออก response
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`[GET /sub-units][${new Date().toISOString()}]`, message);
+
         return NextResponse.json(
-            { success: false, error: err?.message ?? 'Internal error' },
+            { success: false, error: 'Internal error' },
             { status: 500 }
         );
     }

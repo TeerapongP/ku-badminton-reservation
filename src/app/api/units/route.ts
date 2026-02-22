@@ -1,37 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/Auth';
+import { prisma } from '@/lib/prisma'; // A05 — singleton แทน new PrismaClient()
 import { withMiddleware } from '@/lib/api-middleware';
 import { successResponse, withErrorHandler } from '@/lib/error-handler';
 
-
-const prisma = new PrismaClient();
-
-interface UnitRow {
-    unit_id: bigint;
-    name_th: string;
-}
-
 async function unitsHandler(req: NextRequest) {
-    const rows = await prisma.$queryRaw<UnitRow[]>`
-        SELECT unit_id, name_th
-        FROM units 
-        ORDER BY unit_id ASC 
-    `;
+    // A01 — ตรวจสอบ session ก่อนเสมอ
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+        return NextResponse.json(
+            { success: false, error: 'กรุณาเข้าสู่ระบบ' },
+            { status: 401 }
+        );
+    }
+
+    const rows = await prisma.units.findMany({
+        select: {
+            unit_id: true,
+            name_th: true,
+        },
+        orderBy: { unit_id: 'asc' },
+    });
 
     const data = rows.map((r) => ({
         label: r.name_th,
-        name: r.name_th,
+        name:  r.name_th,
         value: r.unit_id.toString(),
     }));
 
-    await prisma.$disconnect(); // [SONAR FIX: Resource Leak] ensure disconnect
     return successResponse(data);
 }
 
 export const GET = withMiddleware(
     withErrorHandler(unitsHandler),
     {
-        methods: ['GET'],
+        methods:   ['GET'],
         rateLimit: 'default',
     }
 );
