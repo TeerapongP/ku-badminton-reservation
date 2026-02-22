@@ -127,6 +127,10 @@ export class ScheduledTasks {
     await bookingSystem.loadFromDatabase();
     return bookingSystem.getStatus();
   }
+
+  async runNow(): Promise<void> {
+    await this.checkBookingSystemSchedule();
+}
 }
 
 // Export singleton instance

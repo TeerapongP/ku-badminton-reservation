@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 export async function GET(request: NextRequest) {
     try {
         const session = await getServerSession();
+      
 
         if (!session?.user?.id) {
             return NextResponse.json(
@@ -22,9 +23,15 @@ export async function GET(request: NextRequest) {
 
         // สร้าง where condition
         const whereCondition: any = {};
-
+        const isAdmin = ['admin', 'super_admin'].includes(session.user.role);
         // ถ้าไม่ใช่ admin ให้ดูแค่ log ของตัวเอง
         if (userId) {
+            if (!isAdmin && userId !== session.user.id) {
+                return NextResponse.json(
+                    { message: 'ไม่มีสิทธิ์เข้าถึงข้อมูลนี้' },
+                    { status: 403 }
+                );
+            }
             whereCondition.user_id = BigInt(userId);
         } else {
             whereCondition.user_id = BigInt(session.user.id);

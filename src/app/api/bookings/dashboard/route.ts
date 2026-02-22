@@ -1,172 +1,187 @@
 import { NextResponse } from 'next/server';
-
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/Auth';
 import { prisma } from '@/lib/prisma';
 import { DashboardBooking } from '@/types/booking';
 
-// Helper function to convert minutes to HH:MM format
+// แปลง minutes เป็น HH:MM
 const minutesToTime = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    const mins  = minutes % 60;
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 };
 
-// Helper function to map reservation status to dashboard status
-const mapReservationStatus = (reservationStatus: string, itemStatus: string): 'confirmed' | 'pending' | 'cancelled' | 'available' => {
-    if (itemStatus === 'cancelled') return 'cancelled';
+const mapReservationStatus = (
+    reservationStatus: string,
+    itemStatus: string
+): 'confirmed' | 'pending' | 'cancelled' | 'available' => {
+    if (itemStatus       === 'cancelled') return 'cancelled';
     if (reservationStatus === 'confirmed') return 'confirmed';
-    if (reservationStatus === 'pending') return 'pending';
-    // Fallback or default case for safety, though technically 'available' should only be added later
+    if (reservationStatus === 'pending')   return 'pending';
     return 'available';
 };
 
+//  ใช้ Intl แทน toLocaleString — reliable บน serverless/edge
+function getThailandDateString(): string {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Bangkok',
+        year:     'numeric',
+        month:    '2-digit',
+        day:      '2-digit',
+    }).formatToParts(new Date());
+
+    const get = (type: string) => parts.find(p => p.type === type)?.value ?? '00';
+    return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+function getThailandDayOfWeek(): number {
+    const date = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Bangkok',
+        weekday:  'short',
+    }).format(new Date());
+
+    return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(date);
+}
+
+//  แปลง court_code → courtNumber อย่างปลอดภัย
+function parsCourtNumber(courtCode: string, fallback: number): number {
+    const digits = courtCode.replace(/\D/g, '');
+    if (!digits) return fallback;
+    const n = Number.parseInt(digits, 10);
+    return Number.isFinite(n) ? n : fallback;
+}
+
 export async function GET() {
+    //  ตรวจ session — ข้อมูลนี้มี user info ควรจำกัดเฉพาะ admin
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+        return NextResponse.json({ success: false, message: 'กรุณาเข้าสู่ระบบ' }, { status: 401 });
+    }
+
+    const isAdmin = ['admin', 'super_admin'].includes(session.user.role);
+    if (!isAdmin) {
+        return NextResponse.json({ success: false, message: 'ไม่มีสิทธิ์เข้าถึงข้อมูลนี้' }, { status: 403 });
+    }
+
     try {
-        // 1. Prepare Date and Timezone Info
-        const today = new Date();
-        const thailandDate = new Date(today.toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
-        const todayString = thailandDate.toISOString().split('T')[0];
-        const dayOfWeek = thailandDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        const todayString = getThailandDateString();
+        const dayOfWeek   = getThailandDayOfWeek();
 
         const startOfToday = new Date(todayString);
-        const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+        const endOfToday   = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
 
-        // 2. Fetch all necessary data in parallel (Courts, Time Slots, and Reservations for today)
-        const [
-            reservationItems,
-            courts,
-            timeSlots
-        ] = await Promise.all([
-            // Fetch actual bookings for today
+        const [reservationItems, courts, timeSlots] = await Promise.all([
             prisma.reservation_items.findMany({
                 include: {
                     reservations: {
                         include: {
                             users: {
                                 select: {
-                                    user_id: true,
+                                    user_id:    true,
                                     first_name: true,
-                                    last_name: true,
-                                    email: true,
-                                    phone: true
+                                    last_name:  true,
+                                    email:      true,
+                                    phone:      true,
                                 }
                             }
                         }
                     },
                     courts: {
                         select: {
-                            court_id: true,
+                            court_id:   true,
                             court_code: true,
-                            name: true
+                            name:       true,
                         }
                     },
                     time_slots: {
                         select: {
-                            slot_id: true,
+                            slot_id:      true,
                             start_minute: true,
-                            end_minute: true,
-                            label: true
+                            end_minute:   true,
+                            label:        true,
                         }
                     }
                 },
                 where: {
-                    play_date: {
-                        gte: startOfToday,
-                        lt: endOfToday
-                    }
+                    play_date: { gte: startOfToday, lt: endOfToday }
                 },
-                // Removed redundant orderBy here, will sort allBookings at the end
             }),
-            // Get all active courts
             prisma.courts.findMany({
-                select: { court_id: true, court_code: true, name: true },
-                where: { is_active: true },
-                orderBy: { court_code: 'asc' }
+                select:  { court_id: true, court_code: true, name: true },
+                where:   { is_active: true },
+                orderBy: { court_code: 'asc' },
             }),
-            // Get all active time slots for today's weekday
             prisma.time_slots.findMany({
-                select: { slot_id: true, start_minute: true, end_minute: true, label: true },
-                where: {
-                    is_active: true,
-                    weekday: dayOfWeek
-                },
-                orderBy: { start_minute: 'asc' }
-            })
+                select:  { slot_id: true, start_minute: true, end_minute: true, label: true },
+                where:   { is_active: true, weekday: dayOfWeek },
+                orderBy: { start_minute: 'asc' },
+            }),
         ]);
 
-        // 3. Process Bookings and Create a Set for Occupied Slots
         const allBookings: DashboardBooking[] = [];
-        const occupiedSlots = new Set<string>(); // Key: 'courtNumber-timeSlotString'
+        const occupiedSlots = new Set<string>();
 
-        reservationItems.forEach(item => {
-            const user = item.reservations.users;
-            const court = item.courts;
+        reservationItems.forEach((item, index) => {
+            const user     = item.reservations.users;
+            const court    = item.courts;
             const timeSlot = item.time_slots;
 
-            const courtNumber = Number.parseInt(court.court_code.replaceAll(/\D/g, '')) || 1;
+            //  ใช้ index+1 เป็น fallback แทน hardcode 1
+            const courtNumber    = parsCourtNumber(court.court_code, index + 1);
             const timeSlotString = minutesToTime(timeSlot.start_minute);
 
             allBookings.push({
-                id: item.item_id.toString(),
+                id:           item.item_id.toString(),
                 court_number: courtNumber,
-                court_name: court.name || `สนามแบดมินตัน ${courtNumber}`,
-                date: item.play_date.toISOString().split('T')[0],
-                time_slot: timeSlotString,
-                user_name: `${user.first_name} ${user.last_name}`,
-                status: mapReservationStatus(item.reservations.status, item.status),
-                created_at: item.created_at.toISOString()
+                court_name:   court.name || `สนามแบดมินตัน ${courtNumber}`,
+                date:         item.play_date.toISOString().split('T')[0],
+                time_slot:    timeSlotString,
+                user_name:    `${user.first_name} ${user.last_name}`,
+                status:       mapReservationStatus(item.reservations.status, item.status),
+                created_at:   item.created_at.toISOString(),
             });
 
-            // Mark this specific court and time slot as occupied
             occupiedSlots.add(`${courtNumber}-${timeSlotString}`);
         });
 
-        // 4. Fill in Available Slots
-        courts.forEach(court => {
-            const courtNumber = Number.parseInt(court.court_code.replaceAll(/\D/g, '')) || 1;
-            const courtName = court.name || `สนามแบดมินตัน ${courtNumber}`;
+        courts.forEach((court, index) => {
+            const courtNumber = parsCourtNumber(court.court_code, index + 1);
+            const courtName   = court.name || `สนามแบดมินตัน ${courtNumber}`;
 
             timeSlots.forEach(slot => {
                 const timeSlotString = minutesToTime(slot.start_minute);
-                const key = `${courtNumber}-${timeSlotString}`;
+                const key            = `${courtNumber}-${timeSlotString}`;
 
                 if (!occupiedSlots.has(key)) {
-                    // Only push an 'available' slot if it hasn't been booked
                     allBookings.push({
-                        id: `available-${court.court_id}-${slot.slot_id}`,
+                        id:           `available-${court.court_id}-${slot.slot_id}`,
                         court_number: courtNumber,
-                        court_name: courtName,
-                        date: todayString,
-                        time_slot: timeSlotString,
-                        user_name: '',
-                        status: 'available',
-                        created_at: new Date().toISOString() // Use current time for creation timestamp of "available" slot
+                        court_name:   courtName,
+                        date:         todayString,
+                        time_slot:    timeSlotString,
+                        user_name:    '',
+                        status:       'available',
+                        created_at:   '',   //  available slot ไม่มี created_at จริง
                     });
                 }
             });
         });
 
-        // 5. Final Sort (By Court Number then Time Slot)
         allBookings.sort((a, b) => {
-            if (a.court_number !== b.court_number) {
-                return a.court_number - b.court_number;
-            }
+            if (a.court_number !== b.court_number) return a.court_number - b.court_number;
             return a.time_slot.localeCompare(b.time_slot);
         });
 
         return NextResponse.json({
             success: true,
-            data: allBookings,
-            message: 'Bookings fetched successfully from database'
+            data:    allBookings,
+            message: 'Bookings fetched successfully',
         });
 
     } catch (error) {
         console.error('Dashboard API error:', error);
         return NextResponse.json(
-            {
-                success: false,
-                data: [],
-                message: 'Failed to fetch booking data from database'
-            },
+            { success: false, data: [], message: 'Failed to fetch booking data' },
             { status: 500 }
         );
     }

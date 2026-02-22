@@ -1,39 +1,35 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { PrismaClient } from "@prisma/client";
 import { authOptions } from "@/lib/Auth";
+import { prisma } from "@/lib/prisma";
 
-const prisma = new PrismaClient();
-
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     try {
-        // ดึง session ปัจจุบัน
         const session = await getServerSession(authOptions);
 
         if (session?.user?.id) {
-            // บันทึก logout log
+            const ip = (
+                req.headers.get('cf-connecting-ip') ??
+                req.headers.get('x-real-ip') ??
+                req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+                'unknown'
+            ).substring(0, 45);
+
             await prisma.auth_log.create({
                 data: {
                     user_id: BigInt(session.user.id),
-                    username_input: session.user.username ?? session.user.email ?? "unknown",
-                    action: "login_success", // ใช้ action ที่มีอยู่ในระบบ
-                    ip: "unknown", // สามารถดึง real IP ได้ถ้าต้องการ
-                    user_agent: req.headers.get("user-agent") ?? "unknown"
+                    username_input: session.user.username ?? session.user.email ?? 'unknown',
+                    action: 'logout',   // action ถูกต้อง
+                    ip,
+                    user_agent: req.headers.get('user-agent')?.substring(0, 512) ?? 'unknown',
                 }
             });
         }
 
-        return NextResponse.json({
-            success: true,
-            message: "ออกจากระบบสำเร็จ"
-        });
-    } catch (error) {
-        console.error("Logout API error:", error);
+        return NextResponse.json({ success: true, message: 'ออกจากระบบสำเร็จ' });
 
-        // แม้จะ error ก็ให้ return success เพราะ NextAuth จะจัดการ logout ให้อยู่แล้ว
-        return NextResponse.json({
-            success: true,
-            message: "ออกจากระบบสำเร็จ"
-        });
+    } catch (error) {
+        console.error('Logout API error:', error);
+        return NextResponse.json({ success: true, message: 'ออกจากระบบสำเร็จ' });
     }
 }

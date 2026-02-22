@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { withMiddleware } from "@/lib/api-middleware"; // [OWASP FIX: A01] added middleware
 import { withErrorHandler } from "@/lib/error-handler"; // [OWASP FIX: A05] added error handler
-
+import { authOptions } from "../auth/[...nextauth]/route";
+import { getServerSession } from 'next-auth';
 const prisma = new PrismaClient();
 
 function normalizeForJson<T = any>(data: T): T {
@@ -35,15 +36,16 @@ async function courtAvailabilityHandler(req: NextRequest) { // [SONAR FIX: S1172
         }
 
         // หา role ของ user (ถ้ามี userId)
-        let userRole: "student" | "staff" | "admin" | null = null;
-        if (userId) {
-            const user = await prisma.users.findUnique({
-                where: { user_id: BigInt(userId) },
-                select: { role: true }
-            });
-            userRole = user?.role as "student" | "staff" | "admin" | null;
+        const session = await getServerSession(authOptions);
+
+        if (!session?.user?.id) {
+            return NextResponse.json(
+                { message: 'กรุณาเข้าสู่ระบบ' },
+                { status: 401 }
+            );
         }
 
+        const userRole = (session.user as any)?.role ?? "user";
         type Row = {
             id: number;
             label: string;
@@ -90,3 +92,5 @@ export const GET = withMiddleware(
         rateLimit: 'default' // [OWASP FIX: A04] added rate limiting
     }
 );
+
+

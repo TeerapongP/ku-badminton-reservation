@@ -3,7 +3,42 @@ import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 
+// Rate limit: ไม่เกิน 3 ครั้ง / 15 นาที ต่อ IP
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 3;
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+
+function checkRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const entry = rateLimitMap.get(ip);
+
+    if (!entry || now > entry.resetAt) {
+        rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+        return true;
+    }
+
+    if (entry.count >= RATE_LIMIT_MAX) return false;
+
+    entry.count++;
+    return true;
+}
+
 export async function POST(request: NextRequest) {
+    const ip = (
+        request.headers.get('cf-connecting-ip') ??
+        request.headers.get('x-real-ip') ??
+        request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+        'unknown'
+    ).substring(0, 45);
+
+    //  Rate limiting
+    if (!checkRateLimit(ip)) {
+        return NextResponse.json(
+            { message: 'คุณส่งคำขอบ่อยเกินไป กรุณารอ 15 นาทีแล้วลองใหม่' },
+            { status: 429 }
+        );
+    }
+
     try {
         const { identifier, method } = await request.json();
 
@@ -21,99 +56,98 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // ตรวจสอบว่าเป็น email หรือ phone number
         const isEmail = identifier.includes('@');
-        const searchCondition = isEmail 
+        const searchCondition = isEmail
             ? { email: identifier }
             : { phone: identifier };
 
-        // ตรวจสอบว่ามีผู้ใช้นี้หรือไม่
         const user = await prisma.users.findFirst({
             where: searchCondition,
             select: {
-                user_id: true,
-                email: true,
-                phone: true,
+                user_id:    true,
+                email:      true,
+                phone:      true,
                 first_name: true,
-                last_name: true,
-                status: true
+                last_name:  true,
+                status:     true,
             }
         });
 
-        if (!user) {
-            return NextResponse.json(
-                { message: 'ไม่พบบัญชีที่ตรงกับข้อมูลที่กรอก' },
-                { status: 404 }
-            );
+        //  ป้องกัน User Enumeration — return 200 เสมอ ไม่ว่าจะเจอ user หรือไม่
+        if (!user || user.status !== 'active') {
+            return NextResponse.json({
+                message: 'หากบัญชีของคุณมีอยู่ในระบบ เราจะส่งลิงก์รีเซ็ตให้คุณเร็วๆ นี้',
+                success: true,
+            });
         }
 
-        if (user.status !== 'active') {
-            return NextResponse.json(
-                { message: 'บัญชีผู้ใช้ไม่ได้เปิดใช้งาน' },
-                { status: 403 }
-            );
-        }
-
-        // ตรวจสอบว่าผู้ใช้มีข้อมูลติดต่อตามวิธีที่เลือกหรือไม่
         if (method === 'email' && !user.email) {
-            return NextResponse.json(
-                { message: 'บัญชีนี้ไม่มีอีเมลที่ลงทะเบียนไว้' },
-                { status: 400 }
-            );
+            return NextResponse.json({
+                message: 'หากบัญชีของคุณมีอยู่ในระบบ เราจะส่งลิงก์รีเซ็ตให้คุณเร็วๆ นี้',
+                success: true,
+            });
         }
 
         if (method === 'sms' && !user.phone) {
-            return NextResponse.json(
-                { message: 'บัญชีนี้ไม่มีเบอร์โทรศัพท์ที่ลงทะเบียนไว้' },
-                { status: 400 }
-            );
+            return NextResponse.json({
+                message: 'หากบัญชีของคุณมีอยู่ในระบบ เราจะส่งลิงก์รีเซ็ตให้คุณเร็วๆ นี้',
+                success: true,
+            });
         }
 
-        // สร้าง reset token
-        const resetToken = crypto.randomBytes(32).toString('hex');
-        const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 ชั่วโมง
+        //  สร้าง token และ hash ก่อนเก็บ DB
+        const resetToken   = crypto.randomBytes(32).toString('hex');
+        const hashedToken  = crypto.createHash('sha256').update(resetToken).digest('hex');
+        const expiresAt    = new Date(Date.now() + 60 * 60 * 1000); // 1 ชั่วโมง
 
-        // เข้ารหัส token ก่อนเก็บในฐานข้อมูล
-        const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+        //  ยกเลิก token เก่าของ user นี้ก่อน แล้วค่อยสร้างใหม่
+        await prisma.password_resets.updateMany({
+            where: { user_id: user.user_id, used: false },
+            data:  { used: true },
+        });
 
-        // สร้าง reset URL
-        const resetUrl = `${process.env.NEXTAUTH_URL}/forgot-password?token=${resetToken}&email=${encodeURIComponent(user.email || '')}&phone=${encodeURIComponent(user.phone || '')}`;
+        await prisma.password_resets.create({
+            data: {
+                user_id:    user.user_id,
+                token:      hashedToken,
+                expires_at: expiresAt,
+            }
+        });
 
-        // บันทึก reset token ลงฐานข้อมูล (สร้างตารางชั่วคราวใน memory หรือใช้ cache)
-        // เนื่องจากยังไม่มีตาราง password_resets ใน schema
-        const resetData = {
-            userId: user.user_id,
-            email: user.email,
-            phone: user.phone,
-            token: hashedToken,
-            expiresAt: resetTokenExpiry,
-            method: method
-        };
+        //  Reset URL มีแค่ token เท่านั้น ไม่เปิดเผย email/phone
+        const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${resetToken}`;
 
-        // เก็บใน cache หรือ session storage ชั่วคราว
-        // ในการใช้งานจริงควรสร้างตาราง password_resets
-        
         try {
             if (method === 'email') {
-                await sendResetEmail(user.email!, `${user.first_name} ${user.last_name}`, resetUrl);
-                return NextResponse.json({
-                    message: 'ส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลของคุณแล้ว',
-                    success: true
-                });
+                await sendResetEmail(
+                    user.email!,
+                    `${user.first_name} ${user.last_name}`,
+                    resetUrl
+                );
             } else {
-                await sendResetSMS(user.phone!, `${user.first_name} ${user.last_name}`, resetUrl);
-                return NextResponse.json({
-                    message: 'ส่งลิงก์รีเซ็ตรหัสผ่านไปยังเบอร์โทรศัพท์ของคุณแล้ว',
-                    success: true
-                });
+                await sendResetSMS(
+                    user.phone!,
+                    `${user.first_name} ${user.last_name}`,
+                    resetUrl
+                );
             }
         } catch (sendError) {
             console.error('Send notification error:', sendError);
+            //  ถ้าส่งไม่ได้ ให้ลบ token ที่สร้างไปทิ้ง
+            await prisma.password_resets.updateMany({
+                where: { user_id: user.user_id, token: hashedToken },
+                data:  { used: true },
+            });
             return NextResponse.json(
                 { message: 'เกิดข้อผิดพลาดในการส่งลิงก์รีเซ็ต กรุณาลองใหม่อีกครั้ง' },
                 { status: 500 }
             );
         }
+
+        return NextResponse.json({
+            message: 'หากบัญชีของคุณมีอยู่ในระบบ เราจะส่งลิงก์รีเซ็ตให้คุณเร็วๆ นี้',
+            success: true,
+        });
 
     } catch (error) {
         console.error('Forgot password error:', error);
@@ -125,57 +159,31 @@ export async function POST(request: NextRequest) {
 }
 
 async function sendResetEmail(email: string, name: string, resetUrl: string) {
-    try {
-        // ตั้งค่า nodemailer transporter
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: parseInt(process.env.SMTP_PORT || '587'),
-            secure: false, // true for 465, false for other ports
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
-            },
-        });
+    const transporter = nodemailer.createTransport({
+        host:   process.env.SMTP_HOST || 'smtp.gmail.com',
+        port:   parseInt(process.env.SMTP_PORT || '587'),
+        secure: false,
+        auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+        },
+    });
 
-        // ตรวจสอบการเชื่อมต่อ
-        await transporter.verify();
+    await transporter.verify();
 
-        const mailOptions = {
-            from: `"KU Court Booking" <${process.env.SMTP_USER}>`,
-            to: email,
-            subject: '🔐 รีเซ็ตรหัสผ่าน - KU Court Booking',
-            html: getEmailTemplate(name, resetUrl),
-            text: `
-สวัสดี ${name}
-
-เราได้รับคำขอรีเซ็ตรหัสผ่านสำหรับบัญชีของคุณ
-
-กรุณาคลิกลิงก์ด้านล่างเพื่อตั้งรหัสผ่านใหม่:
-${resetUrl}
-
-ลิงก์นี้จะหมดอายุใน 1 ชั่วโมง
-
-หากคุณไม่ได้ขอรีเซ็ตรหัสผ่าน กรุณาเพิกเฉยต่ออีเมลนี้
-
-© 2024 KU Court Booking System
-            `
-        };
-
-        const result = await transporter.sendMail(mailOptions);
-        console.log('Email sent successfully:', result.messageId);
-        
-    } catch (error) {
-        console.error('Email sending failed:', error);
-        throw new Error('ไม่สามารถส่งอีเมลได้ กรุณาลองใหม่อีกครั้ง');
-    }
+    await transporter.sendMail({
+        from:    `"KU Court Booking" <${process.env.SMTP_USER}>`,
+        to:      email,
+        subject: '🔐 รีเซ็ตรหัสผ่าน - KU Court Booking',
+        html:    getEmailTemplate(name, resetUrl),
+        text:    `สวัสดี ${name}\n\nกรุณาคลิกลิงก์เพื่อตั้งรหัสผ่านใหม่:\n${resetUrl}\n\nลิงก์นี้จะหมดอายุใน 1 ชั่วโมง\n\nหากคุณไม่ได้ขอรีเซ็ตรหัสผ่าน กรุณาเพิกเฉยต่ออีเมลนี้`,
+    });
 }
 
 async function sendResetSMS(phone: string, name: string, resetUrl: string) {
-    console.log(`Sending reset SMS to: ${phone}`);
-    console.log(`Reset URL: ${resetUrl}`);
-    
-    // TODO: Implement SMS sending
-    // Example with SMS service:
+    // TODO: Implement SMS provider (Twilio, etc.)
+    console.log(`[DEV] SMS to ${phone}: รีเซ็ตรหัสผ่าน: ${resetUrl}`);
+
     /*
     const response = await fetch('https://api.twilio.com/2010-04-01/Accounts/YOUR_ACCOUNT_SID/Messages.json', {
         method: 'POST',
@@ -185,10 +193,11 @@ async function sendResetSMS(phone: string, name: string, resetUrl: string) {
         },
         body: new URLSearchParams({
             From: process.env.TWILIO_PHONE_NUMBER!,
-            To: phone,
+            To:   phone,
             Body: `สวัสดี ${name} กรุณาคลิกลิงก์เพื่อรีเซ็ตรหัสผ่าน: ${resetUrl} (หมดอายุใน 1 ชั่วโมง)`
         })
     });
+    if (!response.ok) throw new Error('SMS sending failed');
     */
 }
 
@@ -220,11 +229,11 @@ function getEmailTemplate(name: string, resetUrl: string): string {
                 <h2>สวัสดี ${name}</h2>
                 <p>เราได้รับคำขอรีเซ็ตรหัสผ่านสำหรับบัญชีของคุณ</p>
                 <p>กรุณาคลิกปุ่มด้านล่างเพื่อตั้งรหัสผ่านใหม่:</p>
-                
+
                 <div style="text-align: center;">
                     <a href="${resetUrl}" class="button">รีเซ็ตรหัสผ่าน</a>
                 </div>
-                
+
                 <div class="warning">
                     <strong>⚠️ ข้อควรระวัง:</strong>
                     <ul>
@@ -233,7 +242,7 @@ function getEmailTemplate(name: string, resetUrl: string): string {
                         <li>อย่าแชร์ลิงก์นี้กับผู้อื่น</li>
                     </ul>
                 </div>
-                
+
                 <p>หากปุ่มไม่ทำงาน กรุณาคัดลอกลิงก์ด้านล่างไปวางในเบราว์เซอร์:</p>
                 <p style="word-break: break-all; background-color: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace;">
                     ${resetUrl}

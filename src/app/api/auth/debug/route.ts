@@ -1,16 +1,21 @@
-// Debug endpoint for NextAuth issues
+// Debug endpoint for NextAuth issues (DEV ONLY)
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/Auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
+  //  ปิดกั้น production เด็ดขาด
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ message: 'Not found' }, { status: 404 });
+  }
+
   try {
-    // Check environment variables
+    // Check environment variables (แสดงแค่ว่ามีหรือไม่มี ไม่แสดงค่า)
     const envCheck = {
       NEXTAUTH_SECRET: !!process.env.NEXTAUTH_SECRET,
-      NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-      DATABASE_URL: !!process.env.DATABASE_URL,
+      NEXTAUTH_URL:    !!process.env.NEXTAUTH_URL,
+      DATABASE_URL:    !!process.env.DATABASE_URL,
     };
 
     // Check database connection
@@ -18,12 +23,11 @@ export async function GET(request: NextRequest) {
     let userCount = 0;
     try {
       await prisma.$connect();
-      const result = await prisma.users.count();
-      userCount = result;
+      userCount = await prisma.users.count();
       dbStatus = 'connected';
     } catch (dbError) {
       console.error('Database connection error:', dbError);
-      dbStatus = 'error: ' + (dbError as Error).message;
+      dbStatus = 'error';  // ไม่แสดง error message ดิบ
     }
 
     // Check current session
@@ -31,11 +35,11 @@ export async function GET(request: NextRequest) {
     try {
       const session = await getServerSession(authOptions);
       sessionStatus = session ? 'active session' : 'no session';
-    } catch (sessionError) {
-      sessionStatus = 'session error: ' + (sessionError as Error).message;
+    } catch {
+      sessionStatus = 'session error';
     }
 
-    // Test user lookup
+    // Test user lookup (ไม่แสดง username หรือข้อมูล user จริง)
     let testUserStatus = 'not found';
     try {
       const testUser = await prisma.users.findFirst({
@@ -46,19 +50,16 @@ export async function GET(request: NextRequest) {
           ]
         },
         select: {
-          user_id: true,
-          username: true,
-          role: true,
+          role:   true,
           status: true,
-          student_id: true,
         }
       });
-      
-      if (testUser) {
-        testUserStatus = `found: ${testUser.role} - ${testUser.username}`;
-      }
-    } catch (userError) {
-      testUserStatus = 'user lookup error: ' + (userError as Error).message;
+
+      testUserStatus = testUser
+        ? `found: role=${testUser.role}, status=${testUser.status}`
+        : 'not found';
+    } catch {
+      testUserStatus = 'user lookup error';
     }
 
     return NextResponse.json({
@@ -66,10 +67,10 @@ export async function GET(request: NextRequest) {
       debug: {
         environment: envCheck,
         database: {
-          status: dbStatus,
-          userCount: userCount,
+          status:    dbStatus,
+          userCount,
         },
-        session: sessionStatus,
+        session:  sessionStatus,
         testUser: testUserStatus,
         timestamp: new Date().toISOString(),
       }
@@ -78,8 +79,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Debug endpoint error:', error);
     return NextResponse.json({
-      success: false,
-      error: (error as Error).message,
+      success:   false,
+      error:     'Internal server error',  // ไม่แสดง error message ดิบ
       timestamp: new Date().toISOString(),
     }, { status: 500 });
   }

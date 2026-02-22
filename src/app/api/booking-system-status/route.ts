@@ -1,71 +1,89 @@
-import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
-const prisma = new PrismaClient();
+const DEFAULT_STATUS = {
+    isOpen:        true,
+    openedBy:      'system',
+    openedAt:      new Date().toISOString(),
+    businessHours: { start: 8, end: 20 },
+};
+
+function getThailandHour(): number {
+    return parseInt(
+        new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Bangkok',
+            hour:     'numeric',
+            hour12:   false,
+        }).format(new Date()),
+        10
+    );
+}
+
+// Whitelist เฉพาะ fields ที่รู้จัก ป้องกัน inject ค่าแปลกๆ จาก DB
+function safeParseStatus(value: string): Partial<typeof DEFAULT_STATUS> {
+    try {
+        const parsed = JSON.parse(value);
+        return {
+            ...(typeof parsed.isOpen   === 'boolean' ? { isOpen:   parsed.isOpen }   : {}),
+            ...(typeof parsed.openedBy === 'string'  ? { openedBy: parsed.openedBy } : {}),
+            ...(typeof parsed.openedAt === 'string'  ? { openedAt: parsed.openedAt } : {}),
+            ...(parsed.businessHours
+                ? {
+                    businessHours: {
+                        start: Number(parsed.businessHours.start ?? 8),
+                        end:   Number(parsed.businessHours.end   ?? 20),
+                    }
+                }
+                : {}),
+        };
+    } catch {
+        return {};
+    }
+}
 
 /**
  * Public API สำหรับเช็คสถานะระบบการจอง (ไม่ต้อง login)
  */
-export async function GET(request: NextRequest) {
-  try {
-    const systemStatus = await prisma.system_settings.findFirst({
-      where: { key: 'booking_system_status' }
-    });
+export async function GET() {
+    try {
+        const systemStatus = await prisma.system_settings.findFirst({
+            where: { key: 'booking_system_status' }
+        });
 
-    let status = {
-      isOpen: true,
-      openedBy: 'system',
-      openedAt: new Date().toISOString(),
-      businessHours: { start: 8, end: 20 }
-    };
+        const status = {
+            ...DEFAULT_STATUS,
+            ...(systemStatus ? safeParseStatus(systemStatus.value) : {}),
+        };
 
-    if (systemStatus) {
-      try {
-        status = { ...status, ...JSON.parse(systemStatus.value) };
-      } catch (parseError) {
-        console.error('Error parsing system status:', parseError);
-      }
+        const hour            = getThailandHour();
+        const isBusinessHours = hour >= status.businessHours.start && hour < status.businessHours.end;
+
+        return NextResponse.json({
+            success: true,
+            data: {
+                ...status,
+                currentHour:     hour,
+                isBusinessHours,
+                effectiveStatus: status.isOpen && isBusinessHours,
+            }
+        });
+
+    } catch (error) {
+        console.error("Error fetching booking system status:", error);
+
+        const hour            = getThailandHour();
+        const isBusinessHours = hour >= 8 && hour < 20;
+
+        // return 200 พร้อม fallback แต่บอก client ว่าใช้ fallback อยู่
+        return NextResponse.json({
+            success:  true,
+            fallback: true,
+            data: {
+                ...DEFAULT_STATUS,
+                currentHour:     hour,
+                isBusinessHours,
+                effectiveStatus: isBusinessHours,
+            }
+        });
     }
-
-    // เช็ค business hours (เวลาไทย)
-    const now = new Date();
-    const thailandTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
-    const hour = thailandTime.getHours();
-    const isBusinessHours = hour >= 8 && hour < 20;
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        ...status,
-        currentTime: thailandTime.toISOString(),
-        currentHour: hour,
-        isBusinessHours,
-        effectiveStatus: status.isOpen && isBusinessHours
-      }
-    });
-
-  } catch (error) {
-    console.error("Error fetching booking system status:", error);
-    
-    // Fallback ถ้า error
-    const now = new Date();
-    const thailandTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
-    const hour = thailandTime.getHours();
-    const isBusinessHours = hour >= 8 && hour < 20;
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        isOpen: true,
-        openedBy: 'system',
-        openedAt: thailandTime.toISOString(),
-        businessHours: { start: 8, end: 20 },
-        currentTime: thailandTime.toISOString(),
-        currentHour: hour,
-        isBusinessHours,
-        effectiveStatus: isBusinessHours,
-        note: 'Using fallback status'
-      }
-    });
-  }
 }
