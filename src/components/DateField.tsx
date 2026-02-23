@@ -36,12 +36,22 @@ export const DateField: React.FC<DateFieldProps> = ({
         disabled={disabled}
         timeOnly={timeOnly}
         hourFormat="24"
-        className="tw-w-full"
-        inputClassName="tw-border-0 tw-bg-transparent focus:tw-ring-0 tw-placeholder-slate-400"
-        
-        showOnFocus={true} 
+        showOnFocus={true}
         hideOnDateTimeSelect={true}
-        mask={timeOnly ? "99:99" : undefined} 
+        mask={timeOnly ? "99:99" : undefined}
+        pt={{
+          root: {
+            className: "tw-w-full tw-flex tw-items-stretch tw-border tw-border-gray-300 tw-rounded-md",
+          },
+          input: {
+            className: "tw-flex-1 tw-border-0 tw-outline-none tw-bg-transparent tw-px-3 tw-py-2 tw-text-sm tw-placeholder-slate-400 tw-rounded-l-md",
+          },
+          dropdownButton: {
+            root: {
+              className: "tw-bg-cyan-500 tw-border-0 tw-text-white tw-px-3 tw-cursor-pointer hover:tw-bg-cyan-600 tw-flex tw-items-center tw-rounded-r-md",
+            },
+          },
+        }}
       />
     </div>
   );

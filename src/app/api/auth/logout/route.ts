@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/Auth";
 import { prisma } from "@/lib/prisma";
+import { decode } from "@/lib/Cryto";
+
+// ตรวจสอบว่า id ถูก encrypt ไว้หรือเปล่า (format: salt:iv:authTag:ciphertext)
+function isEncrypted(value: string): boolean {
+    return value.split(':').length === 4;
+}
 
 export async function POST(req: NextRequest) {
     try {
@@ -15,21 +21,31 @@ export async function POST(req: NextRequest) {
                 'unknown'
             ).substring(0, 45);
 
-            await prisma.auth_log.create({
-                data: {
-                    user_id: BigInt(session.user.id),
-                    username_input: session.user.username ?? session.user.email ?? 'unknown',
-                    action: 'logout',   // action ถูกต้อง
-                    ip,
-                    user_agent: req.headers.get('user-agent')?.substring(0, 512) ?? 'unknown',
-                }
-            });
+            try {
+                // decode ก่อนถ้า id ถูก encrypt ไว้
+                const rawId = isEncrypted(session.user.id)
+                    ? await decode(session.user.id)
+                    : session.user.id;
+
+                await prisma.auth_log.create({
+                    data: {
+                        user_id: BigInt(rawId),
+                        username_input: session.user.username ?? session.user.email ?? 'unknown',
+                        action: 'logout',
+                        ip,
+                        user_agent: req.headers.get('user-agent')?.substring(0, 512) ?? 'unknown',
+                    }
+                });
+            } catch (logError) {
+                // A09 — log ภายใน แต่ไม่ให้ log error หยุด logout
+                console.error('[POST /api/auth/logout] Failed to write auth_log:', logError instanceof Error ? logError.message : 'Unknown');
+            }
         }
 
         return NextResponse.json({ success: true, message: 'ออกจากระบบสำเร็จ' });
 
     } catch (error) {
-        console.error('Logout API error:', error);
+        console.error('[POST /api/auth/logout] Unexpected error:', error instanceof Error ? error.message : 'Unknown');
         return NextResponse.json({ success: true, message: 'ออกจากระบบสำเร็จ' });
     }
 }
