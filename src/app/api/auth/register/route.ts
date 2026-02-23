@@ -1,9 +1,9 @@
-// src/app/api/auth/register/route.ts
 import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { withMiddleware } from "@/lib/api-middleware";
 import { decryptData } from "@/lib/encryption";
+import { users_role, users_status, auth_log_action } from "@prisma/client";
 import {
     CustomApiError,
     ERROR_CODES,
@@ -99,6 +99,7 @@ async function registerHandler(req: NextRequest) {
 
     if (role === "staff") {
         validateRequired(body, ['national_id', 'staff_type']);
+        // unit_id is optional
     }
 
     if (role === "guest") {
@@ -145,27 +146,27 @@ async function registerHandler(req: NextRequest) {
             OR: [
                 { username },
                 { email },
-                ...(phone              ? [{ phone }]                                  : []),
-                ...(student_id         ? [{ student_profiles: { some: { student_id } } }] : []),
-                ...(decryptedNationalId ? [{ national_id: decryptedNationalId }]      : []),
+                ...(phone ? [{ phone }] : []),
+                ...(student_id ? [{ student_profile: { student_id } }] : []),
+                ...(decryptedNationalId ? [{ national_id: decryptedNationalId }] : []),
             ],
         },
         select: {
-            username:    true,
-            email:       true,
-            phone:       true,
+            username: true,
+            email: true,
+            phone: true,
             national_id: true,
-            student_profiles: { select: { student_id: true } },
+            student_profile: { select: { student_id: true } },
         },
     });
 
     if (existingUser) {
         let duplicateField = "";
-        if (existingUser.username === username)                                                        duplicateField = "ชื่อผู้ใช้";
-        else if (existingUser.email.toLowerCase() === email.toLowerCase())                            duplicateField = "อีเมล";
-        else if (existingUser.phone && existingUser.phone === phone)                                  duplicateField = "เบอร์โทรศัพท์";
-        else if (existingUser.national_id && existingUser.national_id === decryptedNationalId)        duplicateField = "เลขบัตรประชาชน";
-        else if (existingUser.student_profiles?.some((p: { student_id: any; }) => p.student_id === student_id))            duplicateField = "รหัสนิสิต";
+        if (existingUser.username === username) duplicateField = "ชื่อผู้ใช้";
+        else if (existingUser.email.toLowerCase() === email.toLowerCase()) duplicateField = "อีเมล";
+        else if (existingUser.phone && existingUser.phone === phone) duplicateField = "เบอร์โทรศัพท์";
+        else if (existingUser.national_id && existingUser.national_id === decryptedNationalId) duplicateField = "เลขบัตรประชาชน";
+        else if (existingUser.student_profile?.student_id === student_id) duplicateField = "รหัสนิสิต";
 
         throw new CustomApiError(
             ERROR_CODES.DUPLICATE_ENTRY,
@@ -190,10 +191,10 @@ async function registerHandler(req: NextRequest) {
                 title_en,
                 first_name,
                 last_name,
-                role:        role as any,
-                staff_id:    role === "staff" ? `STAFF_${Date.now()}` : null,
+                role: role as users_role,
+                staff_id: role === "staff" ? `STAFF_${Date.now()}` : null,
                 national_id: decryptedNationalId,
-                status:      "active" as any,
+                status: "active" as users_status,
             },
             select: {
                 user_id:    true,
@@ -213,7 +214,7 @@ async function registerHandler(req: NextRequest) {
                     national_id:    decryptedNationalId,
                     faculty_id:     BigInt(faculty_id),
                     department_id:  BigInt(department_id),
-                    level_of_study: level_of_study as any,
+                    level_of_study,
                 },
             });
         } else if (role === "staff") {
@@ -232,7 +233,7 @@ async function registerHandler(req: NextRequest) {
                     national_id:       decryptedNationalId.substring(0, 20),
                     office_department: office_department || null,
                     position:          position          || null,
-                    staff_type:        staff_type as any,
+                    staff_type,
                     unit_id:           unit_id ? BigInt(unit_id) : null,
                 },
             });
@@ -241,11 +242,11 @@ async function registerHandler(req: NextRequest) {
         //  auth_log ใช้ action "register" ไม่ใช่ "login_success"
         await tx.auth_log.create({
             data: {
-                user_id:        newUser.user_id,
+                user_id: newUser.user_id,
                 username_input: newUser.username,
-                action:         "register" as any,
-                ip:             "unknown",
-                user_agent:     "unknown",
+                action: "register" as auth_log_action,
+                ip: "unknown",
+                user_agent: "unknown",
             },
         });
 

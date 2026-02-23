@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ToastProvider";
 import { Button } from "@/components/Button";
 import Loading from "@/components/Loading";
@@ -23,11 +22,14 @@ import {
 import { Activity } from "@/lib/ActivityData";
 import { DashboardStats } from "@/lib/DashboardData";
 
+import { useAdminRole } from "@/hooks/useAdminRole";
+
+const ADMIN_ROLES = new Set(["admin", "super_admin"]);
 
 export default function AdminDashboard() {
     const router = useRouter();
-    const { data: session, status } = useSession();
     const toast = useToast();
+    const { decodedRole, loading: roleLoading, isAdmin, isSuperAdmin, session, status } = useAdminRole();
 
     const [stats, setStats] = useState<DashboardStats>({
         pendingPayments: 0,
@@ -73,9 +75,9 @@ export default function AdminDashboard() {
     }, []);
 
     useEffect(() => {
-        if (status === "loading") return;
+        if (status === "loading" || roleLoading) return;
 
-        if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super_admin")) {
+        if (!session || !isAdmin) {
             toast?.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
@@ -92,7 +94,7 @@ export default function AdminDashboard() {
             fetchSystemStatus();
         }, 5 * 60 * 1000);
         return () => clearInterval(interval);
-    }, [session, status, router, toast]);
+    }, [session, status, isAdmin, roleLoading, router, toast]);
 
     const fetchDashboardStats = async () => {
         try {
@@ -193,7 +195,7 @@ export default function AdminDashboard() {
         }
     };
 
-    if (status === "loading" || loading) {
+    if (status === "loading" || loading || roleLoading) {
         return (
             <Loading
                 size="lg"
@@ -204,7 +206,7 @@ export default function AdminDashboard() {
         );
     }
 
-    if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super_admin")) {
+    if (!session || !isAdmin) {
         return null;
     }
 
@@ -270,7 +272,7 @@ export default function AdminDashboard() {
     ];
 
     // เพิ่ม action สำหรับ super_admin
-    if ((session.user as any)?.role === "super_admin" || (session.user as any)?.role === "super_admin") {
+    if (isSuperAdmin) {
         quickActions.push({
             title: "จัดการ Admin",
             description: "จัดการบัญชี Admin และ Super Admin",

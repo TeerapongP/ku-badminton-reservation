@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { PrismaClient } from "@prisma/client";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/Auth";
+import { decode } from "@/lib/Cryto";
 
 const prisma = new PrismaClient();
+
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) return null;
+    try {
+        return await decode(encrypted);
+    } catch {
+        console.error('[admin/banners/create-table] Failed to decode role');
+        return null;
+    }
+}
 
 // POST - สร้าง banners table
 export async function POST(request: NextRequest) {
@@ -18,7 +29,8 @@ export async function POST(request: NextRequest) {
         }
 
         // ตรวจสอบสิทธิ์ super_admin เท่านั้น
-        if (session.user.role !== 'super_admin') {
+        const role = await resolveRole(session?.user?.role);
+        if (role !== 'super_admin') {
             return NextResponse.json(
                 { success: false, error: "ต้องเป็น super_admin เท่านั้น" },
                 { status: 403 }

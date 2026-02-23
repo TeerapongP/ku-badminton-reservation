@@ -2,7 +2,6 @@ import React from 'react';
 import { EyeOff } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { InputField } from '@/components/InputField';
-import { DropdownField } from '@/components/DropdownField';
 import { DateField } from '@/components/DateField'; // ใช้ DateField ตัวใหม่
 import { ModalWrapper } from './ModalWrapper';
 import { BlackoutFormModalProps } from '../../types/BlackoutForm';
@@ -11,7 +10,6 @@ export const BlackoutFormModal: React.FC<BlackoutFormModalProps> = ({
     show,
     courts,
     selectedCourts,
-    selectedFacility,
     blackoutForm,
     setBlackoutForm,
     handleCreateBlackout,

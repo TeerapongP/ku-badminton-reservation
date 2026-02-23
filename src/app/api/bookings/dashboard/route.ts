@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/Auth';
 import { prisma } from '@/lib/prisma';
 import { DashboardBooking } from '@/types/booking';
+import { decode } from '@/lib/Cryto';
 
 // แปลง minutes เป็น HH:MM
 const minutesToTime = (minutes: number): string => {
@@ -10,6 +11,37 @@ const minutesToTime = (minutes: number): string => {
     const mins  = minutes % 60;
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 };
+
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) {
+        console.log('[resolveRole] No encrypted value provided:', { encrypted });
+        return null;
+    }
+    
+    // ตรวจสอบว่าเป็น plaintext role หรือไม่ (backward compatibility)
+    const plainRoles = ['admin', 'super_admin', 'student', 'staff', 'guest'];
+    if (plainRoles.includes(encrypted)) {
+        console.log('[resolveRole] Found plaintext role (old session):', { role: encrypted });
+        return encrypted;
+    }
+    
+    console.log('[resolveRole] Attempting to decode encrypted role:', { 
+        encrypted: encrypted.substring(0, 50) + '...', 
+        length: encrypted.length 
+    });
+    
+    try {
+        const decoded = await decode(encrypted);
+        console.log('[resolveRole] Successfully decoded:', { decoded });
+        return decoded;
+    } catch (error) {
+        console.error('[resolveRole] Failed to decode role:', {
+            error: error instanceof Error ? error.message : String(error),
+            encryptedPreview: encrypted.substring(0, 50) + '...'
+        });
+        return null;
+    }
+}
 
 const mapReservationStatus = (
     reservationStatus: string,
@@ -58,8 +90,9 @@ export async function GET() {
         return NextResponse.json({ success: false, message: 'กรุณาเข้าสู่ระบบ' }, { status: 401 });
     }
 
-    const isAdmin = ['admin', 'super_admin'].includes(session.user.role);
-    if (!isAdmin) {
+    const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+    const role = await resolveRole(session?.user?.role);
+    if (!session?.user || !ADMIN_ROLES.has(role ?? '')) {
         return NextResponse.json({ success: false, message: 'ไม่มีสิทธิ์เข้าถึงข้อมูลนี้' }, { status: 403 });
     }
 

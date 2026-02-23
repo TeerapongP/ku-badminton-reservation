@@ -3,6 +3,17 @@ import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/Auth';
 import { CustomApiError, ERROR_CODES, HTTP_STATUS, successResponse, withErrorHandler } from '@/lib/error-handler';
+import { decode } from '@/lib/Cryto';
+
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) return null;
+    try {
+        return await decode(encrypted);
+    } catch {
+        console.error('[admin/payments/id] Failed to decode role');
+        return null;
+    }
+}
 
 // GET - ดึงข้อมูลการชำระเงินรายการเดียว
 async function getPaymentHandler(request: NextRequest, { params }: { params: { id: string } }) {
@@ -10,7 +21,9 @@ async function getPaymentHandler(request: NextRequest, { params }: { params: { i
         const session = await getServerSession(authOptions);
 
         // ตรวจสอบสิทธิ์ admin
-        if (!session?.user || !['admin', 'super_admin'].includes(session.user.role ?? "")) {
+        const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+        const role = await resolveRole(session?.user?.role);
+        if (!session?.user || !ADMIN_ROLES.has(role ?? '')) {
             throw new CustomApiError(
                 ERROR_CODES.UNAUTHORIZED,
                 'ไม่มีสิทธิ์เข้าถึง',
@@ -166,7 +179,9 @@ async function updatePaymentHandler(request: NextRequest, { params }: { params: 
         const session = await getServerSession(authOptions);
 
         // ตรวจสอบสิทธิ์ admin
-        if (!session?.user || !['admin', 'super_admin'].includes(session.user.role ?? "")) {
+        const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+        const role = await resolveRole(session?.user?.role);
+        if (!session?.user || !ADMIN_ROLES.has(role ?? '')) {
             throw new CustomApiError(
                 ERROR_CODES.UNAUTHORIZED,
                 'ไม่มีสิทธิ์เข้าถึง',

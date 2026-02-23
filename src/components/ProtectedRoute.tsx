@@ -6,8 +6,8 @@ import { useEffect } from "react";
 import Loading from "@/components/Loading";
 
 interface ProtectedRouteProps {
-  children: React.ReactNode;
-  requiredRole?: string[];
+  readonly children: React.ReactNode;
+  readonly requiredRole?: readonly string[];
 }
 
 export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {

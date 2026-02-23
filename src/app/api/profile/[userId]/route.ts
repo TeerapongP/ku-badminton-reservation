@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/Auth";
-import { decryptData, encryptData } from "@/lib/encryption";
+import { encryptData } from "@/lib/encryption";
+import { decode } from '@/lib/Cryto';
 import { prisma } from "@/lib/prisma";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -57,8 +58,8 @@ function validatePhotoUrl(url: unknown): string | null {
 /**
  * ถอดรหัส encryptedUserId และคืน userId string
  */
-function resolveUserId(encryptedUserId: string): string {
-    return decryptData(decodeURIComponent(encryptedUserId));
+async function resolveUserId(encryptedUserId: string): Promise<string> {
+    return await decode(decodeURIComponent(encryptedUserId));
 }
 
 // ── GET — ดึงข้อมูลโปรไฟล์ ──────────────────────────────────────────────────
@@ -82,7 +83,7 @@ export async function GET(
         // ถอดรหัส userId
         let userId: string;
         try {
-            userId = resolveUserId(encryptedUserId);
+            userId = await resolveUserId(encryptedUserId);
         } catch {
             return NextResponse.json(
                 { success: false, error: "ข้อมูล userId ไม่ถูกต้อง" },
@@ -90,8 +91,29 @@ export async function GET(
             );
         }
 
-        // A01 — ตรวจสอบ ownership
-        if (session.user.id !== userId) {
+        // A01 — ตรวจสอบ ownership (ต้อง decrypt session.user.id ก่อนเปรียบเทียบ)
+        let sessionUserId: string;
+        try {
+            console.log('[profile GET] Attempting to decrypt session.user.id:', {
+                encrypted: session.user.id?.substring(0, 50) + '...',
+                length: session.user.id?.length
+            });
+            sessionUserId = await decode(session.user.id);
+            console.log('[profile GET] Successfully decrypted session.user.id:', sessionUserId);
+        } catch (error) {
+            console.error('[profile GET] Failed to decrypt session.user.id:', {
+                error: error instanceof Error ? error.message : String(error),
+                encryptedPreview: session.user.id?.substring(0, 50) + '...'
+            });
+            return NextResponse.json(
+                { success: false, error: "Session ไม่ถูกต้อง" },
+                { status: 401 }
+            );
+        }
+
+        console.log('[profile GET] Comparing userId:', { sessionUserId, userId });
+        
+        if (sessionUserId !== userId) {
             return NextResponse.json(
                 { success: false, error: "ไม่ได้รับอนุญาต" },
                 { status: 403 }
@@ -169,7 +191,7 @@ export async function PUT(
         // ถอดรหัส userId
         let userId: string;
         try {
-            userId = resolveUserId(encryptedUserId);
+            userId = await resolveUserId(encryptedUserId);
         } catch {
             return NextResponse.json(
                 { success: false, error: "ข้อมูล userId ไม่ถูกต้อง" },
@@ -177,8 +199,29 @@ export async function PUT(
             );
         }
 
-        // A01 — ตรวจสอบ ownership
-        if (session.user.id !== userId) {
+        // A01 — ตรวจสอบ ownership (ต้อง decrypt session.user.id ก่อนเปรียบเทียบ)
+        let sessionUserId: string;
+        try {
+            console.log('[profile PUT] Attempting to decrypt session.user.id:', {
+                encrypted: session.user.id?.substring(0, 50) + '...',
+                length: session.user.id?.length
+            });
+            sessionUserId = await decode(session.user.id);
+            console.log('[profile PUT] Successfully decrypted session.user.id:', sessionUserId);
+        } catch (error) {
+            console.error('[profile PUT] Failed to decrypt session.user.id:', {
+                error: error instanceof Error ? error.message : String(error),
+                encryptedPreview: session.user.id?.substring(0, 50) + '...'
+            });
+            return NextResponse.json(
+                { success: false, error: "Session ไม่ถูกต้อง" },
+                { status: 401 }
+            );
+        }
+
+        console.log('[profile PUT] Comparing userId:', { sessionUserId, userId });
+        
+        if (sessionUserId !== userId) {
             return NextResponse.json(
                 { success: false, error: "ไม่ได้รับอนุญาต" },
                 { status: 403 }

@@ -4,22 +4,45 @@ import { authOptions } from '@/lib/Auth';
 import crypto from 'node:crypto';
 import path from 'node:path';
 
-// A05 — allowed base paths สำหรับ image files เท่านั้น
-const ALLOWED_PATH_PREFIXES = ['/uploads/', '/images/'];
+const ALLOWED_URL_PREFIXES = ['/uploads/', '/images/'];
 
-// A03 — ตรวจสอบ path ไม่ให้ traverse ออกนอก allowed directory
-function isSafePath(decryptedPath: string): boolean {
-    // ป้องกัน path traversal
+// A03 — แปลง file system path → URL path แล้วตรวจสอบ whitelist
+function resolveToUrlPath(decryptedPath: string): string | null {
+    const uploadBaseDir = process.env.IMAGE_PATH;
+
+    if (!uploadBaseDir) {
+        console.error('[POST /decrypt-image] IMAGE_PATH not configured');
+        return null;
+    }
+
     const normalized = path.normalize(decryptedPath);
-    if (normalized.includes('..')) return false;
 
-    // อนุญาตเฉพาะ path ที่กำหนดไว้
-    return ALLOWED_PATH_PREFIXES.some(prefix => normalized.startsWith(prefix));
+    // ป้องกัน path traversal
+    if (normalized.includes('..')) return null;
+
+    // แปลง /app/uploads/profiles/abc.jpg → /uploads/profiles/abc.jpg
+    if (normalized.startsWith(uploadBaseDir)) {
+        const relative = normalized.slice(uploadBaseDir.length);
+        const urlPath = '/uploads' + (relative.startsWith('/') ? relative : '/' + relative);
+
+        if (!ALLOWED_URL_PREFIXES.some(prefix => urlPath.startsWith(prefix))) {
+            return null;
+        }
+
+        return urlPath;
+    }
+
+    // ถ้าเป็น URL path อยู่แล้ว ตรวจสอบ prefix
+    if (ALLOWED_URL_PREFIXES.some(prefix => normalized.startsWith(prefix))) {
+        return normalized;
+    }
+
+    return null;
 }
 
 export async function POST(request: NextRequest) {
     try {
-        // A01 — ต้อง login ก่อนเสมอ
+        // A01 — ต้อง login ก่อนเสมอ ไม่มี auth = ปฏิเสธทันที
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
             return NextResponse.json(
@@ -31,6 +54,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { encryptedPath } = body;
 
+        // A03 — ตรวจสอบ input ก่อนประมวลผล
         if (!encryptedPath || typeof encryptedPath !== 'string') {
             return NextResponse.json(
                 { message: 'ไม่พบข้อมูลที่เข้ารหัส' },
@@ -38,7 +62,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // A05 — ถ้าไม่มี key → ปฏิเสธทันที ไม่ fallback เป็น empty string
+        // A05 — ไม่ fallback เป็น empty string ถ้าไม่มี key
         const encryptionKey = process.env.UPLOAD_ENCRYPTION_KEY;
         if (!encryptionKey || encryptionKey.length < 32) {
             console.error(`[POST /decrypt-image][${new Date().toISOString()}] UPLOAD_ENCRYPTION_KEY not configured`);
@@ -48,8 +72,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Decrypt
-        const algorithm = 'aes-256-cbc';
         const parts = encryptedPath.split(':');
         if (parts.length !== 2) {
             return NextResponse.json(
@@ -63,18 +85,18 @@ export async function POST(request: NextRequest) {
             const iv = Buffer.from(parts[0], 'hex');
             const encryptedData = parts[1];
 
-            // ตรวจสอบขนาด IV (ต้องเป็น 16 bytes สำหรับ AES-CBC)
+            // ตรวจสอบขนาด IV ต้องเป็น 16 bytes สำหรับ AES-CBC
             if (iv.length !== 16) {
                 throw new Error('Invalid IV length');
             }
 
             const keyHash = crypto.createHash('sha256').update(encryptionKey).digest();
-            const decipher = crypto.createDecipheriv(algorithm, keyHash, iv);
+            const decipher = crypto.createDecipheriv('aes-256-cbc', keyHash, iv);
             decryptedPath = decipher.update(encryptedData, 'hex', 'utf8');
             decryptedPath += decipher.final('utf8');
 
         } catch (decryptError) {
-            // A09 — log สาเหตุจริง แต่ไม่ส่งออก response
+            // A09 — log สาเหตุจริงภายใน ไม่ส่งออก response
             const message = decryptError instanceof Error ? decryptError.message : 'Unknown';
             console.error(`[POST /decrypt-image][${new Date().toISOString()}] Decrypt failed: ${message}`);
             return NextResponse.json(
@@ -84,8 +106,10 @@ export async function POST(request: NextRequest) {
         }
 
         // A03 — validate path หลัง decrypt ก่อน return เสมอ
-        if (!isSafePath(decryptedPath)) {
-            console.warn(`[POST /decrypt-image][${new Date().toISOString()}] Path traversal attempt by user ${session.user.id}: ${decryptedPath}`);
+        // ป้องกัน path traversal และ file system path หลุดไปถึง client
+        const urlPath = resolveToUrlPath(decryptedPath);
+        if (!urlPath) {
+            console.warn(`[POST /decrypt-image][${new Date().toISOString()}] Invalid path by user ${session.user.id}: ${decryptedPath}`);
             return NextResponse.json(
                 { message: 'ไม่อนุญาตให้เข้าถึง path นี้' },
                 { status: 403 }
@@ -94,7 +118,7 @@ export async function POST(request: NextRequest) {
 
         const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
         return NextResponse.json({
-            imagePath: `${baseUrl}/api${decryptedPath}`,
+            imagePath: `${baseUrl}/api${urlPath}`,
         });
 
     } catch (error) {

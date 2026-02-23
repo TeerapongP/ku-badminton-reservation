@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import { Button } from "@/components/Button";
@@ -11,8 +11,8 @@ import { UploadResult } from "@/lib/UploadResult";
 
 export default function StudentUpload() {
     const router = useRouter();
-    const { data: session, status } = useSession();
     const toast = useToast();
+    const { session, status, isAdmin, loading: roleLoading } = useAdminRole();
 
     const [file, setFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
@@ -21,11 +21,11 @@ export default function StudentUpload() {
     const [dragActive, setDragActive] = useState(false);
 
     // ตรวจสอบสิทธิ์
-    if (status === "loading") {
+    if (status === "loading" || roleLoading) {
         return <Loading size="lg" text="กำลังโหลด..." color="blue" fullScreen={true} />;
     }
 
-    if (!session || (session.user.role !== "admin" && session.user.role !== "super_admin")) {
+    if (!session || !isAdmin) {
         router.push("/");
         return null;
     }

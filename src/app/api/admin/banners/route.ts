@@ -2,8 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { PrismaClient } from "@prisma/client";
 import { authOptions } from "@/lib/Auth";
+import { decode } from "@/lib/Cryto";
 
 const prisma = new PrismaClient();
+
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) return null;
+    
+    // Check if role is already plaintext
+    const plainRoles = ['admin', 'super_admin', 'student', 'staff', 'guest'];
+    if (plainRoles.includes(encrypted)) {
+        return encrypted;
+    }
+    
+    // Try to decode if encrypted
+    try {
+        return await decode(encrypted);
+    } catch (error) {
+        console.error('[admin/banners] Failed to decode role, using as-is:', error);
+        // Fallback to using the value as-is
+        return encrypted;
+    }
+}
 
 // GET - ดึงรายการ banners ทั้งหมด
 export async function GET(request: NextRequest) {
@@ -18,7 +38,9 @@ export async function GET(request: NextRequest) {
         }
 
         // ตรวจสอบสิทธิ์ admin หรือ super_admin
-        if (!['admin', 'super_admin'].includes(session.user.role ?? "")) {
+        const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+        const role = await resolveRole(session?.user?.role);
+        if (!session?.user || !ADMIN_ROLES.has(role ?? '')) {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
@@ -105,7 +127,9 @@ export async function POST(request: NextRequest) {
         }
 
         // ตรวจสอบสิทธิ์ admin หรือ super_admin
-        if (!['admin', 'super_admin'].includes(session.user.role ?? "")) {
+        const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+        const role = await resolveRole(session?.user?.role);
+        if (!session?.user || !ADMIN_ROLES.has(role ?? '')) {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }

@@ -4,14 +4,27 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/Auth';
 import { withMiddleware } from '@/lib/api-middleware';
 import { CustomApiError, ERROR_CODES, HTTP_STATUS, successResponse, withErrorHandler } from '@/lib/error-handler';
+import { decode } from '@/lib/Cryto';
 
 const prisma = new PrismaClient();
+
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) return null;
+    try {
+        return await decode(encrypted);
+    } catch {
+        console.error('[admin/blackouts/id] Failed to decode role');
+        return null;
+    }
+}
 
 // PUT - แก้ไข blackout
 async function updateBlackoutHandler(req: NextRequest, { params }: { params: { id: string } }) {
     const session = await getServerSession(authOptions);
     
-    if (!session || (session.user.role !== "admin" && session.user.role !== "super_admin")) {
+    const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+    const role = await resolveRole(session?.user?.role);
+    if (!session?.user || !ADMIN_ROLES.has(role ?? '')) {
         throw new CustomApiError(
             ERROR_CODES.UNAUTHORIZED,
             'ไม่มีสิทธิ์เข้าถึง',
@@ -107,7 +120,9 @@ async function updateBlackoutHandler(req: NextRequest, { params }: { params: { i
 async function deleteBlackoutHandler(req: NextRequest, { params }: { params: { id: string } }) {
     const session = await getServerSession(authOptions);
     
-    if (!session || (session.user.role !== "admin" && session.user.role !== "super_admin")) {
+    const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+    const role = await resolveRole(session?.user?.role);
+    if (!session?.user || !ADMIN_ROLES.has(role ?? '')) {
         throw new CustomApiError(
             ERROR_CODES.UNAUTHORIZED,
             'ไม่มีสิทธิ์เข้าถึง',

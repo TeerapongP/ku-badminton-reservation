@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
     Plus,
     Edit2,
@@ -10,21 +10,20 @@ import {
     EyeOff,
     Upload,
     Save,
-    X,
     Image as ImageIcon,
-    ArrowUp,
-    ArrowDown,
     RefreshCw
 } from "lucide-react";
 import { useToast } from "@/components/ToastProvider";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import Loading from "@/components/Loading";
 import { Button } from "@/components/Button";
 import { InputField } from "@/components/InputField";
 import { Banner, BannerFormData, BannerResponse, BannerUploadResponse } from "@/types/banner";
 
 const BannerManagementContainer: React.FC = () => {
-    const { data: session } = useSession();
+    const router = useRouter();
     const toast = useToast();
+    const { session, status, isAdmin, loading: roleLoading } = useAdminRole();
 
     const [banners, setBanners] = useState<Banner[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -62,7 +61,7 @@ const BannerManagementContainer: React.FC = () => {
                 setBanners(data.data);
             } else {
                 console.error("API returned error:", data.error);
-                toast.showError("เกิดข้อผิดพลาด", data.error || "ไม่สามารถโหลดข้อมูล banner ได้");
+                toast.showError("เกิดข้อผิดพลาด", data.error ?? "ไม่สามารถโหลดข้อมูล banner ได้");
             }
         } catch (error) {
             console.error("Error fetching banners:", error);
@@ -74,8 +73,18 @@ const BannerManagementContainer: React.FC = () => {
     }, [toast]);
 
     useEffect(() => {
+        if (roleLoading || status === "loading") {
+            console.log("[BannerManagement] Waiting for auth...", { roleLoading, status });
+            return;
+        }
+        if (!session || !isAdmin) {
+            toast.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
+            router.push("/");
+            return;
+        }
+
         fetchBanners();
-    }, [fetchBanners]);
+    }, [session, status, isAdmin, roleLoading, router, toast, fetchBanners]);
 
     const handleRefresh = () => {
         setIsRefreshing(true);
@@ -280,7 +289,7 @@ const BannerManagementContainer: React.FC = () => {
         }
     };
 
-    if (isLoading && !isRefreshing) {
+    if (status === "loading" || roleLoading || (isLoading && !isRefreshing)) {
         return (
             <Loading
                 text="กำลังโหลดข้อมูล banner..."
@@ -289,6 +298,10 @@ const BannerManagementContainer: React.FC = () => {
                 fullScreen={true}
             />
         );
+    }
+
+    if (!session || !isAdmin) {
+        return null;
     }
 
     return (

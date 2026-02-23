@@ -4,7 +4,17 @@ import { authOptions } from "@/lib/Auth";
 import { mkdir, writeFile } from "fs/promises";
 import { randomBytes } from "crypto";
 import path from "path";
+import { decode } from "@/lib/Cryto";
 
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) return null;
+    try {
+        return await decode(encrypted);
+    } catch {
+        console.error('[admin/banners/upload] Failed to decode role');
+        return null;
+    }
+}
 
 export async function POST(request: NextRequest) {
     try {
@@ -18,7 +28,9 @@ export async function POST(request: NextRequest) {
         }
 
         // ตรวจสอบสิทธิ์ admin หรือ super_admin
-        if (!['admin', 'super_admin'].includes(session.user.role || "")) {
+        const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+        const role = await resolveRole(session?.user?.role);
+        if (!session?.user || !ADMIN_ROLES.has(role ?? '')) {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "4d35aad0496e56702c987471ef5465a4e51088c1b7827901bfb6cce9bd2fa9d7"
+    }
+  }
+}

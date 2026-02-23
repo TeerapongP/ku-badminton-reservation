@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/Auth';
 import { prisma } from '@/lib/prisma';
+import { decode } from '@/lib/Cryto';
 
 // แปลง minutes เป็น HH:MM
 const minutesToTime = (minutes: number): string => {
@@ -12,6 +13,16 @@ const minutesToTime = (minutes: number): string => {
 
 const formatTimeSlotLabel = (startMinute: number, endMinute: number): string =>
     `${minutesToTime(startMinute)} - ${minutesToTime(endMinute)} น.`;
+
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) return null;
+    try {
+        return await decode(encrypted);
+    } catch {
+        console.error('[courts/availability] Failed to decode role');
+        return null;
+    }
+}
 
 //  ดึง weekday ของวันที่ใน timezone ไทย
 function getWeekdayThailand(dateStr: string): number {
@@ -108,7 +119,9 @@ export async function GET(
             reservations.map((r) => [r.slot_id.toString(), r])
         );
 
-        const isAdmin = ['admin', 'super_admin'].includes(session.user.role);
+        const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+        const role = await resolveRole(session?.user?.role);
+        const isAdmin = ADMIN_ROLES.has(role ?? '');
 
         const slots = timeSlots.map((slot) => {
             //  break จาก DB flag ไม่ hard-code

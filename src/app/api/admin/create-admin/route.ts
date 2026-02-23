@@ -3,15 +3,27 @@ import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/Auth';
 import bcrypt from 'bcryptjs';
+import { decode } from '@/lib/Cryto';
 
 const prisma = new PrismaClient();
+
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) return null;
+    try {
+        return await decode(encrypted);
+    } catch {
+        console.error('[admin/create-admin] Failed to decode role');
+        return null;
+    }
+}
 
 export async function POST(req: NextRequest) {
     try {
         // [SECURITY FIX] - Require super_admin authentication
         const session = await getServerSession(authOptions);
         
-        if (!session || session.user.role !== 'super_admin') {
+        const role = await resolveRole(session?.user?.role);
+        if (!session || role !== 'super_admin') {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง - ต้องเป็น Super Admin เท่านั้น" },
                 { status: 403 }

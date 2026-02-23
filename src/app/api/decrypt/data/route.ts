@@ -2,6 +2,7 @@ import { scheduledTasks } from "@/lib/scheduled-tasks";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/Auth";
+import { decode } from "@/lib/Cryto";
 
 function getThailandTime(): string {
     return new Intl.DateTimeFormat('en-CA', {
@@ -14,6 +15,16 @@ function getThailandTime(): string {
         second:   '2-digit',
         hour12:   false,
     }).format(new Date());
+}
+
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) return null;
+    try {
+        return await decode(encrypted);
+    } catch {
+        console.error('[decrypt/data] Failed to decode role');
+        return null;
+    }
 }
 
 // GET — admin only
@@ -29,7 +40,9 @@ export async function GET() {
             );
         }
 
-        if (!['admin', 'super_admin'].includes(session.user.role)) {
+        const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+        const role = await resolveRole(session?.user?.role);
+        if (!session?.user || !ADMIN_ROLES.has(role ?? '')) {
             return NextResponse.json(
                 { success: false, error: 'ไม่มีสิทธิ์เข้าถึง' },
                 { status: 403 }

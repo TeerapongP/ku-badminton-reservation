@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
+import { decode } from '@/lib/Cryto';
+
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) return null;
+    try {
+        return await decode(encrypted);
+    } catch {
+        console.error('[auth/login-logs] Failed to decode role');
+        return null;
+    }
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -23,7 +34,9 @@ export async function GET(request: NextRequest) {
 
         // สร้าง where condition
         const whereCondition: any = {};
-        const isAdmin = ['admin', 'super_admin'].includes(session.user.role);
+        const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+        const role = await resolveRole(session?.user?.role);
+        const isAdmin = ADMIN_ROLES.has(role ?? '');
         // ถ้าไม่ใช่ admin ให้ดูแค่ log ของตัวเอง
         if (userId) {
             if (!isAdmin && userId !== session.user.id) {

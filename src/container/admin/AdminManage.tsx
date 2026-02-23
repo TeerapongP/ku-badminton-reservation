@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ToastProvider";
 import { Button } from "@/components/Button";
 import { InputField } from "@/components/InputField";
@@ -19,12 +18,12 @@ import {
 } from "lucide-react";
 import { DropdownField } from "@/components/DropdownField";
 import { AdminUser, AdminFormData } from "@/lib/AdminUser";
-
+import { useAdminRole } from "@/hooks/useAdminRole";
 
 export default function AdminManage() {
     const router = useRouter();
-    const { data: session, status } = useSession();
     const toast = useToast();
+    const { session, status, isSuperAdmin, loading: roleLoading } = useAdminRole();
 
     const [admins, setAdmins] = useState<AdminUser[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,9 +42,9 @@ export default function AdminManage() {
     });
 
     useEffect(() => {
-        if (status === "loading") return;
+        if (status === "loading" || roleLoading) return;
 
-        if (!session || (session.user.role !== "super_admin" && session.user.role !== "super_admin")) {
+        if (!session || !isSuperAdmin) {
             toast.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
@@ -186,7 +185,7 @@ export default function AdminManage() {
         );
     }
 
-    if (!session || (session.user.role !== "super_admin" && session.user.role !== "super_admin")) {
+    if (!session || !isSuperAdmin) {
         return null;
     }
 

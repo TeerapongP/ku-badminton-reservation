@@ -3,6 +3,25 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/Auth';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { decode } from '@/lib/Cryto';
+
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) return null;
+    
+    // Check if role is already plaintext
+    const plainRoles = ['admin', 'super_admin', 'student', 'staff', 'guest'];
+    if (plainRoles.includes(encrypted)) {
+        return encrypted;
+    }
+    
+    // Try to decode if encrypted
+    try {
+        return await decode(encrypted);
+    } catch (error) {
+        console.error('[admin/manage] Failed to decode role, using as-is:', error);
+        return encrypted;
+    }
+}
 
 // GET - ดึงรายการ admin users
 export async function GET(req: NextRequest) {
@@ -25,10 +44,11 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        if (session.user.role !== 'super_admin') {
-            console.log("❌ Invalid role:", session.user.role);
+        const role = await resolveRole(session?.user?.role);
+        if (role !== 'super_admin') {
+            console.log("❌ Invalid role:", role);
             return NextResponse.json(
-                { success: false, error: `ไม่มีสิทธิ์เข้าถึง - role: ${session.user.role || 'undefined'}` },
+                { success: false, error: `ไม่มีสิทธิ์เข้าถึง - role: ${role || 'undefined'}` },
                 { status: 403 }
             );
         }
@@ -99,7 +119,8 @@ export async function POST(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session?.user || session.user.role !== 'super_admin') { 
+        const sessionRole = await resolveRole(session?.user?.role);
+        if (!session?.user || sessionRole !== 'super_admin') { 
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
@@ -107,9 +128,9 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { username, password, email, first_name, last_name, role } = body;
+        const { username, password, email, first_name, last_name, role: userRole } = body;
 
-        if (!username || !password || !email || !first_name || !last_name || !role) {
+        if (!username || !password || !email || !first_name || !last_name || !userRole) {
             return NextResponse.json(
                 { success: false, error: "ข้อมูลไม่ครบถ้วน" },
                 { status: 400 }
@@ -117,7 +138,7 @@ export async function POST(req: NextRequest) {
         }
 
         // ตรวจสอบ role ที่อนุญาต
-        if (!['admin', 'super_admin'].includes(role)) {
+        if (!['admin', 'super_admin'].includes(userRole)) {
             return NextResponse.json(
                 { success: false, error: "Role ไม่ถูกต้อง" },
                 { status: 400 }
@@ -152,7 +173,7 @@ export async function POST(req: NextRequest) {
                 email,
                 first_name,
                 last_name,
-                role,
+                role: userRole,
                 status: 'active',
                 membership: 'member'
             }
@@ -160,7 +181,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            message: `สร้าง ${role} สำเร็จ`,
+            message: `สร้าง ${userRole} สำเร็จ`,
             admin: {
                 id: newAdmin.user_id.toString(),
                 username: newAdmin.username,
@@ -184,7 +205,8 @@ export async function PUT(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session?.user || session.user.role !== 'super_admin') { 
+        const sessionRole = await resolveRole(session?.user?.role);
+        if (!session?.user || sessionRole !== 'super_admin') { 
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
@@ -192,7 +214,7 @@ export async function PUT(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { id, username, email, first_name, last_name, role, status, password } = body;
+        const { id, username, email, first_name, last_name, role: userRole, status, password } = body;
 
         if (!id) {
             return NextResponse.json(
@@ -225,7 +247,7 @@ export async function PUT(req: NextRequest) {
         // Prevent role escalation attacks
         const ADMIN_ROLES = ['admin', 'super_admin'];
         const isTargetAdmin = ADMIN_ROLES.includes(targetUser.role);
-        const isNewRoleAdmin = role && ADMIN_ROLES.includes(role);
+        const isNewRoleAdmin = userRole && ADMIN_ROLES.includes(userRole);
 
         // Only super_admin can change admin roles
         if (isTargetAdmin || isNewRoleAdmin) {
@@ -239,7 +261,7 @@ export async function PUT(req: NextRequest) {
 
             // Prevent removing last super_admin
             if (superAdminCount <= 1 && targetUser.role === 'super_admin' &&
-                (role !== 'super_admin' || status === 'inactive')) {
+                (userRole !== 'super_admin' || status === 'inactive')) {
                 return NextResponse.json(
                     { success: false, error: "ไม่สามารถลบ super_admin คนสุดท้ายได้" },
                     { status: 400 }
@@ -253,7 +275,7 @@ export async function PUT(req: NextRequest) {
         if (email) updateData.email = email;
         if (first_name) updateData.first_name = first_name;
         if (last_name) updateData.last_name = last_name;
-        if (role && ['admin', 'super_admin'].includes(role)) updateData.role = role;
+        if (userRole && ['admin', 'super_admin'].includes(userRole)) updateData.role = userRole;
         if (status && ['active', 'inactive', 'suspended'].includes(status)) updateData.status = status;
 
         if (password) {
@@ -301,7 +323,8 @@ export async function DELETE(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session?.user || session.user.role !== 'super_admin') { 
+        const sessionRole = await resolveRole(session?.user?.role);
+        if (!session?.user || sessionRole !== 'super_admin') { 
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }

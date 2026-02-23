@@ -45,25 +45,25 @@ export default function RegisterContainner() {
     const [jobtitle, setJobtitle] = useState<string>('');
 
     const [officeOptions, setOfficeOptions] = useState<DropdownOption[]>([]);
-    const [subUnitOption, setSubUnitOptions] = useState<DropdownOption[]>([]);
+    // const [subUnitOption, setSubUnitOptions] = useState<DropdownOption[]>([]);
 
 
-    async function fetchUnits(): Promise<DropdownOption[]> {
-        try {
-            const res = await fetch(`/api/units`, {
-                cache: 'no-store',
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const json = await res.json();
-            return (json?.data ?? []).map((x: any) => ({
-                label: x.label ?? x.name_th,
-                value: x.value ?? String(x.id),
-            }));
-        } catch (error) {
-            toast.showError('ไม่สามารถโหลดข้อมูลหน่วยงานได้', 'กรุณาลองใหม่อีกครั้ง');
-            throw error;
-        }
-    }
+    // async function fetchUnits(): Promise<DropdownOption[]> {
+    //     try {
+    //         const res = await fetch(`/api/units`, {
+    //             cache: 'no-store',
+    //         });
+    //         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    //         const json = await res.json();
+    //         return (json?.data ?? []).map((x: any) => ({
+    //             label: x.label ?? x.name_th,
+    //             value: x.value ?? String(x.id),
+    //         }));
+    //     } catch (error) {
+    //         toast.showError('ไม่สามารถโหลดข้อมูลหน่วยงานได้', 'กรุณาลองใหม่อีกครั้ง');
+    //         throw error;
+    //     }
+    // }
 
     async function fetchSubUnits(
         unitId: string,
@@ -92,10 +92,10 @@ export default function RegisterContainner() {
 
         (async () => {
             try {
-                const units = await fetchUnits();
+                // const units = await fetchUnits();
                 if (!alive) return;
 
-                setOfficeOptions(units ?? []);
+                // setOfficeOptions(units ?? []);
             } catch {
                 if (alive) {
                     setOfficeOptions([]);
@@ -114,30 +114,30 @@ export default function RegisterContainner() {
 
 
     // 2) office -> subUnits
-    useEffect(() => {
-        const controller = new AbortController();
-        let alive = true;
-        const rid = ++reqIdRef.current;
+    // useEffect(() => {
+    //     const controller = new AbortController();
+    //     let alive = true;
+    //     const rid = ++reqIdRef.current;
 
-        (async () => {
-            setSubUnitOptions([]);
+    //     (async () => {
+    //         setSubUnitOptions([]);
 
-            if (!office) return;
+    //         if (!office) return;
 
-            try {
-                const subs = await fetchSubUnits(office);
-                if (!alive || rid !== reqIdRef.current) return;
-                setSubUnitOptions(subs ?? []);
-            } catch {
-                if (alive && rid === reqIdRef.current) setSubUnitOptions([]);
-            }
-        })();
+    //         try {
+    //             const subs = await fetchSubUnits(office);
+    //             if (!alive || rid !== reqIdRef.current) return;
+    //             setSubUnitOptions(subs ?? []);
+    //         } catch {
+    //             if (alive && rid === reqIdRef.current) setSubUnitOptions([]);
+    //         }
+    //     })();
 
-        return () => {
-            alive = false;
-            controller.abort();
-        };
-    }, [office]);
+    //     return () => {
+    //         alive = false;
+    //         controller.abort();
+    //     };
+    // }, [office]);
 
 
 
@@ -373,7 +373,7 @@ export default function RegisterContainner() {
                                 placeholder="ตำแหน่งงาน"
                                 value={jobtitle}
                                 onChange={setJobtitle}
-                                options={subUnitOption}
+                                options={[]}
                                 disabled={true}
                                 optionLabel="label"
                             />

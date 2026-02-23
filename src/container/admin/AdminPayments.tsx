@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { useToast } from "@/components/ToastProvider";
 import { Button } from "@/components/Button";
 import Loading from "@/components/Loading";
@@ -25,8 +25,8 @@ import { PaymentData } from "@/lib/PaymentData";
 
 export default function AdminPaymentsContainer() {
     const router = useRouter();
-    const { data: session, status } = useSession();
     const toast = useToast();
+    const { session, status, isAdmin, loading: roleLoading } = useAdminRole();
 
     const [payments, setPayments] = useState<PaymentData[]>([]);
     const [loading, setLoading] = useState(true);
@@ -51,17 +51,17 @@ export default function AdminPaymentsContainer() {
     });
 
     useEffect(() => {
-        if (status === "loading") return;
+        if (roleLoading || status === "loading") return;
 
         // Ensure user has admin/super_admin role
-        if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin")) {
+        if (!session || !isAdmin) {
             toast.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
         }
 
         fetchPayments();
-    }, [session, status, router, toast]);
+    }, [session, status, isAdmin, roleLoading, router, toast]);
 
     // Fetch payments when filters change
     useEffect(() => {
@@ -211,7 +211,7 @@ export default function AdminPaymentsContainer() {
         return `${(cents / 100).toLocaleString()} ${currency}`;
     };
 
-    if (status === "loading" || loading) {
+    if (status === "loading" || roleLoading || loading) {
         return (
             <Loading
                 size="lg"
@@ -222,7 +222,7 @@ export default function AdminPaymentsContainer() {
         );
     }
 
-    if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin")) {
+    if (!session || !isAdmin) {
         return null;
     }
 

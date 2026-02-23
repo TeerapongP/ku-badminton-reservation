@@ -1,18 +1,30 @@
 "use client";
 
-import React from "react";
-import { useSession } from "next-auth/react";
-import { redirect } from "next/navigation";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import Loading from "@/components/Loading";
 import BannerManagementContainer from "@/container/admin/BannerManagementContainer";
 
 export default function BannerManagementPage() {
-    const { data: session, status } = useSession();
+    const router = useRouter();
+    const { session, status, isAdmin, loading: roleLoading } = useAdminRole();
 
-    if (status === "loading") {
+    useEffect(() => {
+        if (roleLoading || status === "loading") return;
+
+        if (!session) {
+            router.replace("/login");
+        } else if (!isAdmin) {
+            router.replace("/");
+        }
+    }, [session, status, isAdmin, roleLoading, router]);
+
+    // แสดง loading ระหว่างตรวจสอบ
+    if (roleLoading || status === "loading") {
         return (
             <Loading
-                text="กำลังโหลด..."
+                text="กำลังตรวจสอบสิทธิ์..."
                 color="emerald"
                 size="md"
                 fullScreen={true}
@@ -20,14 +32,10 @@ export default function BannerManagementPage() {
         );
     }
 
-    if (!session?.user) {
-        redirect("/auth/login");
+    // render เฉพาะเมื่อผ่านการตรวจสอบแล้ว
+    if (session && isAdmin) {
+        return <BannerManagementContainer />;
     }
 
-    // ตรวจสอบสิทธิ์ admin หรือ super_admin
-    if (!['admin', 'super_admin'].includes(session.user.role ?? "")) {
-        redirect("/");
-    }
-
-    return <BannerManagementContainer />;
+    return null;
 }

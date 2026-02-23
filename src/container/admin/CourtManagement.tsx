@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { useToast } from "@/components/ToastProvider";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { Button } from '@/components/Button';
 import Loading from '@/components/Loading';
 import { BlackoutFormModal } from '@/components/admin/BlackoutFormModal';
@@ -18,9 +18,9 @@ import { CourtTable } from '@/components/admin/CourtTable';
 
 // --- Main Component: CourtManagement ---
 export default function CourtManagement() {
-    const { data: session, status } = useSession();
     const router = useRouter();
     const toast = useToast();
+    const { session, status, isAdmin, loading: roleLoading } = useAdminRole();
 
     const [facilities, setFacilities] = useState<Facility[]>([]);
     const [courts, setCourts] = useState<Court[]>([]);
@@ -90,16 +90,16 @@ export default function CourtManagement() {
 
     // Check authentication and initial data load
     useEffect(() => {
-        if (status === "loading") return;
+        if (roleLoading || status === "loading") return;
 
-        if (!session || (session.user.role !== "admin" && session.user.role !== "super_admin")) {
+        if (!session || !isAdmin) {
             toast?.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
         }
 
         fetchFacilities();
-    }, [session, status, router, toast, fetchFacilities]);
+    }, [session, status, isAdmin, roleLoading, router, toast, fetchFacilities]);
 
     // --- Handlers ---
     const handleFacilityChange = (facilityId: string) => {
@@ -225,11 +225,11 @@ export default function CourtManagement() {
         , [facilities, selectedFacility]);
 
     // --- Render Logic ---
-    if (status === "loading" || loading) {
+    if (status === "loading" || roleLoading || loading) {
         return <Loading />;
     }
 
-    if (!session || (session.user.role !== "admin" && session.user.role !== "super_admin")) {
+    if (!session || !isAdmin) {
         return null;
     }
 

@@ -3,14 +3,26 @@ import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/Auth';
 import { CustomApiError, ERROR_CODES, HTTP_STATUS, successResponse, withErrorHandler } from '@/lib/error-handler';
+import { decode } from '@/lib/Cryto';
+
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) return null;
+    try {
+        return await decode(encrypted);
+    } catch {
+        console.error('[admin/payments/reject] Failed to decode role');
+        return null;
+    }
+}
 
 async function rejectPaymentHandler(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
 
         // ตรวจสอบสิทธิ์ admin
-        const ADMIN_ROLES = ['admin', 'super_admin'] as const;
-        if (!session?.user || !ADMIN_ROLES.includes(session.user.role as any)) {
+        const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+        const role = await resolveRole(session?.user?.role);
+        if (!session?.user || !ADMIN_ROLES.has(role ?? '')) {
             throw new CustomApiError(
                 ERROR_CODES.UNAUTHORIZED,
                 'ไม่มีสิทธิ์เข้าถึง',

@@ -2,12 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ToastProvider";
 import { Button } from "@/components/Button";
 import Loading from "@/components/Loading";
 import { DropdownField } from "@/components/DropdownField";
 import { DateField } from "@/components/DateField";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import {
     ArrowLeft,
     BarChart3,
@@ -61,8 +61,8 @@ const formatDateToLocal = (date: Date): string => {
 
 export default function AdminReportsContainer() {
     const router = useRouter();
-    const { data: session, status } = useSession();
     const toast = useToast();
+    const { session, status, isAdmin, loading: roleLoading } = useAdminRole();
 
     const [reportData, setReportData] = useState<ReportData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -74,16 +74,16 @@ export default function AdminReportsContainer() {
 
     // Check authentication and role
     useEffect(() => {
-        if (status === "loading") return;
+        if (status === "loading" || roleLoading) return;
 
-        if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super_admin")) {
+        if (!session || !isAdmin) {
             toast?.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
         }
 
         fetchReportData();
-    }, [session, status, router, toast]);
+    }, [session, status, isAdmin, roleLoading, router, toast]);
 
     const fetchReportData = async () => {
         try {
@@ -192,7 +192,7 @@ export default function AdminReportsContainer() {
         );
     }
 
-    if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super_admin")) {
+    if (!session || !isAdmin) {
         return null;
     }
 

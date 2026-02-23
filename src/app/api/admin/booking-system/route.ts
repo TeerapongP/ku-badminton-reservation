@@ -4,9 +4,20 @@ import { getServerSession } from "next-auth";
 import { PrismaClient } from "@prisma/client";
 import { authOptions } from "@/lib/Auth";
 import { isAdminControlAllowed, getAdminControlDisabledMessage } from "@/lib/scheduled-tasks";
+import { decode } from "@/lib/Cryto";
 
 
 const prisma = new PrismaClient();
+
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) return null;
+    try {
+        return await decode(encrypted);
+    } catch {
+        console.error('[admin/booking-system] Failed to decode role');
+        return null;
+    }
+}
 
 // GET - ดึงสถานะระบบการจอง
 export async function GET(request: NextRequest) {
@@ -21,7 +32,9 @@ export async function GET(request: NextRequest) {
     }
 
     // ตรวจสอบสิทธิ์ admin หรือ super_admin
-    if (!['admin', 'super_admin'].includes(session.user.role ?? "")) {
+    const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+    const role = await resolveRole(session?.user?.role);
+    if (!session?.user || !ADMIN_ROLES.has(role ?? '')) {
       return NextResponse.json(
         { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
         { status: 403 }
@@ -110,7 +123,9 @@ export async function PUT(request: NextRequest) {
     }
 
     // ตรวจสอบสิทธิ์ admin หรือ super_admin
-    if (!['admin', 'super_admin'].includes(session.user.role ?? "")) {
+    const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+    const role = await resolveRole(session?.user?.role);
+    if (!session?.user || !ADMIN_ROLES.has(role ?? '')) {
       return NextResponse.json(
         { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
         { status: 403 }

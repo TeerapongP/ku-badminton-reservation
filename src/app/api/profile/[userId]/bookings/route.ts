@@ -4,12 +4,23 @@ import { authOptions } from "@/lib/Auth";
 import { prisma } from "@/lib/prisma"; // A05 — singleton แทน new PrismaClient()
 import { decryptData } from "@/lib/encryption";
 import { Prisma } from "@prisma/client";
+import { decode } from "@/lib/Cryto";
 
 // A03 — ค่า limit สูงสุดที่ยอมรับได้ ป้องกัน DoS จาก limit=99999
 const MAX_LIMIT = 100;
 
 // A01 — roles ที่อนุญาตให้ดูข้อมูลของ user อื่นได้
-const ADMIN_ROLES = ['admin', 'super_admin'];
+const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+
+async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
+    if (!encrypted) return null;
+    try {
+        return await decode(encrypted);
+    } catch {
+        console.error('[profile/bookings] Failed to decode role');
+        return null;
+    }
+}
 
 // A03 — status ที่ยอมรับได้ (whitelist)
 const ALLOWED_STATUSES = ['pending', 'confirmed', 'cancelled', 'completed', 'all'] as const;
@@ -57,7 +68,8 @@ export async function GET(
         }
 
         // A01 — ตรวจสอบ ownership หรือ admin role (รวม super_admin)
-        if (session.user.id !== userId && !ADMIN_ROLES.includes(session.user.role)) {
+        const role = await resolveRole(session?.user?.role);
+        if (session.user.id !== userId && !ADMIN_ROLES.has(role ?? '')) {
             return NextResponse.json(
                 { success: false, error: "ไม่ได้รับอนุญาต" },
                 { status: 403 }

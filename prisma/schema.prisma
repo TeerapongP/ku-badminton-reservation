@@ -433,6 +433,7 @@ model users {
   auth_log          auth_log[]
   banners           banners[]
   daily_reset_log   daily_reset_log[]
+  password_resets   password_resets[]
   reservations      reservations[]
   staff_profile     staff_profile?
   student_profile   student_profile?
@@ -448,7 +449,6 @@ model password_resets {
   expires_at DateTime
   used       Boolean  @default(false)
   created_at DateTime @default(now()) @db.DateTime(0)
-
   users users @relation(fields: [user_id], references: [user_id], map: "fk_password_resets_user")
 
   @@index([user_id], map: "idx_password_resets_user")

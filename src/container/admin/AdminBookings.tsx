@@ -2,13 +2,13 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ToastProvider";
 import { Button } from "@/components/Button";
 import Loading from "@/components/Loading";
 import { DropdownField } from "@/components/DropdownField";
 import { DateField } from "@/components/DateField";
 import SearchInput from "@/components/SearchInput";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import {
     Clock,
     User,
@@ -84,8 +84,8 @@ const ROLE_CONFIG = {
 
 export default function AdminBookingsContainer() {
     const router = useRouter();
-    const { data: session, status } = useSession();
     const toast = useToast();
+    const { session, status, isAdmin, loading: roleLoading } = useAdminRole();
 
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
@@ -173,14 +173,14 @@ export default function AdminBookingsContainer() {
 
     // Check authentication and role
     useEffect(() => {
-        if (status === "loading") return;
+        if (status === "loading" || roleLoading) return;
 
-        if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super_admin")) {
+        if (!session || !isAdmin) {
             toast?.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
         }
-    }, [session, status, router, toast]);
+    }, [session, status, isAdmin, roleLoading, router, toast]);
 
     // Load bookings data
     useEffect(() => {
@@ -377,7 +377,7 @@ export default function AdminBookingsContainer() {
         );
     }
 
-    if (!session || ((session.user as any)?.role !== "admin" && (session.user as any)?.role !== "super_admin" && (session.user as any)?.role !== "super_admin")) {
+    if (!session || !isAdmin) {
         return null;
     }
 

@@ -5,10 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X, User, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { useSession } from "next-auth/react";
 import { Button } from "./Button";
 import { UserProfile } from "@/types/profile/types";
-import { encryptDataClient } from "@/lib/encryption";
 
 type Item = { id: string; label: string; href: string };
 
@@ -18,9 +18,11 @@ export default function Navbar() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [decryptedImageUrl, setDecryptedImageUrl] = useState<string | null>(null);
   const [systemStatus, setSystemStatus] = useState({ effectiveStatus: true });
+
   const pathname = usePathname();
   const { isAuthenticated, logout } = useAuth();
   const { data: session } = useSession();
+  const { isAdmin } = useAdminRole();
 
   useEffect(() => setMounted(true), []);
 
@@ -28,24 +30,14 @@ export default function Navbar() {
     if (open) setOpen(false);
   }, [pathname]);
 
-  // Fetch user profile when authenticated
-  // Fetch system status เฉพาะเมื่อ login แล้ว
+  // fetch system status เฉพาะเมื่อ login แล้ว
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const fetchSystemStatus = async () => {
-      try {
-        const response = await fetch('/api/admin/booking-system');
-        if (response.ok) {
-          const data = await response.json();
-          setSystemStatus(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch system status:', error);
-      }
-    };
-
-    fetchSystemStatus();
+    fetch("/api/admin/booking-system")
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data) => setSystemStatus(data))
+      .catch((err) => console.error("[Navbar] Failed to fetch system status:", err));
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -54,7 +46,6 @@ export default function Navbar() {
     }
   }, [isAuthenticated, (session?.user as any)?.id, userProfile]);
 
-  // Decrypt profile image URL when userProfile changes
   useEffect(() => {
     if (userProfile?.profile_photo_url && !decryptedImageUrl) {
       decryptImageUrl(userProfile.profile_photo_url);
@@ -66,37 +57,31 @@ export default function Navbar() {
       const userId = (session?.user as any)?.id;
       if (!userId) return;
 
-      // เข้ารหัส id ก่อนส่งไปยัง API
-      const encryptionKey = process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
-      if (!encryptionKey) {
-        console.error("Encryption key not found");
-        return;
-      }
-      const encryptedId = encryptDataClient(userId, encryptionKey);
+      // userId จาก session ถูก encrypt ด้วย encode() อยู่แล้ว ไม่ต้อง encrypt ซ้ำ
+      const response = await fetch(`/api/profile/${encodeURIComponent(userId)}`);
 
-      const response = await fetch(`/api/profile/${encodeURIComponent(encryptedId)}`);
       if (response.ok) {
         const data = await response.json();
         setUserProfile(data.user);
-      }
+      } 
     } catch (error) {
-      console.error("Failed to fetch user profile:", error);
+      console.error("[Navbar] Failed to fetch user profile:", error);
     }
   };
 
   const decryptImageUrl = async (encryptedUrl: string) => {
-    // Check if URL is already decrypted (starts with http or /)
-    if (encryptedUrl.startsWith('http') || encryptedUrl.startsWith('/')) {
+    
+    // ถ้าเป็น URL แบบ plain text (http/https หรือ relative path) ใช้ตรงๆ
+    if (encryptedUrl.startsWith("http") || encryptedUrl.startsWith("/")) {
       setDecryptedImageUrl(encryptedUrl);
       return;
     }
 
+    // ถ้าเป็น encrypted string ให้เรียก API เพื่อ decrypt
     try {
-      const response = await fetch('/api/decrypt/image-path', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch("/api/decrypt/image-path", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ encryptedPath: encryptedUrl }),
       });
 
@@ -104,68 +89,56 @@ export default function Navbar() {
         const data = await response.json();
         setDecryptedImageUrl(data.imagePath);
       } else {
-        setDecryptedImageUrl('/images/avatar_profile.jpg');
+        setDecryptedImageUrl("/images/avatar_profile.jpg");
       }
     } catch (error) {
-      setDecryptedImageUrl('/images/avatar_profile.jpg');
+      setDecryptedImageUrl("/images/avatar_profile.jpg");
     }
   };
 
+  //  ใช้ isAdmin จาก useAdminRole hook
   const menuItems: Item[] = useMemo(() => {
-    const baseItems = [
+    const baseItems: Item[] = [
       { id: "home", label: "หน้าแรก", href: "/" },
     ];
-    // เพิ่มลิงก์จองสนาม: เฉพาะเมื่อ login แล้ว และระบบเปิดอยู่
-    if (isAuthenticated && !systemStatus.effectiveStatus) {
+
+    //  แสดงเมนูจองสนามเมื่อระบบ "เปิด"
+    if (isAuthenticated && systemStatus.effectiveStatus) {
       baseItems.push({ id: "booking", label: "จองสนาม", href: "/badminton-court" });
     }
 
     if (isAuthenticated) {
-      // เมื่อ login แล้ว
-      const items = [
+      const items: Item[] = [
         ...baseItems,
         { id: "contract", label: "ติดต่อสอบถาม", href: "/contract" },
       ];
-
-      // เพิ่มเมนู Admin สำหรับ admin เท่านั้น
-      if ((session?.user as any)?.role === "admin" || (session?.user as any)?.role === "super_admin") {
+      if (isAdmin) {
         items.splice(2, 0, { id: "admin", label: "Admin Dashboard", href: "/admin" });
       }
 
       return items;
-    } else {
-      // เมื่อยังไม่ login
-      return [
-        ...baseItems,
-        { id: "register", label: "สมัครสมาชิก", href: "/register" },
-        { id: "login", label: "เข้าสู่ระบบ", href: "/login" },
-        { id: "contract", label: "ติดต่อสอบถาม", href: "/contract" },
-      ];
     }
-  }, [isAuthenticated, (session?.user as any)?.role, systemStatus.effectiveStatus, session]);
 
-  // แทนที่ isActive() ด้วยฟังก์ชันนี้
+    return [
+      ...baseItems,
+      { id: "register", label: "สมัครสมาชิก", href: "/register" },
+      { id: "login", label: "เข้าสู่ระบบ", href: "/login" },
+      { id: "contract", label: "ติดต่อสอบถาม", href: "/contract" },
+    ];
+  }, [isAuthenticated, isAdmin, systemStatus.effectiveStatus]);
+
   const getActiveId = () => {
     if (!mounted) return null;
-
     const current = (pathname ?? "").replace(/\/+$/, "") || "/";
-
-    // จัดลำดับความสำคัญให้แมตช์ได้เพียงหนึ่งเดียว
     if (current === "/") return "home";
-
-    // กลุ่มเส้นทางที่ถือว่าเป็น "จองสนาม"
     if (
       current.startsWith("/badminton-court") ||
       current.startsWith("/courts") ||
       current.startsWith("/courts-booking")
-    ) {
-      return "booking";
-    }
-
+    ) return "booking";
     if (current.startsWith("/admin")) return "admin";
     if (current.startsWith("/register")) return "register";
     if (current.startsWith("/login")) return "login";
-
     return null;
   };
   const activeId = getActiveId();
@@ -174,9 +147,20 @@ export default function Navbar() {
     try {
       await logout();
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error("[Navbar] Logout error:", error);
     }
   };
+
+  const displayName = useMemo(() => {
+    if (isAdmin) {
+      return (session?.user as any)?.username ?? "Admin";
+    }
+    if (userProfile) {
+      return `${userProfile.first_name} ${userProfile.last_name}`;
+    }
+    return "โปรไฟล์";
+  }, [isAdmin, session?.user, userProfile]);
+
   return (
     <nav className="tw-bg-gradient-to-r tw-from-slate-800 tw-via-slate-900 tw-to-slate-800 tw-text-white tw-sticky tw-top-0 tw-z-50 tw-shadow-lg tw-border-b tw-border-slate-700/50">
       <div className="tw-mx-auto tw-px-4">
@@ -192,11 +176,11 @@ export default function Navbar() {
             <span className="tw-text-lg tw-text-cyan-100/90">court booking (ทดสอบ)</span>
           </Link>
 
+          {/* Desktop menu */}
           <div className="tw-hidden md:tw-flex tw-items-center tw-gap-3 tw-ml-auto">
             {menuItems.map((item) => {
               const active = item.id === activeId;
-              const base =
-                "tw-px-4 tw-py-2 tw-rounded-lg tw-transition-all tw-duration-200 tw-no-underline tw-text-white visited:tw-text-white focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-cyan-500/40";
+              const base = "tw-px-4 tw-py-2 tw-rounded-lg tw-transition-all tw-duration-200 tw-no-underline tw-text-white visited:tw-text-white focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-cyan-500/40";
               const state = active
                 ? "tw-bg-gradient-to-r tw-from-emerald-600/30 tw-to-teal-600/30 tw-text-emerald-200 tw-shadow-md"
                 : "hover:tw-bg-slate-700/50 tw-text-slate-200 hover:tw-text-white hover:tw-shadow-md";
@@ -223,78 +207,48 @@ export default function Navbar() {
                 >
                   <div className="tw-w-8 tw-h-8 tw-rounded-full tw-bg-gradient-to-br tw-from-emerald-500 tw-to-teal-600 tw-flex tw-items-center tw-justify-center tw-overflow-hidden tw-shadow-md">
                     {decryptedImageUrl ? (
-                      <img
-                        src={decryptedImageUrl}
-                        alt="Profile"
-                        className="tw-w-full tw-h-full tw-object-cover"
-                      />
+                      <img src={decryptedImageUrl} alt="Profile" className="tw-w-full tw-h-full tw-object-cover" />
                     ) : (
                       <User size={18} className="tw-text-white" />
                     )}
                   </div>
                   <span className="tw-hidden lg:tw-inline tw-text-sm tw-text-emerald-100/90">
-                    {(() => {
-                      const user = session?.user as any;
-                      const isAdmin = user?.role === "admin" || user?.role === "super_admin";
-
-                      if (isAdmin) {
-                        return user?.username ?? "Admin";
-                      }
-
-                      if (userProfile) {
-                        return `${userProfile.first_name} ${userProfile.last_name}`;
-                      }
-
-                      return "โปรไฟล์";
-                    })()}
+                    {displayName}
                   </span>
-
                 </Link>
-                <Button onClick={handleLogout} className="tw-w-auto tw-px-4 tw-h-10 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100" colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl" >
-                  <LogOut size={16} className="tw-text-white" /> <span className="tw-text-sm tw-text-white/90">ออกจากระบบ</span>
-                </Button>
 
+                <Button
+                  onClick={handleLogout}
+                  className="tw-w-auto tw-px-4 tw-h-10 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-base tw-font-medium tw-shadow-md tw-rounded-lg tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-105 active:tw-scale-95 tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
+                  colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl"
+                >
+                  <LogOut size={16} className="tw-text-white" />
+                  <span className="tw-text-sm tw-text-white/90">ออกจากระบบ</span>
+                </Button>
               </>
             )}
           </div>
 
+          {/* Hamburger */}
           <button
             onClick={() => setOpen((v) => !v)}
             aria-label="Toggle navigation"
             aria-expanded={open}
             aria-controls="mobile-menu"
-            className="
-              md:tw-hidden tw-relative tw-ml-auto tw-flex tw-items-center tw-justify-center
-              tw-w-11 tw-h-11 tw-rounded-2xl
-              tw-bg-gradient-to-br tw-from-gray-700/50 tw-to-gray-800/50
-              hover:tw-from-cyan-600/30 hover:tw-to-blue-600/30
-              tw-backdrop-blur-sm tw-transition-all tw-duration-500 tw-ease-out
-              tw-shadow-[0_0_20px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.1)]
-              hover:tw-shadow-[0_0_30px_rgba(56,189,248,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]
-              tw-border tw-border-cyan-400/20 hover:tw-border-cyan-400/40
-              tw-text-cyan-300 hover:tw-text-cyan-100 focus:tw-outline-none
-              focus:tw-ring-2 focus:tw-ring-cyan-500/60 focus:tw-ring-offset-2 focus:tw-ring-offset-gray-900
-              active:tw-scale-95 tw-group
-            "
+            className="md:tw-hidden tw-relative tw-ml-auto tw-flex tw-items-center tw-justify-center tw-w-11 tw-h-11 tw-rounded-2xl tw-bg-gradient-to-br tw-from-gray-700/50 tw-to-gray-800/50 hover:tw-from-cyan-600/30 hover:tw-to-blue-600/30 tw-backdrop-blur-sm tw-transition-all tw-duration-500 tw-ease-out tw-shadow-[0_0_20px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.1)] hover:tw-shadow-[0_0_30px_rgba(56,189,248,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] tw-border tw-border-cyan-400/20 hover:tw-border-cyan-400/40 tw-text-cyan-300 hover:tw-text-cyan-100 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-cyan-500/60 focus:tw-ring-offset-2 focus:tw-ring-offset-gray-900 active:tw-scale-95 tw-group"
           >
             <span className="tw-absolute tw-inset-0 tw-rounded-2xl tw-bg-gradient-to-br tw-from-cyan-400/0 tw-to-blue-400/0 group-hover:tw-from-cyan-400/10 group-hover:tw-to-blue-400/10 tw-transition-all tw-duration-500" />
-            <span
-              className={`
-                tw-relative tw-z-10 tw-transition-all tw-duration-500 tw-ease-out
-                ${open ? "tw-rotate-180 tw-scale-110" : "tw-rotate-0 tw-scale-100"}
-                group-hover:tw-scale-110
-              `}
-            >
+            <span className={`tw-relative tw-z-10 tw-transition-all tw-duration-500 tw-ease-out ${open ? "tw-rotate-180 tw-scale-110" : "tw-rotate-0 tw-scale-100"} group-hover:tw-scale-110`}>
               {open ? <X size={22} strokeWidth={2.5} /> : <Menu size={22} strokeWidth={2.5} />}
             </span>
           </button>
         </div>
       </div>
 
+      {/* Mobile menu */}
       <div
         id="mobile-menu"
-        className={`md:tw-hidden tw-overflow-hidden tw-transition-[max-height,opacity] tw-duration-300 tw-ease-in-out ${open ? "tw-max-h-96 tw-opacity-100" : "tw-max-h-0 tw-opacity-0"
-          }`}
+        className={`md:tw-hidden tw-overflow-hidden tw-transition-[max-height,opacity] tw-duration-300 tw-ease-in-out ${open ? "tw-max-h-96 tw-opacity-100" : "tw-max-h-0 tw-opacity-0"}`}
       >
         <div className="tw-bg-gradient-to-b tw-from-slate-900 tw-to-slate-800 tw-border-t tw-border-slate-600/30 tw-backdrop-blur-sm">
           {menuItems.map((item) => {
@@ -325,55 +279,25 @@ export default function Navbar() {
               >
                 <div className="tw-w-9 tw-h-9 tw-rounded-full tw-bg-gradient-to-br tw-from-emerald-500 tw-to-teal-600 tw-flex tw-items-center tw-justify-center tw-overflow-hidden tw-shadow-md">
                   {decryptedImageUrl ? (
-                    <img
-                      src={decryptedImageUrl}
-                      alt="Profile"
-                      className="tw-w-full tw-h-full tw-object-cover"
-                    />
+                    <img src={decryptedImageUrl} alt="Profile" className="tw-w-full tw-h-full tw-object-cover" />
                   ) : (
                     <User size={20} className="tw-text-white" />
                   )}
                 </div>
                 <div className="tw-flex tw-flex-col">
-                  <span className="tw-hidden lg:tw-inline tw-text-sm tw-text-emerald-100/90">
-                    {(() => {
-                      const user = session?.user as any;
-                      const isAdmin = user?.role === "admin" || user?.role === "super_admin";
-
-                      if (isAdmin) {
-                        return user?.username ?? "Admin";
-                      }
-
-                      if (userProfile) {
-                        return `${userProfile.first_name} ${userProfile.last_name}`;
-                      }
-
-                      return "โปรไฟล์";
-                    })()}
-                  </span>
-
+                  <span className="tw-text-sm tw-text-emerald-100/90">{displayName}</span>
                 </div>
               </Link>
 
               <div className="tw-sticky tw-bottom-0 tw-left-0 tw-right-0 tw-bg-inherit tw-pt-2">
                 <Button
                   onClick={handleLogout}
-                  className="tw-block sm:tw-hidden tw-w-full tw-h-10 tw-px-4 
-             tw-flex tw-items-center tw-justify-center tw-gap-2
-             tw-text-sm tw-font-medium
-             tw-shadow-md tw-transition-all tw-duration-300
-             hover:tw-shadow-lg hover:tw-scale-[1.02] active:tw-scale-95
-             tw-rounded-none tw-border-0 tw-outline-none focus:tw-outline-none
-             disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
-                  colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600
-              hover:tw-from-pink-600 hover:tw-to-rose-700
-              tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300
-              tw-shadow-lg hover:tw-shadow-xl"
+                  className="tw-block sm:tw-hidden tw-w-full tw-h-10 tw-px-4 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-sm tw-font-medium tw-shadow-md tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-[1.02] active:tw-scale-95 tw-rounded-none tw-border-0 tw-outline-none focus:tw-outline-none disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100"
+                  colorClass="tw-bg-gradient-to-r tw-from-rose-500 tw-to-pink-600 hover:tw-from-pink-600 hover:tw-to-rose-700 tw-text-white focus:tw-ring-2 focus:tw-ring-rose-300 tw-shadow-lg hover:tw-shadow-xl"
                 >
                   <LogOut size={16} className="tw-text-white" />
                   <span className="tw-text-white/90">ออกจากระบบ</span>
                 </Button>
-
               </div>
             </>
           )}
