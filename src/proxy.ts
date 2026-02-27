@@ -54,6 +54,15 @@ async function checkBookingSystemStatus(request: NextRequest): Promise<boolean> 
   }
 }
 
+// ─── Redirect to login ───────────────────────────────────────────────────────
+
+function redirectToLogin(request: NextRequest): NextResponse {
+  const { pathname } = request.nextUrl;
+  const loginUrl = new URL("/login", request.url);
+  loginUrl.searchParams.set("callbackUrl", pathname);
+  return NextResponse.redirect(loginUrl);
+}
+
 // ─── Proxy ────────────────────────────────────────────────────────────────────
 
 export async function proxy(request: NextRequest) {
@@ -68,7 +77,7 @@ export async function proxy(request: NextRequest) {
 
     //  ไม่มี token → redirect login
     if (!token) {
-      return NextResponse.redirect(new URL("/login", request.url));
+      return redirectToLogin(request);
     }
 
     //  decode role ก่อน compare (เพราะ encode ไว้ใน session callback)
@@ -106,7 +115,7 @@ export async function proxy(request: NextRequest) {
       });
 
       if (!token) {
-        return NextResponse.redirect(new URL("/login", request.url));
+        return redirectToLogin(request);
       }
 
       //  decode role เผื่อต้องการ role-based access ในอนาคต
@@ -114,13 +123,13 @@ export async function proxy(request: NextRequest) {
 
       if (!role) {
         // token มี role แต่ decode ไม่ได้ → session ถูก tamper
-        return NextResponse.redirect(new URL("/login", request.url));
+        return redirectToLogin(request);
       }
 
       return NextResponse.next();
     } catch (error) {
       console.error("[middleware] Token validation error:", (error as Error).message);
-      return NextResponse.redirect(new URL("/login", request.url));
+      return redirectToLogin(request);
     }
   }
 
@@ -132,6 +141,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     //  exclude static files, api routes, _next
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|icons|images).*)",
   ],
 };
