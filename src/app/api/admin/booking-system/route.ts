@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
-import { PrismaClient } from "@prisma/client";
 import { authOptions } from "@/lib/Auth";
 import { isAdminControlAllowed, getAdminControlDisabledMessage } from "@/lib/scheduled-tasks";
 import { decode } from "@/lib/Cryto";
-
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
     if (!encrypted) return null;
@@ -20,7 +17,7 @@ async function resolveRole(encrypted: string | undefined | null): Promise<string
 }
 
 // GET - ดึงสถานะระบบการจอง
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 

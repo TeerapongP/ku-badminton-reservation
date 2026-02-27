@@ -239,14 +239,14 @@ async function registerHandler(req: NextRequest) {
             });
         }
 
-        //  auth_log ใช้ action "register" ไม่ใช่ "login_success"
+        //  auth_log ใช้ action ที่มีใน Enum (Prisma schema)
         await tx.auth_log.create({
             data: {
                 user_id: newUser.user_id,
                 username_input: newUser.username,
-                action: "register" as auth_log_action,
-                ip: "unknown",
-                user_agent: "unknown",
+                action: "login_success" as auth_log_action,
+                ip: "registration",
+                user_agent: req.headers.get('user-agent') || "unknown",
             },
         });
 

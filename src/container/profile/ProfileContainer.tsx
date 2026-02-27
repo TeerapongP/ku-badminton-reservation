@@ -8,7 +8,6 @@ import Loading from "@/components/Loading";
 import { UserProfile } from "@/types/profile/types";
 import { InputField } from "@/components/InputField";
 import { Button } from "@/components/Button";
-import { encryptDataClient } from "@/lib/encryption";
 import { RoleColors } from "@/lib/RoleColors";
 
 // Decrypt data on client side
@@ -22,7 +21,10 @@ const decryptDataClient = async (encryptedData: string): Promise<string> => {
 
         if (response.ok) {
             const data = await response.json();
-            return data.decryptedData;
+            if (data && data.success && data.decryptedData) {
+                return data.decryptedData;
+            }
+            throw new Error(data.error || 'Decryption failed: Invalid response format');
         }
         throw new Error('Decryption failed');
     } catch (error) {
@@ -56,15 +58,7 @@ const ProfileContainer: React.FC = () => {
         try {
             setIsLoading(true);
 
-            // เข้ารหัส id ก่อนส่งไปยัง API
-            const encryptionKey = process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
-            if (!encryptionKey) {
-                toast.showError("เกิดข้อผิดพลาด", "ไม่พบ encryption key");
-                return;
-            }
-            const encryptedId = encryptDataClient(id, encryptionKey);
-
-            const res = await fetch(`/api/profile/${encodeURIComponent(encryptedId)}`);
+            const res = await fetch(`/api/profile/${encodeURIComponent(id)}`);
             if (!res.ok) {
                 toast.showError("เกิดข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลโปรไฟล์ได้");
                 return;
@@ -188,15 +182,9 @@ const ProfileContainer: React.FC = () => {
                 profile_photo_url: encryptedImagePath
             };
 
-            // เข้ารหัส id ก่อนส่งไปยัง API
-            const encryptionKey = process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
-            if (!encryptionKey) {
-                toast.showError("เกิดข้อผิดพลาด", "ไม่พบ encryption key");
-                return;
-            }
-            const encryptedId = encryptDataClient(session?.user?.id ?? '', encryptionKey);
+            const profileId = session?.user?.id ?? '';
 
-            const response = await fetch(`/api/profile/${encodeURIComponent(encryptedId)}`, {
+            const response = await fetch(`/api/profile/${encodeURIComponent(profileId)}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(updateData),

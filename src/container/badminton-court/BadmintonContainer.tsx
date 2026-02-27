@@ -34,16 +34,15 @@ export default function BadmintonContainer() {
   useEffect(() => {
     if (status === "loading") return; // Still loading session
 
-    if (!session && !hasShownAuthError.current) {
+    if (status === "unauthenticated" && !hasShownAuthError.current) {
       hasShownAuthError.current = true;
       toast?.showError("กรุณาเข้าสู่ระบบ", "คุณต้องเข้าสู่ระบบก่อนเข้าใช้งาน");
       router.push("/login");
-      return;
     }
-  }, [session, status, router, toast]);
+  }, [status, router, toast]);
 
   useEffect(() => {
-    if (session) { // Only fetch data if authenticated
+    if (status === "authenticated") { // Only fetch data if authenticated
       fetchFacility()
         .then(setFacilities)
         .catch(() => {
@@ -51,7 +50,7 @@ export default function BadmintonContainer() {
           setFacilities([]);
         });
     }
-  }, [session, toast]);
+  }, [status, toast]);
 
   const goToCourts = async (f: Facility) => {
     if (!f.active) return;

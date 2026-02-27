@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
 import { checkBookingSystemStatus } from '@/middleware/bookingSystemCheck';
 import { prisma } from '@/lib/prisma';
+import { getThailandDate } from '@/lib/timezone';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -19,19 +20,28 @@ function parseBigIntId(value: unknown, fieldName: string): bigint {
 
 /**
  * A03 — ตรวจสอบ bookingDate เป็น YYYY-MM-DD และไม่ใช่วันในอดีต
+ * แก้ไข: ใช้ getThailandDate เพื่อจัดการ timezone ให้ถูกต้อง
  */
 function validateBookingDate(value: unknown): Date {
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
         throw new Error('VALIDATION:รูปแบบวันที่ไม่ถูกต้อง (YYYY-MM-DD)');
     }
-    const date = new Date(`${value}T00:00:00.000Z`);
+    
+    // สร้างวันที่ตามเวลาประเทศไทยเพื่อป้องกันการเลื่อมของวัน (UTC vs GMT+7)
+    const date = new Date(`${value}T00:00:00.000+07:00`);
+    
     if (isNaN(date.getTime())) {
         throw new Error('VALIDATION:วันที่ไม่ถูกต้อง');
     }
-    // ไม่อนุญาตจองวันในอดีต
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    if (date < today) {
+
+    // ไม่อนุญาตจองวันในอดีต (เปรียบเทียบในเวลาไทย)
+    const today = getThailandDate();
+    today.setHours(0, 0, 0, 0);
+    
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+
+    if (checkDate < today) {
         throw new Error('VALIDATION:ไม่สามารถจองวันที่ผ่านมาแล้วได้');
     }
     return date;
@@ -149,105 +159,108 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const pricePerHour = 100; // TODO: ดึงจาก pricing rules
-        const priceCents   = pricePerHour * 100;
-
-        // A04 — ย้าย availability check เข้าใน transaction เดียวกัน
-        // ป้องกัน race condition จอง slot เดียวกันพร้อมกัน
-        const result = await prisma.$transaction(async (tx) => {
-            // check + create อยู่ใน transaction เดียว
-            const existingReservation = await tx.reservation_items.findFirst({
-                where: {
-                    court_id:  courtBigId,
-                    slot_id:   slotBigId,
-                    play_date: parsedDate,
-                    status:    { in: ['reserved'] },
-                },
-            });
-
-            if (existingReservation) {
-                throw new Error('CONFLICT:ช่วงเวลานี้ถูกจองแล้ว');
-            }
-
-            // สร้าง reservation
-            const reservation = await tx.reservations.create({
-                data: {
-                    user_id:        BigInt(session.user.id),
-                    facility_id:    court.facilities.facility_id,
-                    status:         'pending',
-                    payment_status: 'unpaid',
-                    reserved_date:  parsedDate,
-                    subtotal_cents: priceCents,
-                    total_cents:    priceCents,
-                    currency:       'THB',
-                },
-            });
-
-            // สร้าง reservation item
-            const reservationItem = await tx.reservation_items.create({
-                data: {
-                    reservation_id: reservation.reservation_id,
-                    court_id:       courtBigId,
-                    slot_id:        slotBigId,
-                    play_date:      parsedDate,
-                    price_cents:    priceCents,
-                    currency:       'THB',
-                    status:         'reserved',
-                },
-            });
-
-            // สร้าง payment record (ถ้ามี slip)
-            let payment = null;
-            if (safeSlipUrl) {
-                payment = await tx.payments.create({
-                    data: {
-                        reservation_id: reservation.reservation_id,
-                        amount_cents:   priceCents,
-                        currency:       'THB',
-                        method:         'bank_transfer',
-                        status:         'pending',
-                        meta_json: {
-                            slip_url:    safeSlipUrl,
-                            uploaded_by: session.user.id,
-                            uploaded_at: new Date().toISOString(),
+                // A04 — ดึงราคาและนโยบายจาก Database (แทนที่ Hardcoded)
+                const result = await prisma.$transaction(async (tx) => {
+                    // 1. ตรวจสอบนโยบายการจอง (Booking Policy)
+                    const policy = await tx.booking_policies.findFirst({
+                        where: { facility_id: court.facility_id, active: true },
+                        orderBy: { created_at: 'desc' }
+                    });
+        
+                    if (policy) {
+                        const userBookingsToday = await tx.reservation_items.count({
+                            where: {
+                                reservations: { user_id: BigInt(session.user.id) },
+                                play_date: parsedDate,
+                                status: 'reserved'
+                            }
+                        });
+        
+                        if (userBookingsToday >= policy.max_slots_per_user_per_day) {
+                            throw new Error(`POLICY:คุณจองเกินโควต้าสูงสุด (${policy.max_slots_per_user_per_day} สนามต่อวัน)`);
+                        }
+                    }
+        
+                    // 2. ดึงราคาจาก Pricing Rules
+                    const pricing = await tx.pricing_rules.findFirst({
+                        where: {
+                            facility_id: court.facility_id,
+                            active: true,
+                            // สามารถขยายเงื่อนไข user_role ต่อได้ในอนาคต
+                        }
+                    });
+                    const priceCents = pricing?.price_cents ?? 10000; // Default 100 THB
+        
+                    // 3. ป้องกัน Race Condition (ตรรกะเดิมที่ปลอดภัยอยู่แล้วใน transaction)
+                    const existingReservation = await tx.reservation_items.findFirst({
+                        where: {
+                            court_id:  courtBigId,
+                            slot_id:   slotBigId,
+                            play_date: parsedDate,
+                            status:    'reserved',
                         },
+                    });
+        
+                    if (existingReservation) {
+                        throw new Error('CONFLICT:ช่วงเวลานี้ถูกจองแล้ว');
+                    }
+        
+                    // 4. สร้างการจอง
+                    const reservation = await tx.reservations.create({
+                        data: {
+                            user_id:        BigInt(session.user.id),
+                            facility_id:    court.facilities.facility_id,
+                            status:         'pending',
+                            payment_status: 'unpaid',
+                            reserved_date:  parsedDate,
+                            subtotal_cents: priceCents,
+                            total_cents:    priceCents,
+                            currency:       'THB',
+                        },
+                    });
+        
+                    const reservationItem = await tx.reservation_items.create({
+                        data: {
+                            reservation_id: reservation.reservation_id,
+                            court_id:       courtBigId,
+                            slot_id:        slotBigId,
+                            play_date:      parsedDate,
+                            price_cents:    priceCents,
+                            currency:       'THB',
+                            status:         'reserved',
+                        },
+                    });
+        
+                    return { reservation, reservationItem };
+                });
+        
+                return NextResponse.json({
+                    success: true,
+                    message: 'สร้างการจองสำเร็จ',
+                    data: {
+                        reservation_id: result.reservation.reservation_id.toString(),
+                        status:         'pending',
+                        amount:         result.reservation.total_cents / 100,
+                        booking_date:   bookingDate,
                     },
                 });
+        
+            } catch (error: any) {
+                // A09 — Sanitized Logging ป้องกัน Log Injection
+                const sanitizedMsg = error.message.replace(/[\n\r]/g, "").substring(0, 200);
+                console.error(`[POST /reservations][${new Date().toISOString()}] User:${session?.user?.id} Error:${sanitizedMsg}`);
+        
+                if (error.message.startsWith('POLICY:') || error.message.startsWith('CONFLICT:')) {
+                    return NextResponse.json(
+                        { success: false, error: error.message.split(':')[1] },
+                        { status: 409 }
+                    );
+                }
+        
+                return NextResponse.json(
+                    { success: false, error: 'เกิดข้อผิดพลาดในการสร้างการจอง' },
+                    { status: 500 }
+                );
             }
-
-            return { reservation, reservationItem, payment };
-        });
-
-        return NextResponse.json({
-            success: true,
-            message: 'สร้างการจองสำเร็จ',
-            data: {
-                reservation_id: result.reservation.reservation_id.toString(),
-                payment_id:     result.payment?.payment_id.toString() ?? null,
-                status:         'pending',
-                amount:         pricePerHour,
-                booking_date:   bookingDate,
-                court_name:     court.name || `Court ${court.court_code}`,
-                facility_name:  court.facilities.name_th,
-            },
-        });
-
-    } catch (error) {
-        // ดักจับ CONFLICT error จาก transaction
-        if (error instanceof Error && error.message.startsWith('CONFLICT:')) {
-            return NextResponse.json(
-                { success: false, error: error.message.replace('CONFLICT:', '') },
-                { status: 409 }
-            );
         }
-
-        // A09 — log เฉพาะ message ไม่ expose stack trace ออก response
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[POST /reservations][${new Date().toISOString()}]`, message);
-
-        return NextResponse.json(
-            { success: false, error: 'เกิดข้อผิดพลาดในการสร้างการจอง' },
-            { status: 500 }
-        );
-    }
-}
+        

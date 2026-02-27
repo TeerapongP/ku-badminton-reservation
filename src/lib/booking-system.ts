@@ -100,8 +100,14 @@ export class BookingSystemManager {
 
   // บันทึกลง database
   private async saveToDatabase() {
+    // ป้องกันการรัน fetch บน server ด้วย relative path
+    if (typeof window === 'undefined') {
+      // ในฝั่ง Server เราควรบันทึกลง Database โดยตรง หรือใช้ ENV
+      // สำหรับตอนนี้ข้ามการ fetch เพื่อไม่ให้ระบบล่ม
+      return;
+    }
+
     try {
-      // บันทึกสถานะลง database
       const response = await fetch('/api/admin/booking-system', {
         method: 'POST',
         headers: {
@@ -109,17 +115,15 @@ export class BookingSystemManager {
         },
         body: JSON.stringify(this.status),
       });
-      
-      if (!response.ok) {
-        // Failed to save booking system status
-      }
     } catch (error) {
-      // Error saving booking system status
+      // Silent fail
     }
   }
 
   // โหลดสถานะจาก database
   async loadFromDatabase() {
+    if (typeof window === 'undefined') return;
+
     try {
       const response = await fetch('/api/admin/booking-system');
       if (response.ok) {
@@ -127,7 +131,7 @@ export class BookingSystemManager {
         this.status = data;
       }
     } catch (error) {
-      // Error loading booking system status
+      // Silent fail
     }
   }
 }

@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Loading from "@/components/Loading";
+import { useAdminRole } from "@/hooks/useAdminRole";
 
 interface ProtectedRouteProps {
   readonly children: React.ReactNode;
@@ -11,24 +12,25 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
+  const { decodedRole, loading: roleLoading } = useAdminRole();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "loading") return; // Still loading
+    if (status === "loading" || roleLoading) return;
 
-    if (!session) {
+    if (status === "unauthenticated") {
       router.push("/login");
       return;
     }
 
-    if (requiredRole && !requiredRole.includes((session.user as any).role)) {
-      router.push("/"); // Redirect to home if role not allowed
+    if (requiredRole && decodedRole && !requiredRole.includes(decodedRole)) {
+      router.push("/");
       return;
     }
-  }, [session, status, router, requiredRole]);
+  }, [status, roleLoading, decodedRole, router, requiredRole]);
 
-  if (status === "loading") {
+  if (status === "loading" || roleLoading) {
     return (
       <Loading
         text="กำลังตรวจสอบสิทธิ์..."
@@ -39,7 +41,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
     );
   }
 
-  if (!session) {
+  if (status === "unauthenticated") {
     return (
       <Loading
         text="กำลังเปลี่ยนเส้นทาง..."
@@ -50,7 +52,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
     );
   }
 
-  if (requiredRole && !requiredRole.includes((session.user as any).role)) {
+  if (requiredRole && decodedRole && !requiredRole.includes(decodedRole)) {
     return (
       <div className="tw-min-h-screen tw-flex tw-items-center tw-justify-center tw-bg-gray-50">
         <div className="tw-text-center">

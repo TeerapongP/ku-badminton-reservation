@@ -20,9 +20,11 @@ export default function Navbar() {
   const [systemStatus, setSystemStatus] = useState({ effectiveStatus: true });
 
   const pathname = usePathname();
-  const { isAuthenticated, logout } = useAuth();
-  const { data: session } = useSession();
+  const { logout } = useAuth();
+  const { data: session, status } = useSession();
   const { isAdmin } = useAdminRole();
+
+  const isUserAuthenticated = status === "authenticated";
 
   useEffect(() => setMounted(true), []);
 
@@ -30,21 +32,23 @@ export default function Navbar() {
     if (open) setOpen(false);
   }, [pathname]);
 
-  // fetch system status เฉพาะเมื่อ login แล้ว
+  // fetch system status - ย้ายออกมาให้เช็คได้ทั้งแบบ login และไม่ login
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    fetch("/api/admin/booking-system")
+    fetch("/api/booking-system-status")
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((data) => setSystemStatus(data))
+      .then((resData) => {
+        if (resData.success && resData.data) {
+          setSystemStatus(resData.data);
+        }
+      })
       .catch((err) => console.error("[Navbar] Failed to fetch system status:", err));
-  }, [isAuthenticated]);
+  }, []);
 
   useEffect(() => {
-    if (isAuthenticated && (session?.user as any)?.id && !userProfile) {
+    if (isUserAuthenticated && (session?.user as any)?.id && !userProfile) {
       fetchUserProfile();
     }
-  }, [isAuthenticated, (session?.user as any)?.id, userProfile]);
+  }, [isUserAuthenticated, (session?.user as any)?.id, userProfile]);
 
   useEffect(() => {
     if (userProfile?.profile_photo_url && !decryptedImageUrl) {
@@ -103,11 +107,11 @@ export default function Navbar() {
     ];
 
     //  แสดงเมนูจองสนามเมื่อระบบ "เปิด"
-    if (isAuthenticated && systemStatus.effectiveStatus) {
+    if (isUserAuthenticated && systemStatus.effectiveStatus) {
       baseItems.push({ id: "booking", label: "จองสนาม", href: "/badminton-court" });
     }
 
-    if (isAuthenticated) {
+    if (isUserAuthenticated) {
       const items: Item[] = [
         ...baseItems,
         { id: "contract", label: "ติดต่อสอบถาม", href: "/contract" },
@@ -125,7 +129,7 @@ export default function Navbar() {
       { id: "login", label: "เข้าสู่ระบบ", href: "/login" },
       { id: "contract", label: "ติดต่อสอบถาม", href: "/contract" },
     ];
-  }, [isAuthenticated, isAdmin, systemStatus.effectiveStatus]);
+  }, [isUserAuthenticated, isAdmin, systemStatus.effectiveStatus]);
 
   const getActiveId = () => {
     if (!mounted) return null;
@@ -153,7 +157,7 @@ export default function Navbar() {
 
   const displayName = useMemo(() => {
     if (isAdmin) {
-      return (session?.user as any)?.username ?? "Admin";
+      return (session?.user as any)?.username ?? "admin";
     }
     if (userProfile) {
       return `${userProfile.first_name} ${userProfile.last_name}`;
@@ -198,7 +202,7 @@ export default function Navbar() {
               );
             })}
 
-            {isAuthenticated && (
+            {isUserAuthenticated && (
               <>
                 <Link
                   href="/profile"
@@ -270,7 +274,7 @@ export default function Navbar() {
             );
           })}
 
-          {isAuthenticated && (
+          {isUserAuthenticated && (
             <>
               <Link
                 href="/profile"

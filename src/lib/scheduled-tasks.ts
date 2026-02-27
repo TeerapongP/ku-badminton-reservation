@@ -1,32 +1,22 @@
 // Scheduled Tasks for Booking System
 import { BookingSystemManager } from './booking-system';
+import { prisma } from './prisma';
+import { getThailandDate } from './timezone';
 
 /**
  * เช็คว่าอยู่ในช่วงเวลาที่ admin สามารถเปิด/ปิดระบบได้หรือไม่
- * อนุญาตเฉพาะ 08:00 - 19:59 น. (เวลาไทย)
  */
 export function isAdminControlAllowed(): boolean {
-  const now = new Date();
-  const thailandTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+  const thailandTime = getThailandDate();
   const hour = thailandTime.getHours();
-  
-  // อนุญาตให้ admin ควบคุมได้เฉพาะ 08:00 - 19:59 น.
   return hour >= 8 && hour < 20;
 }
 
 /**
- * ดึงข้อความแจ้งเตือนเมื่อ admin ไม่สามารถควบคุมระบบได้
+ * Message แจ้งเตือนเมื่อไม่สามารถเปิด/ปิดระบบได้
  */
 export function getAdminControlDisabledMessage(): string {
-  const now = new Date();
-  const thailandTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
-  const hour = thailandTime.getHours();
-  
-  if (hour >= 20 || hour < 8) {
-    return 'ไม่สามารถเปิด/ปิดระบบได้ในช่วงเวลา 20:00 - 07:59 น. ระบบจะเปิดอัตโนมัติเวลา 08:00 น.';
-  }
-  
-  return '';
+  return "แอดมินสามารถเปิด/ปิดระบบได้เฉพาะช่วงเวลา 08:00 - 20:00 น. เท่านั้น";
 }
 
 export class ScheduledTasks {
@@ -40,22 +30,17 @@ export class ScheduledTasks {
     return ScheduledTasks.instance;
   }
 
-  // เริ่มต้น scheduled tasks
   start() {
-    if (this.intervalId) {
-      return;
-    }
+    if (this.intervalId) return;
 
-    // ตรวจสอบทุก 5 นาที
+    // ตรวจสอบทุก 1 นาที เพื่อความแม่นยำในการยกเลิกการจอง
     this.intervalId = setInterval(() => {
-      this.checkBookingSystemSchedule();
-    }, 5 * 60 * 1000); // 5 minutes
+      this.runAllTasks();
+    }, 1 * 60 * 1000);
     
-    // เรียกใช้ทันทีเมื่อเริ่มต้น
-    this.checkBookingSystemSchedule();
+    this.runAllTasks();
   }
 
-  // หยุด scheduled tasks
   stop() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
@@ -63,12 +48,53 @@ export class ScheduledTasks {
     }
   }
 
-  // ตรวจสอบและจัดการระบบการจองตามเวลา
+  private async runAllTasks() {
+    await this.checkBookingSystemSchedule();
+    await this.autoCancelPendingReservations();
+  }
+
+  /**
+   * A01 — ป้องกัน DoS โดยการยกเลิกการจองที่ค้างชำระเกิน 15 นาที
+   */
+  private async autoCancelPendingReservations() {
+    try {
+      const expirationTime = new Date(Date.now() - 15 * 60 * 1000); // 15 นาทีที่แล้ว
+
+      const expiredBookings = await prisma.reservations.findMany({
+        where: {
+          status: 'pending',
+          payment_status: 'unpaid',
+          created_at: { lt: expirationTime }
+        },
+        select: { reservation_id: true }
+      });
+
+      if (expiredBookings.length > 0) {
+        const ids = expiredBookings.map(b => b.reservation_id);
+        
+        await prisma.$transaction([
+          // อัปเดตสถานะการจองหลัก
+          prisma.reservations.updateMany({
+            where: { reservation_id: { in: ids } },
+            data: { status: 'cancelled', note: 'System: Auto-cancelled due to payment timeout' }
+          }),
+          // อัปเดตสถานะรายการสนามเพื่อให้ว่าง
+          prisma.reservation_items.updateMany({
+            where: { reservation_id: { in: ids } },
+            data: { status: 'cancelled' }
+          })
+        ]);
+        
+        console.log(`[ScheduledTask] Auto-cancelled ${expiredBookings.length} pending reservations.`);
+      }
+    } catch (error) {
+      console.error('[ScheduledTask] Error auto-cancelling reservations:', error);
+    }
+  }
+
   private async checkBookingSystemSchedule() {
     try {
-      // ใช้เวลาไทย (UTC+7)
-      const now = new Date();
-      const thailandTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+      const thailandTime = getThailandDate();
       const hour = thailandTime.getHours();
       const minute = thailandTime.getMinutes();
 
@@ -76,48 +102,19 @@ export class ScheduledTasks {
       await bookingSystem.loadFromDatabase();
       const currentStatus = bookingSystem.getStatus();
 
-      // เปิดระบบอัตโนมัติเวลา 8:00 (ถ้า admin ไม่เปิด)
-      if (hour === 8 && minute < 5 && !currentStatus.isOpen) {
-        const updatedStatus = {
-          isOpen: true,
-          openedBy: 'auto' as const,
-          openedAt: thailandTime,
-          lastUpdatedBy: 'system-auto-open'
-        };
-        
-        bookingSystem['status'] = updatedStatus;
-        await bookingSystem['saveToDatabase']();
-        console.log(`[Thailand Time ${thailandTime.toISOString()}] ระบบเปิดอัตโนมัติ`);
+      // เปิดระบบอัตโนมัติเวลา 8:00
+      if (hour === 8 && minute < 2 && !currentStatus.isOpen) {
+        bookingSystem.openByAdmin('system-auto-open');
+        console.log(`[${thailandTime.toISOString()}] ระบบเปิดอัตโนมัติ`);
       }
 
-      // ปิดระบบอัตโนมัติเวลา 20:00 (ปิดทุกกรณี ไม่ว่า admin จะเปิดหรือไม่)
-      if (hour === 20 && minute < 5 && currentStatus.isOpen) {
-        const updatedStatus = {
-          isOpen: false,
-          openedBy: 'auto' as const,
-          openedAt: thailandTime,
-          lastUpdatedBy: 'system-auto-close'
-        };
-        
-        bookingSystem['status'] = updatedStatus;
-        await bookingSystem['saveToDatabase']();
-        console.log(`[Thailand Time ${thailandTime.toISOString()}] ระบบปิดอัตโนมัติ`);
+      // ปิดระบบอัตโนมัติเวลา 20:00
+      if (hour === 20 && minute < 2 && currentStatus.isOpen) {
+        bookingSystem.closeByAdmin('system-auto-close');
+        console.log(`[${thailandTime.toISOString()}] ระบบปิดอัตโนมัติ`);
       }
-
-      // แจ้งเตือนก่อนปิดระบบ 15 นาที (19:45)
-      if (hour === 19 && minute >= 45 && minute < 50 && currentStatus.isOpen) {
-        // TODO: ส่งการแจ้งเตือนไปยัง admin และผู้ใช้
-        console.log(`[Thailand Time ${thailandTime.toISOString()}] แจ้งเตือน: ระบบจะปิดใน 15 นาที`);
-      }
-
-      // แจ้งเตือนก่อนปิดระบบ 5 นาที (19:55)
-      if (hour === 19 && minute >= 55 && currentStatus.isOpen) {
-        // TODO: ส่งการแจ้งเตือนไปยัง admin และผู้ใช้
-        console.log(`[Thailand Time ${thailandTime.toISOString()}] แจ้งเตือน: ระบบจะปิดใน 5 นาที`);
-      }
-
     } catch (error) {
-      // Error in scheduled task
+      console.error('[ScheduledTask] Error in booking system schedule:', error);
     }
   }
 

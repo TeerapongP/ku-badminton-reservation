@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getThailandDate } from '@/lib/timezone';
 
 export async function checkBookingSystemStatus() {
   try {
     // ใช้ environment variable หรือ default เป็น true
     const systemOpen = process.env.BOOKING_SYSTEM_OPEN !== 'false';
 
-    // เช็ค auto-open (เวลา 9:00-22:00)
-    const now = new Date();
+    // เช็ค auto-open โดยใช้เวลาประเทศไทย
+    const now = getThailandDate();
     const hour = now.getHours();
 
-    // ระบบเปิดตั้งแต่ 8:00-20:00
+    // ระบบเปิดตั้งแต่ 8:00-20:00 น. ตามเวลาไทย
     const isBusinessHours = hour >= 8 && hour < 20;
 
     return systemOpen && isBusinessHours;
