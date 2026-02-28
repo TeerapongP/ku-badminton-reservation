@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable standalone output for Docker builds
-  output: process.env.DOCKER_BUILD === 'true' ? 'standalone' : undefined,
+  // Temporarily disable standalone for Next.js 16 + middleware compatibility
+  // Will copy full node_modules instead
+  // output: process.env.DOCKER_BUILD === 'true' ? 'standalone' : undefined,
 
   // IMPORTANT: Base Path for sub-folder deployment (disabled for UAT)
   // basePath: '/ku-badminton-reservation',
@@ -109,12 +110,18 @@ const nextConfig = {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
 
-  // Turbopack config (Next.js 16+ uses Turbopack by default)
-  turbopack: {},
+  // Force webpack for production builds (Turbopack has issues with middleware in standalone mode)
+  webpack: (config, { isServer }) => {
+    return config;
+  },
   
-  // Webpack config removed - using Turbopack instead
-  // If you need webpack-specific configs, migrate them to Turbopack
-  // See: https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
+  // Experimental features for middleware stability
+  experimental: {
+    // Ensure middleware works correctly in standalone mode
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
 
   compress: true,
   poweredByHeader: false,

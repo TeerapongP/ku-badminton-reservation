@@ -30,6 +30,19 @@ function isAllowedStatus(value: string): value is AllowedStatus {
     return ALLOWED_STATUSES.includes(value as AllowedStatus);
 }
 
+/**
+ * ถอดรหัส encryptedUserId และคืน userId string
+ */
+async function resolveUserId(encryptedUserId: string): Promise<string> {
+    try {
+        // Try 4-part format first
+        return await decode(decodeURIComponent(encryptedUserId));
+    } catch {
+        // Fallback to 3-part format
+        return decryptData(decodeURIComponent(encryptedUserId));
+    }
+}
+
 // GET - ดึงประวัติการจองของผู้ใช้
 export async function GET(
     req: Request,
@@ -50,7 +63,7 @@ export async function GET(
         // ถอดรหัส userId
         let userId: string;
         try {
-            userId = decryptData(decodeURIComponent(encryptedUserId));
+            userId = await resolveUserId(encryptedUserId);
         } catch {
             // A09 — ไม่ log decryption error (อาจมี sensitive data)
             return NextResponse.json(

@@ -37,6 +37,11 @@ function validatePhotoUrl(url: unknown): string | null {
     if (!url) return null;
     if (typeof url !== 'string') throw new Error('profile_photo_url ไม่ถูกต้อง');
 
+    // Allow encrypted image paths (iv:authTag:encrypted format)
+    if (url.split(':').length === 3) {
+        return url;
+    }
+
     let parsed: URL;
     try {
         parsed = new URL(url);

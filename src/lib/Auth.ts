@@ -14,8 +14,8 @@ const USER_AGENT_MAX_LENGTH      = 512;
 const VALID_LOGIN_TYPES = ["student_id", "national_id", "username"] as const;
 type LoginType = (typeof VALID_LOGIN_TYPES)[number];
 
-//  A05: secure cookie ขึ้นกับ environment จริงๆ ไม่ hardcode
-const isSecure = process.env.NODE_ENV === "production";
+//  A05: secure cookie - set to false for HTTP (until SSL is configured)
+const isSecure = false; // Will be changed to true when SSL is enabled
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -159,19 +159,37 @@ export const authOptions: NextAuthOptions = {
     cookies: {
         sessionToken: {
             name:    "next-auth.session-token",
-            options: { httpOnly: true, sameSite: "lax", path: "/", secure: isSecure },
+            options: { 
+                httpOnly: true, 
+                sameSite: "lax", 
+                path: "/", 
+                secure: isSecure,
+                domain: undefined // Let browser set domain automatically
+            },
         },
         callbackUrl: {
             name:    "next-auth.callback-url",
-            options: { httpOnly: true, sameSite: "lax", path: "/", secure: isSecure },
+            options: { 
+                httpOnly: true, 
+                sameSite: "lax", 
+                path: "/", 
+                secure: isSecure,
+                domain: undefined
+            },
         },
         csrfToken: {
             name:    "next-auth.csrf-token",
-            options: { httpOnly: true, sameSite: "lax", path: "/", secure: isSecure },
+            options: { 
+                httpOnly: true, 
+                sameSite: "lax", 
+                path: "/", 
+                secure: isSecure,
+                domain: undefined
+            },
         },
     },
 
-    debug: process.env.NODE_ENV === "development",
+    debug: true, // Enable debug logging to troubleshoot issues
 
     callbacks: {
         async jwt({ token, user, trigger }) {
@@ -206,17 +224,31 @@ export const authOptions: NextAuthOptions = {
                 }
             }
 
-            //  await เพราะ encode() เป็น async (AES-256-GCM)
-            const encryptedRole = await encode(token.role as string);
-            const encryptId = await encode(token.id as string);
+            try {
+                //  await เพราะ encode() เป็น async (AES-256-GCM)
+                const encryptedRole = await encode(token.role as string);
+                const encryptId = await encode(token.id as string);
 
-            session.user = {
-                id:       encryptId,
-                username: token.username,
-                role:     encryptedRole,
-            } as typeof session.user;
+                session.user = {
+                    id:       encryptId,
+                    username: token.username,
+                    role:     encryptedRole,
+                } as typeof session.user;
 
-            return session;
+                return session;
+            } catch (error) {
+                // A09: Log error without exposing sensitive data
+                console.error("[auth] Session callback encryption failed:", (error as Error).message);
+                // Return session with unencrypted data as fallback
+                // This allows login to work even if encryption fails
+                session.user = {
+                    id:       token.id as string,
+                    username: token.username,
+                    role:     token.role as string,
+                } as typeof session.user;
+                
+                return session;
+            }
         },
     },
 

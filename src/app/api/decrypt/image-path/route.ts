@@ -4,25 +4,30 @@ import { authOptions } from '@/lib/Auth';
 import crypto from 'node:crypto';
 import path from 'node:path';
 
-const ALLOWED_URL_PREFIXES = ['/uploads/', '/images/'];
+const ALLOWED_URL_PREFIXES = ['/uploads/', '/images/', '/api/images/'];
 
 // A03 — แปลง file system path → URL path แล้วตรวจสอบ whitelist
 function resolveToUrlPath(decryptedPath: string): string | null {
     const uploadBaseDir = process.env.IMAGE_PATH;
 
-    if (!uploadBaseDir) {
-        console.error('[POST /decrypt-image] IMAGE_PATH not configured');
-        return null;
-    }
-
-    const normalized = path.normalize(decryptedPath);
+    // Normalizing paths (handles \ on Windows)
+    const normalized = path.normalize(decryptedPath).replace(/\\/g, '/');
 
     // ป้องกัน path traversal
     if (normalized.includes('..')) return null;
 
-    // แปลง /app/uploads/profiles/abc.jpg → /uploads/profiles/abc.jpg
-    if (normalized.startsWith(uploadBaseDir)) {
-        const relative = normalized.slice(uploadBaseDir.length);
+    // ถ้าเป็น URL path อยู่แล้ว ตรวจสอบ prefix
+    if (ALLOWED_URL_PREFIXES.some(prefix => normalized.startsWith(prefix))) {
+        // Remove /api if it's there, because we'll add it back later
+        if (normalized.startsWith('/api/')) {
+            return normalized.slice(4);
+        }
+        return normalized;
+    }
+
+    // แปลง file system path → URL path
+    if (uploadBaseDir && normalized.startsWith(path.normalize(uploadBaseDir).replace(/\\/g, '/'))) {
+        const relative = normalized.slice(path.normalize(uploadBaseDir).replace(/\\/g, '/').length);
         const urlPath = '/uploads' + (relative.startsWith('/') ? relative : '/' + relative);
 
         if (!ALLOWED_URL_PREFIXES.some(prefix => urlPath.startsWith(prefix))) {
@@ -30,11 +35,6 @@ function resolveToUrlPath(decryptedPath: string): string | null {
         }
 
         return urlPath;
-    }
-
-    // ถ้าเป็น URL path อยู่แล้ว ตรวจสอบ prefix
-    if (ALLOWED_URL_PREFIXES.some(prefix => normalized.startsWith(prefix))) {
-        return normalized;
     }
 
     return null;
@@ -73,27 +73,44 @@ export async function POST(request: NextRequest) {
         }
 
         const parts = encryptedPath.split(':');
-        if (parts.length !== 2) {
-            return NextResponse.json(
-                { message: 'รูปแบบข้อมูลไม่ถูกต้อง' },
-                { status: 400 }
-            );
-        }
-
         let decryptedPath: string;
+
         try {
-            const iv = Buffer.from(parts[0], 'hex');
-            const encryptedData = parts[1];
-
-            // ตรวจสอบขนาด IV ต้องเป็น 16 bytes สำหรับ AES-CBC
-            if (iv.length !== 16) {
-                throw new Error('Invalid IV length');
-            }
-
             const keyHash = crypto.createHash('sha256').update(encryptionKey).digest();
-            const decipher = crypto.createDecipheriv('aes-256-cbc', keyHash, iv);
-            decryptedPath = decipher.update(encryptedData, 'hex', 'utf8');
-            decryptedPath += decipher.final('utf8');
+
+            if (parts.length === 2) {
+                // AES-256-CBC (Legacy)
+                const iv = Buffer.from(parts[0], 'hex');
+                const encryptedData = parts[1];
+
+                if (iv.length !== 16) {
+                    throw new Error('Invalid IV length');
+                }
+
+                const decipher = crypto.createDecipheriv('aes-256-cbc', keyHash, iv);
+                decryptedPath = decipher.update(encryptedData, 'hex', 'utf8');
+                decryptedPath += decipher.final('utf8');
+            } else if (parts.length === 3) {
+                // AES-256-GCM (New)
+                const iv = Buffer.from(parts[0], 'hex');
+                const authTag = Buffer.from(parts[1], 'hex');
+                const encryptedData = parts[2];
+
+                if (iv.length !== 12) {
+                    // Although GCM can use other lengths, our implementation uses 12 bytes IV
+                    throw new Error('Invalid IV length for GCM');
+                }
+
+                const decipher = crypto.createDecipheriv('aes-256-gcm', keyHash, iv);
+                decipher.setAuthTag(authTag);
+                decryptedPath = decipher.update(encryptedData, 'hex', 'utf8');
+                decryptedPath += decipher.final('utf8');
+            } else {
+                return NextResponse.json(
+                    { message: 'รูปแบบข้อมูลไม่ถูกต้อง' },
+                    { status: 400 }
+                );
+            }
 
         } catch (decryptError) {
             // A09 — log สาเหตุจริงภายใน ไม่ส่งออก response

@@ -63,9 +63,9 @@ function redirectToLogin(request: NextRequest): NextResponse {
   return NextResponse.redirect(loginUrl);
 }
 
-// ─── Proxy ────────────────────────────────────────────────────────────────────
+// ─── Middleware ───────────────────────────────────────────────────────────────
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sanitizedPath = sanitizePathname(pathname);
 
@@ -154,3 +154,10 @@ export async function proxy(request: NextRequest) {
 
   return NextResponse.next();
 }
+
+export const config = {
+  matcher: [
+    //  exclude static files, api routes, _next
+    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|icons|images).*)",
+  ],
+};
