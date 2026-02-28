@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { join, resolve, extname } from 'node:path';
 import { existsSync } from 'node:fs';
 import { CustomApiError, ERROR_CODES, HTTP_STATUS, withErrorHandler } from '@/lib/error-handler';
-
+import mime from 'mime';
 
 async function imageHandler(
     request: NextRequest,
@@ -11,16 +11,17 @@ async function imageHandler(
 ) {
     try {
         const resolvedParams = await context.params;
-        const imagePath = resolvedParams.path.join('/');
+        const pathSegments = resolvedParams.path;
 
-
-        if (!imagePath) {
+        if (!pathSegments || pathSegments.length === 0) {
             throw new CustomApiError(
                 ERROR_CODES.MISSING_REQUIRED_FIELDS,
                 'ไม่พบ path ของรูปภาพ',
                 HTTP_STATUS.BAD_REQUEST
             );
         }
+
+        const imagePath = pathSegments.join('/');
 
         // [SECURITY FIX] - Validate path doesn't contain traversal
         if (imagePath.includes('..') || imagePath.includes('~') || imagePath.includes('\\')) {
@@ -32,44 +33,38 @@ async function imageHandler(
         }
 
         // [SECURITY FIX] - Whitelist allowed directories
-        const allowedDirs = ['profiles', 'payment-slips', 'banners', 'facilities', 'courts', 'payments'];
-        const firstDir = resolvedParams.path[0];
+        // Consistent whitelist for both /api/images and /api/uploads
+        const allowedDirs = ['profiles', 'payment-slips', 'banners', 'facilities', 'courts', 'payments', 'temp', 'slips'];
+        const firstDir = pathSegments[0];
         if (!allowedDirs.includes(firstDir)) {
+            console.warn(`[Image API] Blocked access to directory: ${firstDir}`);
             throw new CustomApiError(
                 ERROR_CODES.FORBIDDEN,
-                'Access denied',
+                'Access denied: directory not allowed',
                 HTTP_STATUS.FORBIDDEN
             );
         }
 
-        // [SECURITY FIX] - Validate file extension
-        const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-        const ext = extname(imagePath).toLowerCase();
-        if (!allowedExtensions.includes(ext)) {
-            throw new CustomApiError(
-                ERROR_CODES.FORBIDDEN,
-                'Invalid file type',
-                HTTP_STATUS.FORBIDDEN
-            );
-        }
-
+        // Base path resolution
         const baseUploadPath = process.env.IMAGE_PATH 
-            ? process.env.IMAGE_PATH.replace(/\/$/, '') 
+            ? resolve(process.env.IMAGE_PATH)
             : join(process.cwd(), 'public', 'uploads');
         
         const fullImagePath = resolve(baseUploadPath, imagePath);
 
         // [SECURITY FIX] - Ensure resolved path is still within base directory
-        if (!fullImagePath.startsWith(resolve(baseUploadPath))) {
+        const resolvedBase = resolve(baseUploadPath);
+        if (!fullImagePath.startsWith(resolvedBase)) {
             throw new CustomApiError(
                 ERROR_CODES.FORBIDDEN,
-                'Access denied',
+                'Access denied: path outside base directory',
                 HTTP_STATUS.FORBIDDEN
             );
         }
 
         // Check if file exists
         if (!existsSync(fullImagePath)) {
+            console.error(`[Image API] File not found: ${fullImagePath}`);
             throw new CustomApiError(
                 ERROR_CODES.NOT_FOUND,
                 'ไม่พบรูปภาพที่ต้องการ',
@@ -77,38 +72,63 @@ async function imageHandler(
             );
         }
 
+        const fileStat = await stat(fullImagePath);
+        if (!fileStat.isFile()) {
+            throw new CustomApiError(
+                ERROR_CODES.NOT_FOUND,
+                'เส้นทางที่ระบุไม่ใช่ไฟล์',
+                HTTP_STATUS.NOT_FOUND
+            );
+        }
+
         // Read file
         const imageBuffer = await readFile(fullImagePath);
 
-        // Determine content type based on file extension
-        const extension = imagePath.split('.').pop()?.toLowerCase();
-        let contentType = 'image/jpeg';
-
-        switch (extension) {
-            case 'png':
-                contentType = 'image/png';
-                break;
-            case 'webp':
-                contentType = 'image/webp';
-                break;
-            case 'gif':
-                contentType = 'image/gif';
-                break;
-            case 'svg':
-                contentType = 'image/svg+xml';
-                break;
+        if (imageBuffer.length === 0) {
+            console.error(`[Image API] File is empty: ${fullImagePath}`);
+            throw new CustomApiError(
+                ERROR_CODES.INTERNAL_SERVER_ERROR,
+                'ไฟล์รูปภาพว่างเปล่า',
+                HTTP_STATUS.INTERNAL_SERVER_ERROR
+            );
         }
 
-        // Convert Buffer to Uint8Array for Response (more compatible)
-        const uint8Array = new Uint8Array(imageBuffer);
+        // Determine content type
+        let contentType = mime.getType(fullImagePath);
+        
+        // Manual fallback for common image types if mime.getType fails
+        if (!contentType) {
+            const ext = extname(fullImagePath).toLowerCase();
+            switch (ext) {
+                case '.jpg':
+                case '.jpeg':
+                    contentType = 'image/jpeg';
+                    break;
+                case '.png':
+                    contentType = 'image/png';
+                    break;
+                case '.webp':
+                    contentType = 'image/webp';
+                    break;
+                case '.gif':
+                    contentType = 'image/gif';
+                    break;
+                case '.svg':
+                    contentType = 'image/svg+xml';
+                    break;
+                default:
+                    contentType = 'application/octet-stream';
+            }
+        }
 
         // Return image with appropriate headers
-        return new Response(uint8Array, {
+        return new Response(imageBuffer, {
             status: 200,
             headers: {
                 'Content-Type': contentType,
                 'Cache-Control': 'public, max-age=31536000, immutable', 
                 'Content-Length': imageBuffer.length.toString(),
+                'X-Content-Type-Options': 'nosniff',
             },
         });
 
