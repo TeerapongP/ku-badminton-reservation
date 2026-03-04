@@ -13,7 +13,7 @@ if git ls-files | grep -q "^\.env$"; then
     echo "   Run: git rm --cached .env"
     exit 1
 else
-    echo "✅ .env is not in Git"
+    echo " .env is not in Git"
 fi
 echo ""
 
@@ -24,7 +24,7 @@ if [ $? -ne 0 ]; then
     echo "⚠️  WARNING: High/Critical vulnerabilities found"
     echo "   Run: pnpm audit fix"
 else
-    echo "✅ No high/critical vulnerabilities"
+    echo " No high/critical vulnerabilities"
 fi
 echo ""
 
@@ -33,7 +33,7 @@ echo "3️⃣ Checking for hardcoded secrets..."
 if grep -r "password.*=.*['\"]" src/ --include="*.ts" --include="*.tsx" | grep -v "password_hash" | grep -v "type.*password" | grep -v "label.*password"; then
     echo "⚠️  WARNING: Possible hardcoded passwords found"
 else
-    echo "✅ No obvious hardcoded secrets"
+    echo " No obvious hardcoded secrets"
 fi
 echo ""
 
@@ -44,7 +44,7 @@ if [ $LOG_COUNT -gt 0 ]; then
     echo "⚠️  WARNING: Found $LOG_COUNT console.log statements in API routes"
     echo "   Consider removing or using conditional logging"
 else
-    echo "✅ No console.log in API routes"
+    echo " No console.log in API routes"
 fi
 echo ""
 
@@ -55,14 +55,14 @@ if grep -r "\$queryRaw.*WHERE.*\${" src/ --include="*.ts"; then
     echo "   Use Prisma Client methods instead of raw queries"
     exit 1
 else
-    echo "✅ No obvious SQL injection risks"
+    echo " No obvious SQL injection risks"
 fi
 echo ""
 
 # 6. Check SSL configuration
 echo "6️⃣ Checking SSL configuration..."
 if grep -q "listen 443 ssl" nginx.conf; then
-    echo "✅ SSL configured in nginx"
+    echo " SSL configured in nginx"
 else
     echo "⚠️  WARNING: SSL not configured in nginx.conf"
     echo "   Add SSL configuration before production deployment"
@@ -83,7 +83,7 @@ if [ -f .env ]; then
         exit 1
     fi
     
-    echo "✅ Environment variables appear configured"
+    echo " Environment variables appear configured"
 else
     echo "⚠️  WARNING: .env file not found"
 fi

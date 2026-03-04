@@ -72,6 +72,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/next.config.js ./next.config.js
 # Prisma schema for migrate deploy at runtime
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
+# Create uploads directory with proper ownership BEFORE switching user
+RUN mkdir -p /app/uploads/profiles /app/uploads/facilities /app/uploads/courts \
+    /app/uploads/payments /app/uploads/payment-slips /app/uploads/banners /app/uploads/temp \
+ && chown -R nextjs:nodejs /app/uploads
+
 USER nextjs
 EXPOSE 3000
 

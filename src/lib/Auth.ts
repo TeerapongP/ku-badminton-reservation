@@ -6,26 +6,25 @@ import { prisma } from "./prisma";
 import { encryptData, decryptData } from "./encryption";
 import { encode } from "./Cryto"; //  async
 
-const SESSION_MAX_AGE_SECONDS    = 30 * 60;
-const SESSION_UPDATE_AGE_SECONDS = 5  * 60;
-const IP_MAX_LENGTH              = 45;
-const USER_AGENT_MAX_LENGTH      = 512;
+const SESSION_MAX_AGE_SECONDS = 30 * 60;
+const SESSION_UPDATE_AGE_SECONDS = 5 * 60;
+const IP_MAX_LENGTH = 45;
+const USER_AGENT_MAX_LENGTH = 512;
 
 const VALID_LOGIN_TYPES = ["student_id", "national_id", "username"] as const;
 type LoginType = (typeof VALID_LOGIN_TYPES)[number];
 
-//  A05: secure cookie - set to false for HTTP (until SSL is configured)
 const isSecure = false; // Will be changed to true when SSL is enabled
 
 export const authOptions: NextAuthOptions = {
     providers: [
         CredentialsProvider({
-            id:   "credentials",
+            id: "credentials",
             name: "credentials",
             credentials: {
-                identifier:         { label: "รหัสนิสิต/เลขบัตรประชาชน", type: "text" },
-                password:           { label: "รหัสผ่าน", type: "password" },
-                type:               { label: "Type", type: "text" },
+                identifier: { label: "รหัสนิสิต/เลขบัตรประชาชน", type: "text" },
+                password: { label: "รหัสผ่าน", type: "password" },
+                type: { label: "Type", type: "text" },
                 originalIdentifier: { label: "Original Identifier", type: "text" },
             },
             async authorize(credentials, req) {
@@ -39,13 +38,13 @@ export const authOptions: NextAuthOptions = {
                 const userAgent = (req?.headers?.["user-agent"] ?? "unknown")
                     .substring(0, USER_AGENT_MAX_LENGTH);
 
-                let identifier         = credentials?.identifier;
-                let password           = credentials?.password;
+                let identifier = credentials?.identifier;
+                let password = credentials?.password;
                 let originalIdentifier = credentials?.originalIdentifier;
 
                 try {
-                    if (identifier)         identifier         = decryptData(identifier);
-                    if (password)           password           = decryptData(password);
+                    if (identifier) identifier = decryptData(identifier);
+                    if (password) password = decryptData(password);
                     if (originalIdentifier) originalIdentifier = decryptData(originalIdentifier);
                 } catch {
                     return null;
@@ -66,7 +65,7 @@ export const authOptions: NextAuthOptions = {
 
                     if (loginType === "student_id") {
                         user = await prisma.users.findFirst({
-                            where:  { student_id: identifier },
+                            where: { student_id: identifier },
                             select: {
                                 user_id: true, username: true, password_hash: true,
                                 role: true, status: true, last_login_at: true,
@@ -76,7 +75,7 @@ export const authOptions: NextAuthOptions = {
                         if (!originalIdentifier) return null;
 
                         user = await prisma.users.findFirst({
-                            where:  { national_id: originalIdentifier },
+                            where: { national_id: originalIdentifier },
                             select: {
                                 user_id: true, username: true, password_hash: true,
                                 role: true, status: true, last_login_at: true,
@@ -102,43 +101,44 @@ export const authOptions: NextAuthOptions = {
                     if (!isPasswordValid) {
                         await prisma.auth_log.create({
                             data: {
-                                user_id:        user.user_id,
+                                user_id: user.user_id,
                                 username_input: encryptedIdentifierForLog,
-                                action:         "login_fail",
+                                action: "login_fail",
                                 ip,
-                                user_agent:     userAgent,
+                                user_agent: userAgent,
                             },
-                        }).catch(() => {});
+                        }).catch(() => { });
 
                         return null;
                     }
 
-                    const mustChangePassword = !user.last_login_at;
+                    const isFirstLogin = !user.last_login_at;
 
                     await Promise.all([
-                        mustChangePassword
+                        isFirstLogin
                             ? Promise.resolve()
                             : prisma.users.update({
                                 where: { user_id: user.user_id },
-                                data:  { last_login_at: new Date(), last_login_ip: ip },
-                            }).catch(() => {}),
+                                data: { last_login_at: new Date(), last_login_ip: ip },
+                            }).catch(() => { }),
 
                         prisma.auth_log.create({
                             data: {
-                                user_id:        user.user_id,
+                                user_id: user.user_id,
                                 username_input: encryptedIdentifierForLog,
-                                action:         "login_success",
+                                action: "login_success",
                                 ip,
-                                user_agent:     userAgent,
+                                user_agent: userAgent,
                             },
-                        }).catch(() => {}),
+                        }).catch(() => { }),
                     ]);
 
                     return {
-                        id:                user.user_id.toString(),
-                        username:          user.username,
-                        role:              user.role,
-                        mustChangePassword,
+                        id: user.user_id.toString(),
+                        username: user.username,
+                        role: user.role,
+                        isFirstLogin,
+                        mustChangePassword: isFirstLogin,
                     };
                 } catch {
                     return null;
@@ -149,7 +149,7 @@ export const authOptions: NextAuthOptions = {
 
     session: {
         strategy: "jwt",
-        maxAge:    SESSION_MAX_AGE_SECONDS,
+        maxAge: SESSION_MAX_AGE_SECONDS,
         updateAge: SESSION_UPDATE_AGE_SECONDS,
     },
     jwt: {
@@ -158,31 +158,31 @@ export const authOptions: NextAuthOptions = {
 
     cookies: {
         sessionToken: {
-            name:    "next-auth.session-token",
-            options: { 
-                httpOnly: true, 
-                sameSite: "lax", 
-                path: "/", 
+            name: "next-auth.session-token",
+            options: {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
                 secure: isSecure,
                 domain: undefined // Let browser set domain automatically
             },
         },
         callbackUrl: {
-            name:    "next-auth.callback-url",
-            options: { 
-                httpOnly: true, 
-                sameSite: "lax", 
-                path: "/", 
+            name: "next-auth.callback-url",
+            options: {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
                 secure: isSecure,
                 domain: undefined
             },
         },
         csrfToken: {
-            name:    "next-auth.csrf-token",
-            options: { 
-                httpOnly: true, 
-                sameSite: "lax", 
-                path: "/", 
+            name: "next-auth.csrf-token",
+            options: {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
                 secure: isSecure,
                 domain: undefined
             },
@@ -198,13 +198,13 @@ export const authOptions: NextAuthOptions = {
             }
 
             if (user) {
-                token.id                 = user.id;
-                token.username           = user.username;
-                token.role               = user.role;
-                token.mustChangePassword = user.mustChangePassword;
+                token.id = user.id;
+                token.username = user.username;
+                token.role = user.role;
+                token.isFirstLogin = (user as any).isFirstLogin;
 
                 const dbUser = await prisma.users.findUnique({
-                    where:  { user_id: BigInt(user.id) },
+                    where: { user_id: BigInt(user.id) },
                     select: { updated_at: true },
                 }).catch(() => null);
 
@@ -230,9 +230,10 @@ export const authOptions: NextAuthOptions = {
                 const encryptId = await encode(token.id as string);
 
                 session.user = {
-                    id:       encryptId,
+                    id: encryptId,
                     username: token.username,
-                    role:     encryptedRole,
+                    role: encryptedRole,
+                    isFirstLogin: !!token.isFirstLogin,
                 } as typeof session.user;
 
                 return session;
@@ -242,11 +243,12 @@ export const authOptions: NextAuthOptions = {
                 // Return session with unencrypted data as fallback
                 // This allows login to work even if encryption fails
                 session.user = {
-                    id:       token.id as string,
+                    id: token.id as string,
                     username: token.username,
-                    role:     token.role as string,
+                    role: token.role as string,
+                    isFirstLogin: !!token.isFirstLogin,
                 } as typeof session.user;
-                
+
                 return session;
             }
         },
@@ -254,7 +256,7 @@ export const authOptions: NextAuthOptions = {
 
     pages: {
         signIn: "/login",
-        error:  "/login",
+        error: "/login",
     },
 
     secret: process.env.NEXTAUTH_SECRET,

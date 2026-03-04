@@ -81,21 +81,13 @@ export async function GET(
         }
 
         // A01 — ตรวจสอบ ownership หรือ admin role (รวม super_admin)
-        const role = await resolveRole(session?.user?.role);
-        if (session.user.id !== userId && !ADMIN_ROLES.has(role ?? '')) {
-            return NextResponse.json(
-                { success: false, error: "ไม่ได้รับอนุญาต" },
-                { status: 403 }
-            );
-        }
-
-        const { searchParams } = new URL(req.url);
+            const { searchParams } = new URL(req.url);
 
         // A03 — validate และ clamp page / limit
-        const rawPage  = parseInt(searchParams.get('page')  || '1');
+        const rawPage = parseInt(searchParams.get('page') || '1');
         const rawLimit = parseInt(searchParams.get('limit') || '10');
 
-        const page  = Number.isFinite(rawPage)  && rawPage  > 0 ? rawPage  : 1;
+        const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
         const limit = Number.isFinite(rawLimit) && rawLimit > 0
             ? Math.min(rawLimit, MAX_LIMIT)
             : 10;
@@ -109,10 +101,10 @@ export async function GET(
         // A03 — validate date format (YYYY-MM-DD)
         const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
         const rawStartDate = searchParams.get('startDate');
-        const rawEndDate   = searchParams.get('endDate');
+        const rawEndDate = searchParams.get('endDate');
 
         const startDate = rawStartDate && DATE_REGEX.test(rawStartDate) ? new Date(rawStartDate) : null;
-        const endDate   = rawEndDate   && DATE_REGEX.test(rawEndDate)   ? new Date(rawEndDate)   : null;
+        const endDate = rawEndDate && DATE_REGEX.test(rawEndDate) ? new Date(rawEndDate) : null;
 
         // ตรวจสอบว่า date ที่แปลงแล้วถูกต้อง (ป้องกัน "2024-13-99" ผ่าน regex แต่ Invalid Date)
         if (startDate && isNaN(startDate.getTime())) {
@@ -134,7 +126,7 @@ export async function GET(
         if (startDate || endDate) {
             whereCondition.reserved_date = {
                 ...(startDate && { gte: startDate }),
-                ...(endDate   && { lte: endDate   }),
+                ...(endDate && { lte: endDate }),
             };
         }
 
@@ -146,18 +138,18 @@ export async function GET(
                         include: {
                             courts: {
                                 select: {
-                                    court_id:    true,
-                                    name:        true,
-                                    court_code:  true,
+                                    court_id: true,
+                                    name: true,
+                                    court_code: true,
                                     facility_id: true,
                                 },
                             },
                             time_slots: {
                                 select: {
-                                    slot_id:      true,
+                                    slot_id: true,
                                     start_minute: true,
-                                    end_minute:   true,
-                                    label:        true,
+                                    end_minute: true,
+                                    label: true,
                                 },
                             },
                         },
@@ -193,30 +185,30 @@ export async function GET(
                         `${Math.floor(m / 60).toString().padStart(2, '0')}:${(m % 60).toString().padStart(2, '0')}`;
 
                     const startTime = formatMinute(item.time_slots.start_minute);
-                    const endTime   = formatMinute(item.time_slots.end_minute);
+                    const endTime = formatMinute(item.time_slots.end_minute);
 
                     return {
-                        id:           Number(reservation.reservation_id),
-                        item_id:      Number(item.item_id),
+                        id: Number(reservation.reservation_id),
+                        item_id: Number(item.item_id),
                         booking_date: item.play_date.toISOString().split('T')[0],
                         court: {
-                            id:            Number(item.courts.court_id),
-                            name:          item.courts.name || item.courts.court_code,
-                            number:        item.courts.court_code,
+                            id: Number(item.courts.court_id),
+                            name: item.courts.name || item.courts.court_code,
+                            number: item.courts.court_code,
                             facility_name: reservation.facilities?.name_th
-                                        || reservation.facilities?.name_en
-                                        || 'ไม่ระบุ',
+                                || reservation.facilities?.name_en
+                                || 'ไม่ระบุ',
                         },
                         time_slot: {
-                            id:         Number(item.time_slots.slot_id),
+                            id: Number(item.time_slots.slot_id),
                             start_time: startTime,
-                            end_time:   endTime,
-                            display:    item.time_slots.label || `${startTime} - ${endTime}`,
+                            end_time: endTime,
+                            display: item.time_slots.label || `${startTime} - ${endTime}`,
                         },
-                        status:      reservation.status,
+                        status: reservation.status,
                         total_price: Number(reservation.total_cents) / 100,
-                        created_at:  reservation.created_at.toISOString(),
-                        updated_at:  reservation.updated_at.toISOString(),
+                        created_at: reservation.created_at.toISOString(),
+                        updated_at: reservation.updated_at.toISOString(),
                     };
                 })
                 .filter(Boolean);
@@ -230,11 +222,11 @@ export async function GET(
                 bookings: formattedBookings,
                 pagination: {
                     current_page: page,
-                    total_pages:  totalPages,
-                    total_count:  totalCount,
-                    per_page:     limit,
-                    has_next:     page < totalPages,
-                    has_prev:     page > 1,
+                    total_pages: totalPages,
+                    total_count: totalCount,
+                    per_page: limit,
+                    has_next: page < totalPages,
+                    has_prev: page > 1,
                 },
             },
         });

@@ -14,7 +14,7 @@ async function loginHandler(request: NextRequest) {
 
     const clientInfo = getClientInfo(request);
 
-    // ✅ ตรวจ IP rate limit
+    //  ตรวจ IP rate limit
     const ipLimitCheck = await checkIPRateLimit(clientInfo.ip);
     if (!ipLimitCheck.allowed) {
         throw new CustomApiError(
@@ -25,7 +25,7 @@ async function loginHandler(request: NextRequest) {
         );
     }
 
-    // ✅ ตรวจ captcha ถ้าจำเป็น
+    //  ตรวจ captcha ถ้าจำเป็น
     if (ipLimitCheck.requireCaptcha && !captchaToken) {
         throw new CustomApiError(
             ERROR_CODES.VALIDATION_ERROR,
@@ -55,24 +55,24 @@ async function loginHandler(request: NextRequest) {
             ]
         },
         select: {
-            user_id:       true,
-            username:      true,
-            email:         true,
+            user_id: true,
+            username: true,
+            email: true,
             password_hash: true,
-            first_name:    true,
-            last_name:     true,
-            role:          true,
-            status:        true,
+            first_name: true,
+            last_name: true,
+            role: true,
+            status: true,
             last_login_at: true,
         }
     });
 
-    // ✅ ตรวจสอบ user ไม่พบ
+    //  ตรวจสอบ user ไม่พบ
     if (!user) {
         await logAuthAttempt({
-            userId:        null,
+            userId: null,
             usernameInput: username,
-            action:        'login_fail',
+            action: 'login_fail',
             clientInfo,
         });
         throw new CustomApiError(
@@ -82,7 +82,7 @@ async function loginHandler(request: NextRequest) {
         );
     }
 
-    // ✅ ตรวจสอบสถานะบัญชี
+    //  ตรวจสอบสถานะบัญชี
     if (user.status !== 'active') {
         throw new CustomApiError(
             ERROR_CODES.ACCOUNT_SUSPENDED,
@@ -91,15 +91,15 @@ async function loginHandler(request: NextRequest) {
         );
     }
 
-    // ✅ ตรวจสอบรหัสผ่าน
+    //  ตรวจสอบรหัสผ่าน
     const passwordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!passwordValid) {
-        // ✅ บันทึก login_fail หลังรู้ว่า password ผิดจริง
+        //  บันทึก login_fail หลังรู้ว่า password ผิดจริง
         await logAuthAttempt({
-            userId:        user.user_id,
+            userId: user.user_id,
             usernameInput: username,
-            action:        'login_fail',
+            action: 'login_fail',
             clientInfo,
         });
 
@@ -123,29 +123,28 @@ async function loginHandler(request: NextRequest) {
         );
     }
 
-    // ✅ Login สำเร็จ
+    //  Login สำเร็จ
     const isFirstLogin = !user.last_login_at;
-
     await Promise.all([
         prisma.users.update({
             where: { user_id: user.user_id },
-            data:  { last_login_at: new Date(), last_login_ip: clientInfo.ip },
+            data: { last_login_at: new Date(), last_login_ip: clientInfo.ip },
         }),
-        // ✅ บันทึก login_success หลังผ่านทุกการตรวจสอบแล้ว
+        //  บันทึก login_success หลังผ่านทุกการตรวจสอบแล้ว
         logAuthAttempt({
-            userId:        user.user_id,
+            userId: user.user_id,
             usernameInput: username,
-            action:        'login_success',
+            action: 'login_success',
             clientInfo,
         }),
     ]);
 
     return successResponse({
-        id:           user.user_id,
-        username:     user.username,
-        email:        user.email,
-        name:         `${user.first_name} ${user.last_name}`,
-        role:         user.role,   // ✅ return role เพื่อให้ frontend redirect ได้ถูกต้อง
+        id: user.user_id,
+        username: user.username,
+        email: user.email,
+        name: `${user.first_name} ${user.last_name}`,
+        role: user.role,   //  return role เพื่อให้ frontend redirect ได้ถูกต้อง
         isFirstLogin,
     }, 'เข้าสู่ระบบสำเร็จ');
 }
@@ -153,10 +152,10 @@ async function loginHandler(request: NextRequest) {
 export const POST = withMiddleware(
     withErrorHandler(loginHandler),
     {
-        methods:            ['POST'],
-        rateLimit:          'auth',
+        methods: ['POST'],
+        rateLimit: 'auth',
         requireContentType: 'application/json',
-        maxBodySize:        5 * 1024, // 5KB
+        maxBodySize: 5 * 1024, // 5KB
     }
 );
 
@@ -167,24 +166,24 @@ async function checkIPRateLimit(ip: string) {
     const failedAttempts = await prisma.auth_log.count({
         where: {
             ip,
-            action:     'login_fail',
+            action: 'login_fail',
             created_at: { gte: oneHourAgo }
         }
     });
 
     const requireCaptcha = failedAttempts >= 5;
-    const isLocked       = failedAttempts >= 10;
+    const isLocked = failedAttempts >= 10;
 
     if (isLocked) {
         return {
-            allowed:      false,
+            allowed: false,
             requireCaptcha: true,
             lockoutUntil: new Date(Date.now() + LOCKOUT_DURATION),
         };
     }
 
     return {
-        allowed:      true,
+        allowed: true,
         requireCaptcha,
         lockoutUntil: null,
     };
@@ -196,24 +195,24 @@ async function getFailedLoginCount(userId: bigint): Promise<number> {
 
     return prisma.auth_log.count({
         where: {
-            user_id:    userId,
-            action:     'login_fail',
+            user_id: userId,
+            action: 'login_fail',
             created_at: { gte: thirtyMinutesAgo }
         }
     });
 }
 
-// ✅ บันทึก auth log — ไม่ลบ log เก่าเพื่อรักษา audit trail
+//  บันทึก auth log — ไม่ลบ log เก่าเพื่อรักษา audit trail
 async function logAuthAttempt({
     userId,
     usernameInput,
     action,
     clientInfo,
 }: {
-    userId:        bigint | null;
+    userId: bigint | null;
     usernameInput: string;
-    action:        'login_success' | 'login_fail';
-    clientInfo:    any;
+    action: 'login_success' | 'login_fail';
+    clientInfo: any;
 }) {
     // Sanitize username input ป้องกัน log injection
     const sanitizedUsername = usernameInput
@@ -222,12 +221,12 @@ async function logAuthAttempt({
 
     await prisma.auth_log.create({
         data: {
-            user_id:        userId,
+            user_id: userId,
             username_input: sanitizedUsername,
             action,
-            ip:             clientInfo.ip?.substring(0, 45)   || 'unknown',
-            user_agent:     clientInfo.userAgent?.substring(0, 512) || 'unknown',
-            created_at:     new Date(),
+            ip: clientInfo.ip?.substring(0, 45) || 'unknown',
+            user_agent: clientInfo.userAgent?.substring(0, 512) || 'unknown',
+            created_at: new Date(),
         }
     });
 }
@@ -236,10 +235,10 @@ async function logAuthAttempt({
 async function verifyCaptcha(token: string): Promise<boolean> {
     try {
         const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-            method:  'POST',
+            method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body:    new URLSearchParams({
-                secret:   process.env.RECAPTCHA_SECRET_KEY || '',
+            body: new URLSearchParams({
+                secret: process.env.RECAPTCHA_SECRET_KEY || '',
                 response: token,
             }),
         });

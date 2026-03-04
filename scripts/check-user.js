@@ -24,7 +24,7 @@ async function checkUser(studentId) {
             return;
         }
 
-        console.log('✅ พบข้อมูลนิสิต:');
+        console.log(' พบข้อมูลนิสิต:');
         console.log(`   User ID: ${user.user_id}`);
         console.log(`   Username: ${user.username}`);
         console.log(`   Student ID: ${user.student_id}`);
@@ -36,7 +36,7 @@ async function checkUser(studentId) {
         const testPassword = studentId;
         const isPasswordValid = await bcrypt.compare(testPassword, user.password_hash);
         
-        console.log(`\n🔐 ทดสอบรหัสผ่าน "${testPassword}": ${isPasswordValid ? '✅ ถูกต้อง' : '❌ ไม่ถูกต้อง'}`);
+        console.log(`\n🔐 ทดสอบรหัสผ่าน "${testPassword}": ${isPasswordValid ? ' ถูกต้อง' : '❌ ไม่ถูกต้อง'}`);
         
     } catch (error) {
         console.error('❌ เกิดข้อผิดพลาด:', error.message);

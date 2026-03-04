@@ -16,7 +16,7 @@ export default function LoginContainner() {
   const { login } = useAuth();
   const router = useRouter();
 
-  const [identifier, setIdentifier] = useState(''); 
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -90,24 +90,37 @@ export default function LoginContainner() {
       const result = await login(loginData);
 
       if (result.success) {
-        // ตรวจสอบว่าเป็นนิสิตที่ login ครั้งแรกหรือไม่
-        const isStudent = result.user?.role === 'student';
+        let decodedRole = '';
+        try {
+          const rawRole = result.user?.role || '';
+          if (rawRole && !['student', 'admin', 'super_admin', 'staff', 'guest'].includes(rawRole)) {
+            const roleResponse = await fetch('/api/auth/role');
+            if (roleResponse.ok) {
+              const roleData = await roleResponse.json();
+              if (roleData.success) {
+                decodedRole = roleData.role;
+              }
+            } else {
+              console.error("Failed to fetch role from API");
+            }
+          } else {
+            decodedRole = rawRole;
+          }
+        } catch (e) {
+          console.error("Failed to fetch role in login:", e);
+        }
+
+        const isStudent = decodedRole === 'student';
         const isFirstLogin = result.user?.isFirstLogin === true;
-
-
-
+        console.log("isFirstLogin : ", isFirstLogin)
         if (isStudent && isFirstLogin) {
           toast.showSuccess("เข้าสู่ระบบสำเร็จ", "กรุณาเปลี่ยนรหัสผ่านของคุณ");
           setIsRedirecting(true);
-          setTimeout(() => {
-            router.push("/forgot-password");
-          }, 1500);
+          router.push("/forgot-password");
         } else {
           toast.showSuccess("เข้าสู่ระบบสำเร็จ", "ยินดีต้อนรับเข้าสู่ระบบ");
           setIsRedirecting(true);
-          setTimeout(() => {
-            router.push("/");
-          }, 1500);
+          router.push("/");
         }
 
       } else {

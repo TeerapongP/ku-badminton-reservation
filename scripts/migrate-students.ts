@@ -20,7 +20,7 @@ async function readExcelFile(filePath: string): Promise<StudentData[]> {
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.readFile(filePath);
         const worksheet = workbook.worksheets[0];
-        
+
         if (!worksheet) {
             throw new Error('ไม่พบ worksheet ในไฟล์');
         }
@@ -47,7 +47,7 @@ async function readExcelFile(filePath: string): Promise<StudentData[]> {
         const data: any[] = [];
         worksheet.eachRow((row, rowNumber) => {
             if (rowNumber === 1) return; // ข้าม header row
-            
+
             const rowData: any = {};
             row.eachCell((cell, colNumber) => {
                 const header = headers[colNumber];
@@ -118,7 +118,7 @@ async function migrateStudent(student: StudentData): Promise<boolean> {
             }
         });
 
-        console.log(`✅ สร้างนิสิต ${student.studentId} - ${student.firstName} ${student.lastName}`);
+        console.log(` สร้างนิสิต ${student.studentId} - ${student.firstName} ${student.lastName}`);
         return true;
     } catch (error) {
         console.error(`❌ เกิดข้อผิดพลาดในการสร้างนิสิต ${student.studentId}:`, error);
@@ -146,17 +146,17 @@ async function main() {
 
         for (const fileName of excelFiles) {
             const filePath = path.join(__dirname, fileName);
-            
+
             console.log(`\n📁 กำลังประมวลผลไฟล์: ${fileName}`);
             console.log('─'.repeat(60));
 
             try {
                 const students = await readExcelFile(filePath);
-                
+
                 for (const student of students) {
                     totalProcessed++;
                     const created = await migrateStudent(student);
-                    
+
                     if (created) {
                         totalCreated++;
                     } else {
@@ -171,7 +171,7 @@ async function main() {
         console.log('\n' + '='.repeat(60));
         console.log('📊 สรุปผลการ Migration');
         console.log('='.repeat(60));
-        console.log(`✅ สร้างผู้ใช้ใหม่: ${totalCreated} คน`);
+        console.log(` สร้างผู้ใช้ใหม่: ${totalCreated} คน`);
         console.log(`⚠️  ข้ามผู้ใช้ที่มีอยู่แล้ว: ${totalSkipped} คน`);
         console.log(`📝 ประมวลผลทั้งหมด: ${totalProcessed} รายการ`);
         console.log('='.repeat(60));

@@ -61,13 +61,12 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // A02 — ใช้ scrypt แทน SHA-256 สำหรับ key derivation
-        const salt = process.env.UPLOAD_ENCRYPTION_SALT ?? 'default-salt-change-me';
-        const keyBuffer = crypto.scryptSync(encryptionKey, salt, 32);
+        // ใช้ SHA-256 hash สำหรับ key derivation (ตรงกับ upload + decrypt routes)
+        const keyHash = crypto.createHash('sha256').update(encryptionKey).digest();
 
-        // A02 — ใช้ AES-256-GCM แทน CBC (authenticated encryption, ป้องกัน padding oracle)
+        // AES-256-GCM (authenticated encryption, ป้องกัน padding oracle)
         const iv = crypto.randomBytes(12); // GCM ใช้ 12 bytes
-        const cipher = crypto.createCipheriv('aes-256-gcm', keyBuffer, iv);
+        const cipher = crypto.createCipheriv('aes-256-gcm', keyHash, iv);
 
         let encrypted = cipher.update(imagePath, 'utf8', 'hex');
         encrypted += cipher.final('hex');

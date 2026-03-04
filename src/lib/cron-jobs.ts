@@ -62,7 +62,7 @@ export class BookingSystemCronJobs {
 
         console.log(`🤖 Auto-opened booking system at ${now.toLocaleString()}`);
       } else {
-        console.log(`✅ Booking system already open`);
+        console.log(` Booking system already open`);
       }
     } catch (error) {
       console.error('Error in auto-open booking system:', error);

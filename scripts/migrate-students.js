@@ -101,7 +101,7 @@ async function readExcelFile(filePath) {
             }
         }
 
-        console.log(`✅ พบ columns ที่ตรง: ${foundColumns.length}/${Object.keys(requiredColumns).length}`);
+        console.log(` พบ columns ที่ตรง: ${foundColumns.length}/${Object.keys(requiredColumns).length}`);
         if (missingColumns.length > 0) {
             console.log(`⚠️  ไม่พบ columns: ${missingColumns.slice(0, 5).join(', ')}${missingColumns.length > 5 ? '...' : ''}`);
         }
@@ -170,7 +170,7 @@ async function readExcelFile(filePath) {
             return true;
         });
 
-        console.log(`✅ กรองข้อมูลที่ถูกต้อง: ${validStudents.length} รายการ`);
+        console.log(` กรองข้อมูลที่ถูกต้อง: ${validStudents.length} รายการ`);
         console.log(`⚠️  ข้ามข้อมูลที่ไม่ครบถ้วน: ${students.length - validStudents.length} รายการ`);
         
         return validStudents;
@@ -239,7 +239,7 @@ async function batchMigrateStudents(students, batchSize = 100, updateExisting = 
                     console.error(`❌ ไม่สามารถอัปเดตนิสิต ${student.studentId}:`, error.message);
                 }
             }
-            console.log(`✅ อัปเดตข้อมูล: ${totalUpdated} คน`);
+            console.log(` อัปเดตข้อมูล: ${totalUpdated} คน`);
         }
 
         if (newStudents.length === 0) {
@@ -280,7 +280,7 @@ async function batchMigrateStudents(students, batchSize = 100, updateExisting = 
             console.log(`   ⏳ เข้ารหัสแล้ว ${Math.min(i + chunkSize, newStudents.length)}/${newStudents.length} รายการ`);
         }
         
-        console.log('✅ เข้ารหัสรหัสผ่านเสร็จสิ้น');
+        console.log(' เข้ารหัสรหัสผ่านเสร็จสิ้น');
 
         // Insert แบบ batch
         let totalCreated = 0;
@@ -294,7 +294,7 @@ async function batchMigrateStudents(students, batchSize = 100, updateExisting = 
                 });
                 
                 totalCreated += batch.length;
-                console.log(`✅ Insert batch ${Math.floor(i / batchSize) + 1}: ${batch.length} รายการ (รวม ${totalCreated}/${usersData.length})`);
+                console.log(` Insert batch ${Math.floor(i / batchSize) + 1}: ${batch.length} รายการ (รวม ${totalCreated}/${usersData.length})`);
             } catch (error) {
                 console.error(`❌ เกิดข้อผิดพลาดใน batch ${Math.floor(i / batchSize) + 1}:`, error.message);
             }
@@ -354,7 +354,7 @@ async function main() {
         console.log('\n' + '='.repeat(60));
         console.log('📊 สรุปผลการ Migration');
         console.log('='.repeat(60));
-        console.log(`✅ สร้างผู้ใช้ใหม่: ${totalCreated} คน`);
+        console.log(` สร้างผู้ใช้ใหม่: ${totalCreated} คน`);
         if (totalUpdated > 0) {
             console.log(`🔄 อัปเดตข้อมูลเดิม: ${totalUpdated} คน`);
         }

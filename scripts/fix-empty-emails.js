@@ -26,7 +26,7 @@ async function fixEmptyEmails() {
         console.log(`📊 พบนิสิตที่ไม่มี email: ${usersWithoutEmail.length} คน`);
 
         if (usersWithoutEmail.length === 0) {
-            console.log('✅ ทุกคนมี email แล้ว');
+            console.log(' ทุกคนมี email แล้ว');
             return;
         }
 
@@ -54,7 +54,7 @@ async function fixEmptyEmails() {
             }
         }
 
-        console.log(`\n✅ อัปเดต email สำเร็จ: ${updated} คน`);
+        console.log(`\n อัปเดต email สำเร็จ: ${updated} คน`);
         
     } catch (error) {
         console.error('❌ เกิดข้อผิดพลาด:', error.message);

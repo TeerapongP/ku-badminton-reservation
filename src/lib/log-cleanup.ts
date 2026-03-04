@@ -49,7 +49,7 @@ export async function cleanupOldLogs(retentionDays: number = 90): Promise<LogCle
         results.push(result);
         totalDeleted += apiLogsResult.count;
 
-        console.log(`✅ Deleted ${apiLogsResult.count} records from api_logs`);
+        console.log(` Deleted ${apiLogsResult.count} records from api_logs`);
     } catch (error) {
         const result: LogCleanupResult = {
             table: 'api_logs',
@@ -83,7 +83,7 @@ export async function cleanupOldLogs(retentionDays: number = 90): Promise<LogCle
         results.push(result);
         totalDeleted += authLogsResult.count;
 
-        console.log(`✅ Deleted ${authLogsResult.count} records from auth_log`);
+        console.log(` Deleted ${authLogsResult.count} records from auth_log`);
     } catch (error) {
         const result: LogCleanupResult = {
             table: 'auth_log',
@@ -117,7 +117,7 @@ export async function cleanupOldLogs(retentionDays: number = 90): Promise<LogCle
         results.push(result);
         totalDeleted += dailyResetResult.count;
 
-        console.log(`✅ Deleted ${dailyResetResult.count} records from daily_reset_log`);
+        console.log(` Deleted ${dailyResetResult.count} records from daily_reset_log`);
     } catch (error) {
         const result: LogCleanupResult = {
             table: 'daily_reset_log',

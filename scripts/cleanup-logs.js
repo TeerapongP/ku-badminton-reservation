@@ -45,7 +45,7 @@ async function cleanupOldLogs(retentionDays = 90) {
         });
 
         totalDeleted += apiLogsResult.count;
-        console.log(`✅ Deleted ${apiLogsResult.count} records from api_logs`);
+        console.log(` Deleted ${apiLogsResult.count} records from api_logs`);
     } catch (error) {
         results.push({
             table: 'api_logs',
@@ -75,7 +75,7 @@ async function cleanupOldLogs(retentionDays = 90) {
         });
 
         totalDeleted += authLogsResult.count;
-        console.log(`✅ Deleted ${authLogsResult.count} records from auth_log`);
+        console.log(` Deleted ${authLogsResult.count} records from auth_log`);
     } catch (error) {
         results.push({
             table: 'auth_log',
@@ -108,7 +108,7 @@ async function cleanupOldLogs(retentionDays = 90) {
         });
 
         totalDeleted += dailyResetResult.count;
-        console.log(`✅ Deleted ${dailyResetResult.count} records from daily_reset_log (120 days retention)`);
+        console.log(` Deleted ${dailyResetResult.count} records from daily_reset_log (120 days retention)`);
     } catch (error) {
         results.push({
             table: 'daily_reset_log',
@@ -177,7 +177,7 @@ async function main() {
         const result = await cleanupOldLogs(retentionDays);
 
         if (result.success) {
-            console.log('✅ Log cleanup completed successfully');
+            console.log(' Log cleanup completed successfully');
             process.exit(0);
         } else {
             console.log('⚠️ Log cleanup completed with some errors');

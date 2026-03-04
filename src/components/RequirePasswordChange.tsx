@@ -23,11 +23,11 @@ export default function RequirePasswordChange({ children }: { children: React.Re
         // ถ้าอยู่ในหน้าเปลี่ยนรหัสผ่านอยู่แล้ว ให้ผ่านไป
         if (pathname === "/forgot-password") return;
 
-        // ตรวจสอบว่าเป็น student และยังไม่เคยเปลี่ยนรหัสผ่าน
-        const isStudent = session.user?.role === "student";
+        // ตรวจสอบว่าต้องเปลี่ยนรหัสผ่าน (isFirstLogin) หรือไม่
+        // ไม่ต้องเช็ค role เนื่องจาก role ถูก encrypt อยู่ และ backend จัดการเงื่อนไข password ให้แล้ว
         const isFirstLogin = (session.user as any)?.isFirstLogin === true;
 
-        if (isStudent && isFirstLogin) {
+        if (isFirstLogin) {
             router.push("/forgot-password");
         }
     }, [session, status, pathname, router]);
@@ -38,10 +38,9 @@ export default function RequirePasswordChange({ children }: { children: React.Re
     }
 
     // ถ้าเป็น first login และไม่ได้อยู่ในหน้าเปลี่ยนรหัสผ่าน แสดง loading
-    const isStudent = session?.user?.role === "student";
     const isFirstLogin = (session?.user as any)?.isFirstLogin === true;
-    
-    if (isStudent && isFirstLogin && pathname !== "/forgot-password") {
+
+    if (isFirstLogin && pathname !== "/forgot-password") {
         return <Loading size="lg" text="กำลังเปลี่ยนเส้นทาง..." color="blue" fullScreen={true} />;
     }
 

@@ -13,7 +13,7 @@ async function fixEmail(studentId) {
             }
         });
         
-        console.log(`✅ อัปเดต email สำเร็จ: ${email}`);
+        console.log(` อัปเดต email สำเร็จ: ${email}`);
     } catch (error) {
         console.error('❌ Error:', error.message);
     } finally {

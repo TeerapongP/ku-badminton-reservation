@@ -7,13 +7,13 @@ import { decode } from '@/lib/Cryto';
 
 async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
     if (!encrypted) return null;
-    
+
     // Check if role is already plaintext
     const plainRoles = ['admin', 'super_admin', 'student', 'staff', 'guest'];
     if (plainRoles.includes(encrypted)) {
         return encrypted;
     }
-    
+
     // Try to decode if encrypted
     try {
         return await decode(encrypted);
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        console.log("✅ Access granted for user:", session.user.username);
+        console.log(" Access granted for user:", session.user.username);
 
         console.log("🔍 Querying admin users...");
         const adminUsers = await prisma.users.findMany({
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
             }
         });
 
-        console.log("✅ Found admin users:", adminUsers.length);
+        console.log(" Found admin users:", adminUsers.length);
 
         return NextResponse.json({
             success: true,
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
         const session = await getServerSession(authOptions);
 
         const sessionRole = await resolveRole(session?.user?.role);
-        if (!session?.user || sessionRole !== 'super_admin') { 
+        if (!session?.user || sessionRole !== 'super_admin') {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
@@ -206,7 +206,7 @@ export async function PUT(req: NextRequest) {
         const session = await getServerSession(authOptions);
 
         const sessionRole = await resolveRole(session?.user?.role);
-        if (!session?.user || sessionRole !== 'super_admin') { 
+        if (!session?.user || sessionRole !== 'super_admin') {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
@@ -324,7 +324,7 @@ export async function DELETE(req: NextRequest) {
         const session = await getServerSession(authOptions);
 
         const sessionRole = await resolveRole(session?.user?.role);
-        if (!session?.user || sessionRole !== 'super_admin') { 
+        if (!session?.user || sessionRole !== 'super_admin') {
             return NextResponse.json(
                 { success: false, error: "ไม่มีสิทธิ์เข้าถึง" },
                 { status: 403 }
