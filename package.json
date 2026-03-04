@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "build:prod": "next build",
+    "build:prod": "next build --no-turbopack",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
