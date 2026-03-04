@@ -5,21 +5,18 @@ import { encryptData } from "@/lib/encryption";
 import { decode } from '@/lib/Cryto';
 import { prisma } from "@/lib/prisma";
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[0-9+\-\s()]{7,20}$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]{3,50}$/;
+const ENCRYPTED_PATTERN = /^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/i;
 
-// A08 — domain whitelist สำหรับ profile photo (ปรับตาม storage provider)
 const ALLOWED_PHOTO_HOSTS = (process.env.ALLOWED_PHOTO_HOSTS ?? '')
     .split(',')
     .map((h) => h.trim())
     .filter(Boolean);
 
-/**
- * A03 — validate และ sanitize string ทั่วไป
- */
+const STORAGE_BASE_URL = (process.env.STORAGE_BASE_URL ?? '').replace(/\/$/, '');
+
 function validateString(value: unknown, fieldName: string, maxLength = 255, allowEmpty = false): string {
     if (typeof value !== 'string') {
         throw new Error(`${fieldName} ต้องเป็นข้อความ`);
@@ -34,17 +31,15 @@ function validateString(value: unknown, fieldName: string, maxLength = 255, allo
     return trimmed;
 }
 
-/**
- * A08 — ตรวจสอบ profile_photo_url ต้องเป็น https จาก domain ที่อนุญาต
- */
 function validatePhotoUrl(url: unknown): string | null {
     if (!url) return null;
     if (typeof url !== 'string') throw new Error('profile_photo_url ไม่ถูกต้อง');
 
-    // Allow encrypted image paths (iv:authTag:encrypted format)
-    if (url.split(':').length === 3) {
-        return url;
-    }
+    // Allow encrypted image paths
+    if (ENCRYPTED_PATTERN.test(url)) return url;
+
+    // Allow relative paths (e.g. /profiles/xxx.jpg)
+    if (url.startsWith('/')) return url;
 
     let parsed: URL;
     try {
@@ -53,11 +48,15 @@ function validatePhotoUrl(url: unknown): string | null {
         throw new Error('profile_photo_url รูปแบบไม่ถูกต้อง');
     }
 
-    if (parsed.protocol !== 'https:') {
+    const isAllowedHost = ALLOWED_PHOTO_HOSTS.length > 0 && ALLOWED_PHOTO_HOSTS.includes(parsed.hostname);
+    const isInternalHost = /^(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|158\.108\.)/.test(parsed.hostname);
+
+    // Allow http for internal hosts or explicitly allowed hosts — skip SSL for now
+    if (!isAllowedHost && !isInternalHost && parsed.protocol !== 'https:') {
         throw new Error('profile_photo_url ต้องเป็น HTTPS');
     }
 
-    if (ALLOWED_PHOTO_HOSTS.length > 0 && !ALLOWED_PHOTO_HOSTS.includes(parsed.hostname)) {
+    if (ALLOWED_PHOTO_HOSTS.length > 0 && !isAllowedHost && !isInternalHost) {
         throw new Error('profile_photo_url ไม่ได้รับอนุญาต');
     }
 
@@ -65,13 +64,34 @@ function validatePhotoUrl(url: unknown): string | null {
 }
 
 /**
- * ถอดรหัส encryptedUserId และคืน userId string
+ * แปลง path ที่เก็บใน DB ให้เป็น full URL สำหรับ response
+ * - ถ้าเป็น full URL อยู่แล้ว → คืนเลย
+ * - ถ้าเป็น relative path → join กับ STORAGE_BASE_URL
  */
+function resolvePhotoUrl(storedUrl: string | null): string | null {
+    if (!storedUrl) return null;
+
+    // encrypted path — คืนตามเดิม ไม่แปลง
+    if (ENCRYPTED_PATTERN.test(storedUrl)) return storedUrl;
+
+    // relative path — join กับ base URL
+    if (storedUrl.startsWith('/')) {
+        return STORAGE_BASE_URL ? `${STORAGE_BASE_URL}${storedUrl}` : storedUrl;
+    }
+
+    // full URL — คืนตามเดิม
+    return storedUrl;
+}
+
 async function resolveUserId(encryptedUserId: string): Promise<string> {
     return await decode(decodeURIComponent(encryptedUserId));
 }
 
-// ── GET — ดึงข้อมูลโปรไฟล์ ──────────────────────────────────────────────────
+async function resolveSessionUserId(sessionId: string): Promise<string> {
+    return await decode(sessionId);
+}
+
+// ── GET ──────────────────────────────────────────────────────────────────────
 
 export async function GET(
     req: Request,
@@ -89,7 +109,6 @@ export async function GET(
 
         const { userId: encryptedUserId } = await context.params;
 
-        // ถอดรหัส userId
         let userId: string;
         try {
             userId = await resolveUserId(encryptedUserId);
@@ -100,27 +119,15 @@ export async function GET(
             );
         }
 
-        // A01 — ตรวจสอบ ownership (ต้อง decrypt session.user.id ก่อนเปรียบเทียบ)
         let sessionUserId: string;
         try {
-            console.log('[profile GET] Attempting to decrypt session.user.id:', {
-                encrypted: session.user.id?.substring(0, 50) + '...',
-                length: session.user.id?.length
-            });
-            sessionUserId = await decode(session.user.id);
-            console.log('[profile GET] Successfully decrypted session.user.id:', sessionUserId);
-        } catch (error) {
-            console.error('[profile GET] Failed to decrypt session.user.id:', {
-                error: error instanceof Error ? error.message : String(error),
-                encryptedPreview: session.user.id?.substring(0, 50) + '...'
-            });
+            sessionUserId = await resolveSessionUserId(session.user.id);
+        } catch {
             return NextResponse.json(
                 { success: false, error: "Session ไม่ถูกต้อง" },
                 { status: 401 }
             );
         }
-
-        console.log('[profile GET] Comparing userId:', { sessionUserId, userId });
 
         if (sessionUserId !== userId) {
             return NextResponse.json(
@@ -162,6 +169,7 @@ export async function GET(
             ...user,
             user_id: encryptData(user.user_id.toString()),
             role: encryptData(user.role),
+            profile_photo_url: resolvePhotoUrl(user.profile_photo_url),
             registered_at: user.registered_at.toISOString(),
             last_login_at: user.last_login_at?.toISOString() ?? null,
         };
@@ -169,7 +177,6 @@ export async function GET(
         return NextResponse.json({ success: true, user: userData });
 
     } catch (error) {
-        // A09 — log เฉพาะ message ไม่ expose stack trace ออก response
         const message = error instanceof Error ? error.message : 'Unknown error';
         console.error(`[GET /profile][${new Date().toISOString()}]`, message);
         return NextResponse.json(
@@ -179,7 +186,7 @@ export async function GET(
     }
 }
 
-// ── PUT — อัปเดตข้อมูลโปรไฟล์ ───────────────────────────────────────────────
+// ── PUT ──────────────────────────────────────────────────────────────────────
 
 export async function PUT(
     req: Request,
@@ -197,7 +204,6 @@ export async function PUT(
 
         const { userId: encryptedUserId } = await context.params;
 
-        // ถอดรหัส userId
         let userId: string;
         try {
             userId = await resolveUserId(encryptedUserId);
@@ -208,27 +214,15 @@ export async function PUT(
             );
         }
 
-        // A01 — ตรวจสอบ ownership (ต้อง decrypt session.user.id ก่อนเปรียบเทียบ)
         let sessionUserId: string;
         try {
-            console.log('[profile PUT] Attempting to decrypt session.user.id:', {
-                encrypted: session.user.id?.substring(0, 50) + '...',
-                length: session.user.id?.length
-            });
-            sessionUserId = await decode(session.user.id);
-            console.log('[profile PUT] Successfully decrypted session.user.id:', sessionUserId);
-        } catch (error) {
-            console.error('[profile PUT] Failed to decrypt session.user.id:', {
-                error: error instanceof Error ? error.message : String(error),
-                encryptedPreview: session.user.id?.substring(0, 50) + '...'
-            });
+            sessionUserId = await resolveSessionUserId(session.user.id);
+        } catch {
             return NextResponse.json(
                 { success: false, error: "Session ไม่ถูกต้อง" },
                 { status: 401 }
             );
         }
-
-        console.log('[profile PUT] Comparing userId:', { sessionUserId, userId });
 
         if (sessionUserId !== userId) {
             return NextResponse.json(
@@ -240,7 +234,6 @@ export async function PUT(
         const body = await req.json();
         const { username, email, phone, title_th, title_en, first_name, last_name, profile_photo_url } = body;
 
-        // A03 — Validate required fields
         if (username === undefined || email === undefined || first_name === undefined || last_name === undefined) {
             return NextResponse.json(
                 { success: false, error: "ข้อมูลไม่ครบถ้วน" },
@@ -248,8 +241,6 @@ export async function PUT(
             );
         }
 
-        // A03 — Validate format ทุก field
-        let validationError: string | null = null;
         try {
             const safeUsername = validateString(username, 'username', 50);
             const safeEmail = validateString(email, 'email', 255);
@@ -257,26 +248,30 @@ export async function PUT(
             const safeLastName = validateString(last_name, 'last_name', 100, true);
 
             if (!USERNAME_REGEX.test(safeUsername)) {
-                validationError = 'ชื่อผู้ใช้ต้องเป็นภาษาอังกฤษ ตัวเลข หรือ _ . - ความยาว 3-50 ตัวอักษร';
-            } else if (!EMAIL_REGEX.test(safeEmail)) {
-                validationError = 'รูปแบบอีเมลไม่ถูกต้อง';
-            } else if (phone && !PHONE_REGEX.test(phone)) {
-                validationError = 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง';
-            }
-
-            if (validationError) {
                 return NextResponse.json(
-                    { success: false, error: validationError },
+                    { success: false, error: 'ชื่อผู้ใช้ต้องเป็นภาษาอังกฤษ ตัวเลข หรือ _ . - ความยาว 3-50 ตัวอักษร' },
                     { status: 400 }
                 );
             }
 
-            // A08 — validate photo URL
+            if (!EMAIL_REGEX.test(safeEmail)) {
+                return NextResponse.json(
+                    { success: false, error: 'รูปแบบอีเมลไม่ถูกต้อง' },
+                    { status: 400 }
+                );
+            }
+
+            if (phone && !PHONE_REGEX.test(phone)) {
+                return NextResponse.json(
+                    { success: false, error: 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง' },
+                    { status: 400 }
+                );
+            }
+
+            // validate แต่เก็บเป็น URL เต็มตามที่ส่งมา
             const safePhotoUrl = validatePhotoUrl(profile_photo_url);
 
-            // A04 — ใช้ transaction ป้องกัน race condition duplicate check + update
             const updatedUser = await prisma.$transaction(async (tx) => {
-                // ตรวจสอบ username / email ซ้ำภายใน transaction เดียวกัน
                 const existingUser = await tx.users.findFirst({
                     where: {
                         AND: [
@@ -329,6 +324,7 @@ export async function PUT(
                 ...updatedUser,
                 user_id: encryptData(updatedUser.user_id.toString()),
                 role: encryptData(updatedUser.role),
+                profile_photo_url: resolvePhotoUrl(updatedUser.profile_photo_url),
                 registered_at: updatedUser.registered_at.toISOString(),
                 last_login_at: updatedUser.last_login_at?.toISOString() ?? null,
             };
@@ -340,25 +336,22 @@ export async function PUT(
             });
 
         } catch (error) {
-            // ดักจับ DUPLICATE error จาก transaction
             if (error instanceof Error && error.message.startsWith('DUPLICATE:')) {
                 return NextResponse.json(
                     { success: false, error: error.message.replace('DUPLICATE:', '') },
                     { status: 400 }
                 );
             }
-            // validation error จาก validatePhotoUrl / validateString
             if (error instanceof Error && !error.message.includes('prisma')) {
                 return NextResponse.json(
                     { success: false, error: error.message },
                     { status: 400 }
                 );
             }
-            throw error; // re-throw เพื่อให้ outer catch จัดการ
+            throw error;
         }
 
     } catch (error) {
-        // A09 — log เฉพาะ message ไม่ expose stack trace ออก response
         const message = error instanceof Error ? error.message : 'Unknown error';
         console.error(`[PUT /profile][${new Date().toISOString()}]`, message);
         return NextResponse.json(
