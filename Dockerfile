@@ -62,12 +62,10 @@ ENV NODE_ENV=production \
 RUN addgroup --system --gid 1001 nodejs \
  && adduser  --system --uid 1001 nextjs
 
-# Copy everything needed for non-standalone build
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+# Copy standalone output (much smaller than full node_modules)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-COPY --from=builder --chown=nextjs:nodejs /app/next.config.js ./next.config.js
 
 # Prisma schema for migrate deploy at runtime
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
@@ -80,4 +78,4 @@ RUN mkdir -p /app/uploads/profiles /app/uploads/facilities /app/uploads/courts \
 USER nextjs
 EXPOSE 3000
 
-CMD ["node_modules/.bin/next", "start"]
+CMD ["node", "server.js"]

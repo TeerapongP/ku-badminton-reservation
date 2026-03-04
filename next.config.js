@@ -1,8 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Temporarily disable standalone for Next.js 16 + middleware compatibility
-  // Will copy full node_modules instead
-  // output: process.env.DOCKER_BUILD === 'true' ? 'standalone' : undefined,
+  // Enable standalone output for Docker builds — drastically smaller image & faster deploy
+  output: process.env.DOCKER_BUILD === 'true' ? 'standalone' : undefined,
 
   // IMPORTANT: Base Path for sub-folder deployment (disabled for UAT)
   // basePath: '/ku-badminton-reservation',

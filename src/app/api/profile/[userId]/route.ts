@@ -7,8 +7,8 @@ import { prisma } from "@/lib/prisma";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-const EMAIL_REGEX    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX    = /^[0-9+\-\s()]{7,20}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[0-9+\-\s()]{7,20}$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]{3,50}$/;
 
 // A08 — domain whitelist สำหรับ profile photo (ปรับตาม storage provider)
@@ -20,14 +20,18 @@ const ALLOWED_PHOTO_HOSTS = (process.env.ALLOWED_PHOTO_HOSTS ?? '')
 /**
  * A03 — validate และ sanitize string ทั่วไป
  */
-function validateString(value: unknown, fieldName: string, maxLength = 255): string {
-    if (typeof value !== 'string' || value.trim() === '') {
+function validateString(value: unknown, fieldName: string, maxLength = 255, allowEmpty = false): string {
+    if (typeof value !== 'string') {
+        throw new Error(`${fieldName} ต้องเป็นข้อความ`);
+    }
+    const trimmed = value.trim();
+    if (!allowEmpty && trimmed === '') {
         throw new Error(`${fieldName} ต้องไม่ว่างเปล่า`);
     }
-    if (value.length > maxLength) {
+    if (trimmed.length > maxLength) {
         throw new Error(`${fieldName} ยาวเกิน ${maxLength} ตัวอักษร`);
     }
-    return value.trim();
+    return trimmed;
 }
 
 /**
@@ -117,7 +121,7 @@ export async function GET(
         }
 
         console.log('[profile GET] Comparing userId:', { sessionUserId, userId });
-        
+
         if (sessionUserId !== userId) {
             return NextResponse.json(
                 { success: false, error: "ไม่ได้รับอนุญาต" },
@@ -128,22 +132,22 @@ export async function GET(
         const user = await prisma.users.findUnique({
             where: { user_id: BigInt(userId) },
             select: {
-                user_id:           true,
-                role:              true,
-                username:          true,
-                email:             true,
-                phone:             true,
-                title_th:          true,
-                title_en:          true,
-                first_name:        true,
-                last_name:         true,
-                student_id:        true,
-                staff_id:          true,
+                user_id: true,
+                role: true,
+                username: true,
+                email: true,
+                phone: true,
+                title_th: true,
+                title_en: true,
+                first_name: true,
+                last_name: true,
+                student_id: true,
+                staff_id: true,
                 profile_photo_url: true,
-                status:            true,
-                membership:        true,
-                registered_at:     true,
-                last_login_at:     true,
+                status: true,
+                membership: true,
+                registered_at: true,
+                last_login_at: true,
             },
         });
 
@@ -156,8 +160,8 @@ export async function GET(
 
         const userData = {
             ...user,
-            user_id:       encryptData(user.user_id.toString()),
-            role:          encryptData(user.role),
+            user_id: encryptData(user.user_id.toString()),
+            role: encryptData(user.role),
             registered_at: user.registered_at.toISOString(),
             last_login_at: user.last_login_at?.toISOString() ?? null,
         };
@@ -225,7 +229,7 @@ export async function PUT(
         }
 
         console.log('[profile PUT] Comparing userId:', { sessionUserId, userId });
-        
+
         if (sessionUserId !== userId) {
             return NextResponse.json(
                 { success: false, error: "ไม่ได้รับอนุญาต" },
@@ -237,7 +241,7 @@ export async function PUT(
         const { username, email, phone, title_th, title_en, first_name, last_name, profile_photo_url } = body;
 
         // A03 — Validate required fields
-        if (!username || !email || !first_name || !last_name) {
+        if (username === undefined || email === undefined || first_name === undefined || last_name === undefined) {
             return NextResponse.json(
                 { success: false, error: "ข้อมูลไม่ครบถ้วน" },
                 { status: 400 }
@@ -247,10 +251,10 @@ export async function PUT(
         // A03 — Validate format ทุก field
         let validationError: string | null = null;
         try {
-            const safeUsername  = validateString(username, 'username', 50);
-            const safeEmail     = validateString(email, 'email', 255);
+            const safeUsername = validateString(username, 'username', 50);
+            const safeEmail = validateString(email, 'email', 255);
             const safeFirstName = validateString(first_name, 'first_name', 100);
-            const safeLastName  = validateString(last_name, 'last_name', 100);
+            const safeLastName = validateString(last_name, 'last_name', 100, true);
 
             if (!USERNAME_REGEX.test(safeUsername)) {
                 validationError = 'ชื่อผู้ใช้ต้องเป็นภาษาอังกฤษ ตัวเลข หรือ _ . - ความยาว 3-50 ตัวอักษร';
@@ -291,40 +295,40 @@ export async function PUT(
                 return tx.users.update({
                     where: { user_id: BigInt(userId) },
                     data: {
-                        username:          safeUsername,
-                        email:             safeEmail,
-                        phone:             phone?.trim() || null,
-                        title_th:          title_th?.trim() || null,
-                        title_en:          title_en?.trim() || null,
-                        first_name:        safeFirstName,
-                        last_name:         safeLastName,
+                        username: safeUsername,
+                        email: safeEmail,
+                        phone: phone?.trim() || null,
+                        title_th: title_th?.trim() || null,
+                        title_en: title_en?.trim() || null,
+                        first_name: safeFirstName,
+                        last_name: safeLastName,
                         profile_photo_url: safePhotoUrl,
                     },
                     select: {
-                        user_id:           true,
-                        role:              true,
-                        username:          true,
-                        email:             true,
-                        phone:             true,
-                        title_th:          true,
-                        title_en:          true,
-                        first_name:        true,
-                        last_name:         true,
-                        student_id:        true,
-                        staff_id:          true,
+                        user_id: true,
+                        role: true,
+                        username: true,
+                        email: true,
+                        phone: true,
+                        title_th: true,
+                        title_en: true,
+                        first_name: true,
+                        last_name: true,
+                        student_id: true,
+                        staff_id: true,
                         profile_photo_url: true,
-                        status:            true,
-                        membership:        true,
-                        registered_at:     true,
-                        last_login_at:     true,
+                        status: true,
+                        membership: true,
+                        registered_at: true,
+                        last_login_at: true,
                     },
                 });
             });
 
             const userData = {
                 ...updatedUser,
-                user_id:       encryptData(updatedUser.user_id.toString()),
-                role:          encryptData(updatedUser.role),
+                user_id: encryptData(updatedUser.user_id.toString()),
+                role: encryptData(updatedUser.role),
                 registered_at: updatedUser.registered_at.toISOString(),
                 last_login_at: updatedUser.last_login_at?.toISOString() ?? null,
             };
@@ -332,7 +336,7 @@ export async function PUT(
             return NextResponse.json({
                 success: true,
                 message: "อัปเดตโปรไฟล์สำเร็จ",
-                user:    userData,
+                user: userData,
             });
 
         } catch (error) {
