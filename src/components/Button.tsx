@@ -1,4 +1,5 @@
 import { ButtonProps } from "@/lib/ButtonProps";
+import { useEffect } from "react";
 
 
 interface ExtendedButtonProps extends ButtonProps {
@@ -15,7 +16,7 @@ export const Button: React.FC<ExtendedButtonProps> = ({
   colorClass,
 }) => {
   const baseStyles =
-    "tw-px-6 tw-py-2 tw-rounded-lg tw-font-medium tw-transition-all tw-duration-200 focus:tw-outline-none focus:tw-ring-2";
+    "tw-px-6 tw-py-2 tw-rounded-lg tw-font-medium tw-transition-all tw-duration-200 focus:tw-outline-none focus:tw-ring-2 disabled:tw-opacity-60 disabled:tw-cursor-not-allowed disabled:hover:tw-scale-100 disabled:active:tw-scale-100";
 
   const variants: Record<"primary" | "secondary" | "danger", string> = {
     primary: disabled
@@ -28,6 +29,7 @@ export const Button: React.FC<ExtendedButtonProps> = ({
       ? "tw-bg-gray-300 tw-text-gray-500 tw-cursor-not-allowed"
       : "tw-bg-red-600 hover:tw-bg-red-700 tw-text-white focus:tw-ring-red-500",
   };
+
 
   const styleClass = colorClass
     ? colorClass // ถ้ามีส่งเข้ามา → ใช้แทนเลย

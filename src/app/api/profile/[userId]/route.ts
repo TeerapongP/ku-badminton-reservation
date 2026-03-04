@@ -4,11 +4,16 @@ import { authOptions } from "@/lib/Auth";
 import { encryptData } from "@/lib/encryption";
 import { decode } from '@/lib/Cryto';
 import { prisma } from "@/lib/prisma";
+import crypto from 'crypto';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[0-9+\-\s()]{7,20}$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]{3,50}$/;
-const ENCRYPTED_PATTERN = /^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/i;
+
+// 3 parts — encrypted ด้วย UPLOAD_ENCRYPTION_KEY (upload route)
+const UPLOAD_ENCRYPTED_PATTERN = /^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/i;
+// 4 parts — encrypted ด้วย Cryto.ts (salt:iv:authTag:ciphertext)
+const CRYPTO_ENCRYPTED_PATTERN = /^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/i;
 
 const ALLOWED_PHOTO_HOSTS = (process.env.ALLOWED_PHOTO_HOSTS ?? '')
     .split(',')
@@ -16,6 +21,8 @@ const ALLOWED_PHOTO_HOSTS = (process.env.ALLOWED_PHOTO_HOSTS ?? '')
     .filter(Boolean);
 
 const STORAGE_BASE_URL = (process.env.STORAGE_BASE_URL ?? '').replace(/\/$/, '');
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function validateString(value: unknown, fieldName: string, maxLength = 255, allowEmpty = false): string {
     if (typeof value !== 'string') {
@@ -31,14 +38,47 @@ function validateString(value: unknown, fieldName: string, maxLength = 255, allo
     return trimmed;
 }
 
+/**
+ * decrypt imagePath ที่ encrypt ด้วย UPLOAD_ENCRYPTION_KEY (upload route)
+ * format: iv:authTag:encrypted
+ */
+function decryptUploadPath(encrypted: string): string | null {
+    try {
+        const encryptionKey = process.env.UPLOAD_ENCRYPTION_KEY;
+        if (!encryptionKey) {
+            console.error('[decryptUploadPath] UPLOAD_ENCRYPTION_KEY not set');
+            return null;
+        }
+
+        const parts = encrypted.split(':');
+        if (parts.length !== 3) return null;
+
+        const [ivHex, authTagHex, encryptedHex] = parts;
+        const keyHash = crypto.createHash('sha256').update(encryptionKey).digest();
+        const iv = Buffer.from(ivHex, 'hex');
+        const authTag = Buffer.from(authTagHex, 'hex');
+        const encryptedData = Buffer.from(encryptedHex, 'hex');
+
+        const decipher = crypto.createDecipheriv('aes-256-gcm', keyHash, iv);
+        decipher.setAuthTag(authTag);
+
+        const decrypted = Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+        return decrypted.toString('utf8');
+    } catch (e) {
+        console.error('[decryptUploadPath] failed:', (e as Error).message);
+        return null;
+    }
+}
+
 function validatePhotoUrl(url: unknown): string | null {
     if (!url) return null;
     if (typeof url !== 'string') throw new Error('profile_photo_url ไม่ถูกต้อง');
 
-    // Allow encrypted image paths
-    if (ENCRYPTED_PATTERN.test(url)) return url;
+    // Allow encrypted paths (both formats)
+    if (UPLOAD_ENCRYPTED_PATTERN.test(url)) return url;
+    if (CRYPTO_ENCRYPTED_PATTERN.test(url)) return url;
 
-    // Allow relative paths (e.g. /profiles/xxx.jpg)
+    // Allow relative paths
     if (url.startsWith('/')) return url;
 
     let parsed: URL;
@@ -51,7 +91,6 @@ function validatePhotoUrl(url: unknown): string | null {
     const isAllowedHost = ALLOWED_PHOTO_HOSTS.length > 0 && ALLOWED_PHOTO_HOSTS.includes(parsed.hostname);
     const isInternalHost = /^(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|158\.108\.)/.test(parsed.hostname);
 
-    // Allow http for internal hosts or explicitly allowed hosts — skip SSL for now
     if (!isAllowedHost && !isInternalHost && parsed.protocol !== 'https:') {
         throw new Error('profile_photo_url ต้องเป็น HTTPS');
     }
@@ -64,22 +103,35 @@ function validatePhotoUrl(url: unknown): string | null {
 }
 
 /**
- * แปลง path ที่เก็บใน DB ให้เป็น full URL สำหรับ response
- * - ถ้าเป็น full URL อยู่แล้ว → คืนเลย
- * - ถ้าเป็น relative path → join กับ STORAGE_BASE_URL
+ * แปลง storedUrl ใน DB ให้เป็น full URL สำหรับ response
  */
-function resolvePhotoUrl(storedUrl: string | null): string | null {
+async function resolvePhotoUrl(storedUrl: string | null): Promise<string | null> {
     if (!storedUrl) return null;
 
-    // encrypted path — คืนตามเดิม ไม่แปลง
-    if (ENCRYPTED_PATTERN.test(storedUrl)) return storedUrl;
+    // encrypted ด้วย UPLOAD_ENCRYPTION_KEY (3 parts) → decrypt แล้ว join base URL
+    if (UPLOAD_ENCRYPTED_PATTERN.test(storedUrl)) {
+        const decrypted = decryptUploadPath(storedUrl);
+        if (!decrypted) return null;
+        // decrypted = /api/images/profiles/xxx.jpg
+        return STORAGE_BASE_URL ? `${STORAGE_BASE_URL}${decrypted}` : decrypted;
+    }
 
-    // relative path — join กับ base URL
+    // encrypted ด้วย Cryto.ts (4 parts) → decode
+    if (CRYPTO_ENCRYPTED_PATTERN.test(storedUrl)) {
+        try {
+            return await decode(storedUrl);
+        } catch {
+            console.error('[resolvePhotoUrl] Cryto decode failed');
+            return null;
+        }
+    }
+
+    // relative path → join base URL
     if (storedUrl.startsWith('/')) {
         return STORAGE_BASE_URL ? `${STORAGE_BASE_URL}${storedUrl}` : storedUrl;
     }
 
-    // full URL — คืนตามเดิม
+    // full URL → คืนตามเดิม
     return storedUrl;
 }
 
@@ -169,7 +221,7 @@ export async function GET(
             ...user,
             user_id: encryptData(user.user_id.toString()),
             role: encryptData(user.role),
-            profile_photo_url: resolvePhotoUrl(user.profile_photo_url),
+            profile_photo_url: await resolvePhotoUrl(user.profile_photo_url),
             registered_at: user.registered_at.toISOString(),
             last_login_at: user.last_login_at?.toISOString() ?? null,
         };
@@ -268,7 +320,6 @@ export async function PUT(
                 );
             }
 
-            // validate แต่เก็บเป็น URL เต็มตามที่ส่งมา
             const safePhotoUrl = validatePhotoUrl(profile_photo_url);
 
             const updatedUser = await prisma.$transaction(async (tx) => {
@@ -324,7 +375,7 @@ export async function PUT(
                 ...updatedUser,
                 user_id: encryptData(updatedUser.user_id.toString()),
                 role: encryptData(updatedUser.role),
-                profile_photo_url: resolvePhotoUrl(updatedUser.profile_photo_url),
+                profile_photo_url: await resolvePhotoUrl(updatedUser.profile_photo_url),
                 registered_at: updatedUser.registered_at.toISOString(),
                 last_login_at: updatedUser.last_login_at?.toISOString() ?? null,
             };
@@ -348,7 +399,7 @@ export async function PUT(
                     { status: 400 }
                 );
             }
-            throw error;
+        throw error;
         }
 
     } catch (error) {

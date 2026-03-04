@@ -51,7 +51,7 @@ export default function AdminManage() {
         }
 
         fetchAdmins();
-    }, [session, status, router, toast]);
+    }, [session, status, roleLoading, isSuperAdmin, router, toast]);
 
     const fetchAdmins = async () => {
         try {
@@ -249,7 +249,6 @@ export default function AdminManage() {
                 <div className="tw-h-1 tw-w-32 tw-bg-gradient-to-r tw-from-red-500 tw-via-purple-500 tw-to-blue-500 tw-rounded-full" />
             </div>
 
-            {/* Create Form Modal */}
             {showCreateForm && (
                 <div className="tw-fixed tw-inset-0 tw-bg-black tw-bg-opacity-50 tw-flex tw-items-center tw-justify-center tw-z-50 tw-p-4">
                     <div className="tw-bg-white tw-rounded-2xl tw-shadow-xl tw-p-8 tw-w-full tw-max-w-md tw-max-h-[90vh] tw-overflow-y-auto">
@@ -463,6 +462,7 @@ export default function AdminManage() {
                                                     {admin.status === 'active' ? (
                                                         <Button
                                                             onClick={() => handleUpdateStatus(admin.id, 'suspended')}
+                                                            disabled={admin.role === 'super_admin'}
                                                             className="
     tw-h-12 tw-px-6 tw-text-lg tw-font-semibold 
     tw-rounded-xl 
@@ -489,6 +489,7 @@ export default function AdminManage() {
                                                     ) : (
                                                         <Button
                                                             onClick={() => handleUpdateStatus(admin.id, 'active')}
+                                                            disabled={admin.role === 'super_admin'}
                                                             className="
     tw-h-12 tw-px-6 tw-text-lg tw-font-semibold 
     tw-rounded-xl 
@@ -514,6 +515,7 @@ export default function AdminManage() {
                                                     )}
                                                     <Button
                                                         onClick={() => handleDeleteAdmin(admin.id, admin.name)}
+                                                        disabled={admin.role === 'super_admin'}
                                                         className="
     tw-h-12 tw-px-6 tw-text-lg tw-font-semibold 
     tw-rounded-xl 
