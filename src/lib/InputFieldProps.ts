@@ -18,4 +18,5 @@ export interface InputFieldProps {
   max?: number;
   step?: number;
   maxLength?: number;
+  prefixIcon?: React.ReactNode;
 }

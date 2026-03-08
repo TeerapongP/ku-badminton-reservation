@@ -56,7 +56,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
     return (
       <div className="tw-min-h-screen tw-flex tw-items-center tw-justify-center tw-bg-gray-50">
         <div className="tw-text-center">
-          <h1 className="tw-text-2xl tw-font-bold tw-text-gray-900 tw-mb-4">ไม่ได้รับอนุญาต</h1>
+          <h1 className="tw-text-2xl tw-font-bold tw-text-gray-900 tw-mb-4">Access denied / ไม่ได้รับอนุญาต</h1>
           <p className="tw-text-gray-600">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</p>
         </div>
       </div>

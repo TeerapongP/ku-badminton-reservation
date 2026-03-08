@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
         }
 
         const role = await resolveRole(session?.user?.role);
-        if (role !== 'super_admin') {
+        if (role !== 'super_admin' && role !== 'admin') {
             console.log("❌ Invalid role:", role);
             return NextResponse.json(
                 { success: false, error: `ไม่มีสิทธิ์เข้าถึง - role: ${role || 'undefined'}` },
@@ -55,14 +55,8 @@ export async function GET(req: NextRequest) {
 
         console.log(" Access granted for user:", session.user.username);
 
-        console.log("🔍 Querying admin users...");
-        const adminUsers = await prisma.users.findMany({
-            where: {
-                OR: [
-                    { role: 'admin' },
-                    { role: 'super_admin' }
-                ]
-            },
+        console.log("🔍 Querying users...");
+        const users = await prisma.users.findMany({
             select: {
                 user_id: true,
                 username: true,
@@ -76,22 +70,23 @@ export async function GET(req: NextRequest) {
             },
             orderBy: {
                 registered_at: 'desc'
-            }
+            },
+            take: 100 // Limit to 100 users for performance
         });
 
-        console.log(" Found admin users:", adminUsers.length);
+        console.log(" Found users:", users.length);
 
         return NextResponse.json({
             success: true,
-            admins: adminUsers.map((admin: { user_id: { toString: () => any; }; username: any; email: any; first_name: any; last_name: any; role: any; status: any; registered_at: any; last_login_at: any; }) => ({
-                id: admin.user_id.toString(),
-                username: admin.username,
-                email: admin.email,
-                name: `${admin.first_name} ${admin.last_name}`,
-                role: admin.role,
-                status: admin.status,
-                createdAt: admin.registered_at,
-                lastLoginAt: admin.last_login_at
+            admins: users.map((user: any) => ({
+                id: user.user_id.toString(),
+                username: user.username,
+                email: user.email,
+                name: `${user.first_name} ${user.last_name}`,
+                role: user.role,
+                status: user.status,
+                createdAt: user.registered_at,
+                lastLoginAt: user.last_login_at
             }))
         });
 

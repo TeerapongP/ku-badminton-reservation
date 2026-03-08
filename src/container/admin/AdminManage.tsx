@@ -23,15 +23,13 @@ import { useAdminRole } from "@/hooks/useAdminRole";
 export default function AdminManage() {
     const router = useRouter();
     const toast = useToast();
-    const { session, status, isSuperAdmin, loading: roleLoading } = useAdminRole();
+    const { session, status, isAdmin, isSuperAdmin, loading: roleLoading } = useAdminRole();
 
     const [admins, setAdmins] = useState<AdminUser[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateForm, setShowCreateForm] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
 
-    const role = [
-        { label: 'admin', value: 'admin' },
-    ];
     const [formData, setFormData] = useState<AdminFormData>({
         username: "",
         password: "",
@@ -41,17 +39,28 @@ export default function AdminManage() {
         role: "admin"
     });
 
+    const role = [
+        { label: 'admin', value: 'admin' },
+    ];
+    
+    // Filtered list based on search
+    const filteredUsers = admins.filter(user => 
+        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     useEffect(() => {
         if (status === "loading" || roleLoading) return;
 
-        if (!session || !isSuperAdmin) {
+        if (!session || !isAdmin) {
             toast.showError("ไม่มีสิทธิ์เข้าถึง", "คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
             router.push("/");
             return;
         }
 
         fetchAdmins();
-    }, [session, status, roleLoading, isSuperAdmin, router, toast]);
+    }, [session, status, roleLoading, isAdmin, router, toast]);
 
     const fetchAdmins = async () => {
         try {
@@ -185,16 +194,37 @@ export default function AdminManage() {
         );
     }
 
-    if (!session || !isSuperAdmin) {
+    if (!session || !isAdmin) {
         return null;
     }
 
     const getRoleIcon = (role: string) => {
-        return role === 'super_admin' ? ShieldCheck : Shield;
+        switch (role) {
+            case 'super_admin': return ShieldCheck;
+            case 'admin': return Shield;
+            default: return Users;
+        }
     };
 
     const getRoleColor = (role: string) => {
-        return role === 'super_admin' ? 'tw-text-red-600' : 'tw-text-blue-600';
+        switch (role) {
+            case 'super_admin': return 'tw-text-red-600';
+            case 'admin': return 'tw-text-blue-600';
+            case 'staff': return 'tw-text-emerald-600';
+            case 'student': return 'tw-text-purple-600';
+            default: return 'tw-text-gray-600';
+        }
+    };
+
+    const getRoleLabel = (role: string) => {
+        switch (role) {
+            case 'super_admin': return 'Super Admin';
+            case 'admin': return 'Admin';
+            case 'staff': return 'Staff (บุคลากร)';
+            case 'student': return 'Student (นิสิต)';
+            case 'guest': return 'Guest (บุคคลภายนอก)';
+            default: return role;
+        }
     };
 
     const getStatusColor = (status: string) => {
@@ -213,46 +243,59 @@ export default function AdminManage() {
                 <div className="tw-flex tw-items-center tw-justify-between tw-mb-4">
                     <div>
                         <h1 className="tw-text-4xl tw-font-bold tw-bg-gradient-to-r tw-from-red-600 tw-via-purple-600 tw-to-blue-600 tw-bg-clip-text tw-text-transparent">
-                            จัดการ Admin
+                            User Management (จัดการผู้ใช้งาน)
                         </h1>
                         <p className="tw-text-gray-600 tw-mt-2">
-                            จัดการบัญชี Admin และ Super Admin ในระบบ
+                            จัดการบัญชีผู้ใช้งานและสิทธิ์ต่างๆ ในระบบ
                         </p>
                     </div>
-                    <Button
-                        onClick={() => setShowCreateForm(true)}
-                        className="
-    tw-h-12 tw-px-6 tw-text-lg tw-font-semibold 
-    tw-rounded-xl 
-    tw-shadow-lg hover:tw-shadow-xl 
-    hover:tw-scale-[1.03] active:tw-scale-[0.97]
-    tw-transition-all tw-duration-300 tw-ease-out
-    tw-flex tw-items-center tw-justify-center
-    tw-gap-2
-    tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0
-    tw-appearance-none tw-touch-manipulation
-    tw-[-webkit-tap-highlight-color:transparent]
-  "
-                        colorClass="
-    tw-bg-gradient-to-r 
-    tw-from-green-500 tw-to-emerald-600
-    hover:tw-from-green-600 hover:tw-to-emerald-700
-    tw-text-white
-    focus:tw-ring-4 focus:tw-ring-emerald-300/50
-  "
-                    >
-                        <Plus className="tw-w-5 tw-h-5 tw-mr-2 tw-transition-transform tw-duration-300 group-hover:tw-rotate-180" />
-                        เพิ่ม Admin
-                    </Button>
-
+                    {isSuperAdmin && (
+                        <Button
+                            onClick={() => setShowCreateForm(true)}
+                            className="
+        tw-h-12 tw-px-6 tw-text-lg tw-font-semibold 
+        tw-rounded-xl 
+        tw-shadow-lg hover:tw-shadow-xl 
+        hover:tw-scale-[1.03] active:tw-scale-[0.97]
+        tw-transition-all tw-duration-300 tw-ease-out
+        tw-flex tw-items-center tw-justify-center
+        tw-gap-2
+        tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0
+        tw-appearance-none tw-touch-manipulation
+        tw-[-webkit-tap-highlight-color:transparent]
+      "
+                            colorClass="
+        tw-bg-gradient-to-r 
+        tw-from-green-500 tw-to-emerald-600
+        hover:tw-from-green-600 hover:tw-to-emerald-700
+        tw-text-white
+        focus:tw-ring-4 focus:tw-ring-emerald-300/50
+      "
+                        >
+                            <Plus className="tw-w-5 tw-h-5 tw-mr-2 tw-transition-transform tw-duration-300 group-hover:tw-rotate-180" />
+                            เพิ่มผู้ใช้งาน
+                        </Button>
+                    )}
                 </div>
                 <div className="tw-h-1 tw-w-32 tw-bg-gradient-to-r tw-from-red-500 tw-via-purple-500 tw-to-blue-500 tw-rounded-full" />
+            </div>
+
+            {/* Search Bar */}
+            <div className="tw-mb-6">
+                <div className="tw-max-w-md">
+                    <InputField
+                        placeholder="Search by name, username, or email..."
+                        value={searchQuery}
+                        onChange={(val) => setSearchQuery(String(val))}
+                        prefixIcon={<Users className="tw-w-5 tw-h-5 tw-text-gray-400" />}
+                    />
+                </div>
             </div>
 
             {showCreateForm && (
                 <div className="tw-fixed tw-inset-0 tw-bg-black tw-bg-opacity-50 tw-flex tw-items-center tw-justify-center tw-z-50 tw-p-4">
                     <div className="tw-bg-white tw-rounded-2xl tw-shadow-xl tw-p-8 tw-w-full tw-max-w-md tw-max-h-[90vh] tw-overflow-y-auto">
-                        <h2 className="tw-text-2xl tw-font-bold tw-text-gray-800 tw-mb-6">เพิ่ม Admin ใหม่</h2>
+                        <h2 className="tw-text-2xl tw-font-bold tw-text-gray-800 tw-mb-6">เพิ่มผู้ใช้งานใหม่</h2>
 
                         <form onSubmit={handleCreateAdmin} className="tw-space-y-4">
                             <div className="tw-grid tw-grid-cols-2 tw-gap-4">
@@ -383,7 +426,7 @@ export default function AdminManage() {
                     <div className="tw-flex tw-items-center tw-gap-3">
                         <Users className="tw-w-6 tw-h-6 tw-text-blue-600" />
                         <h2 className="tw-text-xl tw-font-bold tw-text-gray-800">
-                            รายการ Admin ({admins.length})
+                            Users List ({filteredUsers.length})
                         </h2>
                     </div>
                 </div>
@@ -393,24 +436,24 @@ export default function AdminManage() {
                         <thead className="tw-bg-gray-50">
                             <tr>
                                 <th className="tw-px-6 tw-py-4 tw-text-left tw-text-sm tw-font-medium tw-text-gray-500 tw-uppercase">
-                                    ผู้ใช้
+                                    Users
                                 </th>
                                 <th className="tw-px-6 tw-py-4 tw-text-left tw-text-sm tw-font-medium tw-text-gray-500 tw-uppercase">
                                     Role
                                 </th>
                                 <th className="tw-px-6 tw-py-4 tw-text-left tw-text-sm tw-font-medium tw-text-gray-500 tw-uppercase">
-                                    สถานะ
+                                    Status
                                 </th>
                                 <th className="tw-px-6 tw-py-4 tw-text-left tw-text-sm tw-font-medium tw-text-gray-500 tw-uppercase">
-                                    เข้าสู่ระบบล่าสุด
+                                    Last Login
                                 </th>
                                 <th className="tw-px-6 tw-py-4 tw-text-right tw-text-sm tw-font-medium tw-text-gray-500 tw-uppercase">
-                                    การจัดการ
+                                    Action
                                 </th>
                             </tr>
                         </thead>
                         <tbody className="tw-divide-y tw-divide-gray-200">
-                            {admins.map((admin) => {
+                            {filteredUsers.map((admin) => {
                                 const RoleIcon = getRoleIcon(admin.role);
                                 const isCurrentUser = session.user.id === admin.id;
 
@@ -457,7 +500,7 @@ export default function AdminManage() {
                                             }
                                         </td>
                                         <td className="tw-px-6 tw-py-4 tw-text-right">
-                                            {!isCurrentUser && (
+                                            {!isCurrentUser && isSuperAdmin && (
                                                 <div className="tw-flex tw-items-center tw-justify-end tw-gap-2">
                                                     {admin.status === 'active' ? (
                                                         <Button
@@ -549,10 +592,10 @@ export default function AdminManage() {
                     </table>
                 </div>
 
-                {admins.length === 0 && (
+                {filteredUsers.length === 0 && (
                     <div className="tw-p-12 tw-text-center">
                         <AlertTriangle className="tw-w-12 tw-h-12 tw-text-gray-400 tw-mx-auto tw-mb-4" />
-                        <p className="tw-text-gray-500 tw-text-lg">ไม่พบข้อมูล Admin</p>
+                        <p className="tw-text-gray-500 tw-text-lg">No users found</p>
                     </div>
                 )}
             </div>

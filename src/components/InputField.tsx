@@ -25,7 +25,8 @@ export const InputField = forwardRef<HTMLInputElement, InputFieldProps>(({
   min,
   max,
   maxLength,
-  step
+  step,
+  prefixIcon
 }, ref) => {
   const autoId = useId();
   const inputId = id ?? autoId;
@@ -42,7 +43,93 @@ export const InputField = forwardRef<HTMLInputElement, InputFieldProps>(({
     `tw-w-full tw-text-sm sm:tw-text-base
      ${error ? "tw-border-red-500" : ""}
      ${disabled ? "tw-bg-gray-100 tw-cursor-not-allowed tw-text-gray-500" : ""}
+     ${prefixIcon ? "tw-pl-10" : ""}
      ${inputClassName}`;
+
+  const renderInput = () => {
+    return (
+      <div className="tw-relative">
+        {prefixIcon && (
+          <div className="tw-absolute tw-left-3 tw-top-1/2 -tw-translate-y-1/2 tw-z-10 tw-flex tw-items-center">
+            {prefixIcon}
+          </div>
+        )}
+
+        {/* TEXT / EMAIL / TEL */}
+        {(type === "text" || type === "email" || type === "tel") && (
+          <InputText
+            id={inputId}
+            name={name}
+            type={type}
+            maxLength={maxLength}
+            value={val as string | undefined}
+            onChange={(e) => {
+              if (!isControlled) setInternal(e.target.value);
+              onChange?.(e.target.value);
+            }}
+            placeholder={placeholder}
+            disabled={disabled}
+            className={baseInput}
+            invalid={Boolean(error)}
+            inputMode={type === "tel" ? "numeric" : inputMode}
+            pattern={type === "tel" ? "[0-9]*" : undefined}
+            ref={ref}
+          />
+        )}
+
+        {/* PASSWORD */}
+        {type === "password" && (
+          <Password
+            id={inputId}
+            inputId={inputId}
+            name={name}
+            value={(val as string) ?? ""}
+            onChange={(e) => {
+              const newValue = e.target.value;
+              if (!isControlled) setInternal(newValue);
+              onChange?.(newValue);
+            }}
+            placeholder={placeholder}
+            disabled={disabled}
+            toggleMask
+            feedback={false}
+            className="tw-w-full"
+            inputClassName={`${baseInput} tw-w-full !tw-pr-10`}
+            pt={{
+              root: { className: "tw-w-full tw-block" },           // wrapper กว้างเต็ม
+              input: { className: "tw-w-full" },
+              showIcon: { className: "tw-flex tw-items-center" },
+              hideIcon: { className: "tw-flex tw-items-center" },
+            }}
+          />
+        )}
+
+        {/* NUMBER */}
+        {type === "number" && (
+          <InputNumber
+            id={inputId}
+            inputId={inputId}
+            name={name}
+            value={typeof val === "number" ? val : val ? Number(val) : undefined}
+            onValueChange={(e: InputNumberValueChangeEvent) => {
+              const newVal = e.value ?? null;
+              if (!isControlled) setInternal(newVal ?? undefined);
+              onChange?.(newVal ?? 0);
+            }}
+            placeholder={placeholder}
+            disabled={disabled}
+            min={min}
+            max={max}
+            step={step}
+            className="tw-w-full"
+            inputClassName={baseInput}
+            invalid={Boolean(error)}
+            useGrouping={false}
+          />
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className={commonWrapper}>
@@ -53,78 +140,7 @@ export const InputField = forwardRef<HTMLInputElement, InputFieldProps>(({
         </label>
       )}
 
-      {/* TEXT / EMAIL / TEL */}
-      {(type === "text" || type === "email" || type === "tel") && (
-        <InputText
-          id={inputId}
-          name={name}
-          type={type}
-          maxLength={maxLength}
-          value={val as string | undefined}
-          onChange={(e) => {
-            if (!isControlled) setInternal(e.target.value);
-            onChange?.(e.target.value);
-          }}
-          placeholder={placeholder}
-          disabled={disabled}
-          className={baseInput}
-          invalid={Boolean(error)}
-          inputMode={type === "tel" ? "numeric" : inputMode}
-          pattern={type === "tel" ? "[0-9]*" : undefined}
-          ref={ref}
-        />
-      )}
-
-      {/* PASSWORD */}
-      {type === "password" && (
-        <Password
-          id={inputId}
-          inputId={inputId}
-          name={name}
-          value={(val as string) ?? ""}
-          onChange={(e) => {
-            const newValue = e.target.value;
-            if (!isControlled) setInternal(newValue);
-            onChange?.(newValue);
-          }}
-          placeholder={placeholder}
-          disabled={disabled}
-          toggleMask
-          feedback={false}
-          className="tw-w-full"
-          inputClassName={`${baseInput} tw-w-full !tw-pr-10`}
-          pt={{
-            root: { className: "tw-w-full tw-block" },           // wrapper กว้างเต็ม
-            input: { className: "tw-w-full" },
-            showIcon: { className: "tw-flex tw-items-center" },
-            hideIcon: { className: "tw-flex tw-items-center" },
-          }}
-        />
-      )}
-
-      {/* NUMBER */}
-      {type === "number" && (
-        <InputNumber
-          id={inputId}
-          inputId={inputId}
-          name={name}
-          value={typeof val === "number" ? val : val ? Number(val) : undefined}
-          onValueChange={(e: InputNumberValueChangeEvent) => {
-            const newVal = e.value ?? null;
-            if (!isControlled) setInternal(newVal ?? undefined);
-            onChange?.(newVal ?? 0);
-          }}
-          placeholder={placeholder}
-          disabled={disabled}
-          min={min}
-          max={max}
-          step={step}
-          className="tw-w-full"
-          inputClassName={baseInput}
-          invalid={Boolean(error)}
-          useGrouping={false}
-        />
-      )}
+      {renderInput()}
 
       {/* Helper & Error */}
       {hint && !error && <p className="tw-mt-1 tw-text-xs tw-text-gray-500">{hint}</p>}

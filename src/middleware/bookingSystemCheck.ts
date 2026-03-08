@@ -13,6 +13,11 @@ export async function checkBookingSystemStatus() {
     // ระบบเปิดตั้งแต่ 8:00-20:00 น. ตามเวลาไทย
     const isBusinessHours = hour >= 8 && hour < 20;
 
+    // Bypass for automated testing
+    if (process.env.NEXT_PUBLIC_BYPASS_BUSINESS_HOURS === 'true') {
+      return true;
+    }
+
     return systemOpen && isBusinessHours;
   } catch (error) {
     console.error('Error checking booking system status:', error);

@@ -33,10 +33,11 @@ export default function LoginContainner() {
     const isStudentId = /^\d{8,10}$/.test(identifier);
     const isNationalId = /^\d{13}$/.test(identifier);
     const isUsername = /^\w{3,20}$/.test(identifier);
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
 
-    // อนุญาตให้ใช้ได้ทั้ง student_id, national_id, และ username
-    if (!isStudentId && !isNationalId && !isUsername) {
-      return "รูปแบบไม่ถูกต้อง: รหัสนิสิต (8-10 หลัก), เลขบัตรประชาชน (13 หลัก) หรือ Username (3-20 ตัวอักษร)";
+    // อนุญาตให้ใช้ได้ทั้ง student_id, national_id, username, และ email
+    if (!isStudentId && !isNationalId && !isUsername && !isEmail) {
+      return "รูปแบบไม่ถูกต้อง: รหัสนิสิต (8-10 หลัก), เลขบัตรประชาชน (13 หลัก), Username (3-20 ตัวอักษร) หรือ Email";
     }
 
     return null;
@@ -46,7 +47,7 @@ export default function LoginContainner() {
   const handleSubmit = async () => {
     const validationError = validateForm();
     if (validationError) {
-      toast.showError("ข้อมูลไม่ถูกต้อง", validationError);
+      toast.showError("Access denied (ข้อมูลไม่ถูกต้อง)", validationError);
       return;
     }
 
@@ -62,11 +63,13 @@ export default function LoginContainner() {
       // ตรวจสอบประเภทของ identifier
       const isStudentId = /^\d{8,10}$/.test(identifier);
       const isNationalId = /^\d{13}$/.test(identifier);
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
 
       // กำหนด loginType ตามลำดับความสำคัญ
       let loginType = 'username'; // default
       if (isStudentId) loginType = 'student_id';
       else if (isNationalId) loginType = 'national_id';
+      else if (isEmail) loginType = 'email';
 
       // เข้ารหัสข้อมูลก่อนส่ง
       const encryptionKey = process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
@@ -132,13 +135,13 @@ export default function LoginContainner() {
         if (newFailedAttempts >= 5) {
           setRequireCaptcha(true);
           toast.showError(
-            "เข้าสู่ระบบไม่สำเร็จ",
+            "Access denied (เข้าสู่ระบบไม่สำเร็จ)",
             "คุณพยายามเข้าสู่ระบบผิดหลายครั้ง กรุณายืนยัน CAPTCHA"
           );
         } else {
           const remainingAttempts = 3 - newFailedAttempts;
           toast.showError(
-            "เข้าสู่ระบบไม่สำเร็จ",
+            "Access denied (เข้าสู่ระบบไม่สำเร็จ)",
             `${result.error ?? "รหัสนิสิต/บัตรประชาชน หรือรหัสผ่านไม่ถูกต้อง"} (เหลือ ${remainingAttempts} ครั้ง)`
           );
         }

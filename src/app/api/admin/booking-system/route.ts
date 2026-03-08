@@ -7,13 +7,13 @@ import { decode } from "@/lib/Cryto";
 import { prisma } from "@/lib/prisma";
 
 async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
-    if (!encrypted) return null;
-    try {
-        return await decode(encrypted);
-    } catch {
-        console.error('[admin/booking-system] Failed to decode role');
-        return null;
-    }
+  if (!encrypted) return null;
+  try {
+    return await decode(encrypted);
+  } catch {
+    console.error('[admin/booking-system] Failed to decode role');
+    return null;
+  }
 }
 
 // GET - ดึงสถานะระบบการจอง
@@ -61,7 +61,14 @@ export async function GET() {
       // เช็ค business hours
       const now = new Date();
       const hour = now.getHours();
-      const isBusinessHours = hour >= 9 && hour < 20;
+      let isBusinessHours = hour >= 8 && hour < 20;
+      let effectiveStatus = status.isOpen && isBusinessHours;
+
+      // Bypass check if environment variable is set (for testing)
+      if (process.env.NEXT_PUBLIC_BYPASS_BUSINESS_HOURS === 'true') {
+        isBusinessHours = true;
+        effectiveStatus = true;
+      }
 
       return NextResponse.json({
         success: true,
@@ -70,7 +77,7 @@ export async function GET() {
           currentTime: now.toISOString(),
           currentHour: hour,
           isBusinessHours,
-          effectiveStatus: status.isOpen && isBusinessHours
+          effectiveStatus: effectiveStatus
         }
       });
 
@@ -143,8 +150,8 @@ export async function PUT(request: NextRequest) {
     if (!isAdminControlAllowed()) {
       const message = getAdminControlDisabledMessage();
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: "ไม่สามารถเปิด/ปิดระบบได้ในช่วงเวลานี้",
           message: message
         },
@@ -189,7 +196,7 @@ export async function PUT(request: NextRequest) {
         effectiveStatus: isOpen && isBusinessHours
       };
 
-      const message = isOpen 
+      const message = isOpen
         ? 'เปิดระบบการจองสำเร็จ'
         : 'ปิดระบบการจองสำเร็จ';
 

@@ -222,7 +222,7 @@ const BookingDashboard = () => {
               ) : !systemStatus.isBusinessHours ? (
                 <p className="tw-flex tw-items-center tw-justify-center tw-gap-2">
                   <Clock className="tw-w-4 tw-h-4 tw-text-blue-500" />
-                  นอกเวลาทำการ (เวลาทำการ: 09:00-22:00 น.)
+                  นอกเวลาทำการ (เวลาทำการ: 08:00-20:00 น.)
                 </p>
               ) : null}
               <p className="tw-text-sm tw-text-gray-500 tw-mt-4">

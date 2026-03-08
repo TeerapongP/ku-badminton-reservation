@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 const DEFAULT_STATUS = {
-    isOpen:        true,
-    openedBy:      'system',
-    openedAt:      new Date().toISOString(),
+    isOpen: true,
+    openedBy: 'system',
+    openedAt: new Date().toISOString(),
     businessHours: { start: 8, end: 20 },
 };
 
@@ -12,8 +12,8 @@ function getThailandHour(): number {
     return parseInt(
         new Intl.DateTimeFormat('en-US', {
             timeZone: 'Asia/Bangkok',
-            hour:     'numeric',
-            hour12:   false,
+            hour: 'numeric',
+            hour12: false,
         }).format(new Date()),
         10
     );
@@ -24,14 +24,14 @@ function safeParseStatus(value: string): Partial<typeof DEFAULT_STATUS> {
     try {
         const parsed = JSON.parse(value);
         return {
-            ...(typeof parsed.isOpen   === 'boolean' ? { isOpen:   parsed.isOpen }   : {}),
-            ...(typeof parsed.openedBy === 'string'  ? { openedBy: parsed.openedBy } : {}),
-            ...(typeof parsed.openedAt === 'string'  ? { openedAt: parsed.openedAt } : {}),
+            ...(typeof parsed.isOpen === 'boolean' ? { isOpen: parsed.isOpen } : {}),
+            ...(typeof parsed.openedBy === 'string' ? { openedBy: parsed.openedBy } : {}),
+            ...(typeof parsed.openedAt === 'string' ? { openedAt: parsed.openedAt } : {}),
             ...(parsed.businessHours
                 ? {
                     businessHours: {
                         start: Number(parsed.businessHours.start ?? 8),
-                        end:   Number(parsed.businessHours.end   ?? 20),
+                        end: Number(parsed.businessHours.end ?? 20),
                     }
                 }
                 : {}),
@@ -55,32 +55,39 @@ export async function GET() {
             ...(systemStatus ? safeParseStatus(systemStatus.value) : {}),
         };
 
-        const hour            = getThailandHour();
-        const isBusinessHours = hour >= status.businessHours.start && hour < status.businessHours.end;
+        const hour = getThailandHour();
+        let isBusinessHours = hour >= status.businessHours.start && hour < status.businessHours.end;
+        let effectiveStatus = status.isOpen && isBusinessHours;
+
+        // Bypass check if environment variable is set (for testing)
+        if (process.env.NEXT_PUBLIC_BYPASS_BUSINESS_HOURS === 'true') {
+            isBusinessHours = true;
+            effectiveStatus = true;
+        }
 
         return NextResponse.json({
             success: true,
             data: {
                 ...status,
-                currentHour:     hour,
+                currentHour: hour,
                 isBusinessHours,
-                effectiveStatus: status.isOpen && isBusinessHours,
+                effectiveStatus: effectiveStatus,
             }
         });
 
     } catch (error) {
         console.error("Error fetching booking system status:", error);
 
-        const hour            = getThailandHour();
+        const hour = getThailandHour();
         const isBusinessHours = hour >= 8 && hour < 20;
 
         // return 200 พร้อม fallback แต่บอก client ว่าใช้ fallback อยู่
         return NextResponse.json({
-            success:  true,
+            success: true,
             fallback: true,
             data: {
                 ...DEFAULT_STATUS,
-                currentHour:     hour,
+                currentHour: hour,
                 isBusinessHours,
                 effectiveStatus: isBusinessHours,
             }

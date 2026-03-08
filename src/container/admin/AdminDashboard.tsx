@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useToast } from "@/components/ToastProvider";
 import { Button } from "@/components/Button";
 import Loading from "@/components/Loading";
@@ -268,20 +269,16 @@ export default function AdminDashboard() {
             color: "tw-from-red-500 tw-to-red-600",
             hoverColor: "hover:tw-from-red-600 hover:tw-to-red-700",
             href: "/admin/court-management"
-        }
-    ];
-
-    // เพิ่ม action สำหรับ super_admin
-    if (isSuperAdmin) {
-        quickActions.push({
-            title: "จัดการ Admin",
-            description: "จัดการบัญชี Admin และ Super Admin",
+        },
+        {
+            title: "User Management",
+            description: "จัดการบัญชีผู้ใช้งานและสิทธิ์ต่างๆ",
             icon: Users,
             color: "tw-from-orange-500 tw-to-red-600",
             hoverColor: "hover:tw-from-orange-600 hover:tw-to-red-700",
             href: "/admin/manage"
-        });
-    }
+        }
+    ];
 
     // Helper function สำหรับแปลง icon string เป็น component
     const getIconComponent = (iconName: string) => {
@@ -531,7 +528,7 @@ export default function AdminDashboard() {
                         {quickActions.map((action, index) => {
                             const IconComponent = action.icon;
                             return (
-                                <div key={index} className="tw-group tw-cursor-pointer" onClick={() => router.push(action.href)}>
+                                <Link key={index} href={action.href} className="tw-group tw-cursor-pointer tw-block tw-no-underline">
                                     <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-300 tw-p-6 tw-border tw-border-gray-100 hover:tw-border-gray-200">
                                         <div className="tw-flex tw-items-start tw-justify-between tw-mb-4">
                                             <div className={`tw-w-14 tw-h-14 tw-bg-gradient-to-r ${action.color} tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-shadow-lg`}>
@@ -550,7 +547,7 @@ export default function AdminDashboard() {
                                             {action.description}
                                         </p>
                                     </div>
-                                </div>
+                                </Link>
                             );
                         })}
                     </div>

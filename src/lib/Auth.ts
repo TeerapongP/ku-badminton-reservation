@@ -11,7 +11,7 @@ const SESSION_UPDATE_AGE_SECONDS = 5 * 60;
 const IP_MAX_LENGTH = 45;
 const USER_AGENT_MAX_LENGTH = 512;
 
-const VALID_LOGIN_TYPES = ["student_id", "national_id", "username"] as const;
+const VALID_LOGIN_TYPES = ["student_id", "national_id", "username", "email"] as const;
 type LoginType = (typeof VALID_LOGIN_TYPES)[number];
 
 const isSecure = false; // Will be changed to true when SSL is enabled
@@ -87,6 +87,14 @@ export const authOptions: NextAuthOptions = {
                                 username: identifier,
                                 OR: [{ role: "admin" }, { role: "super_admin" }],
                             },
+                            select: {
+                                user_id: true, username: true, password_hash: true,
+                                role: true, status: true, last_login_at: true,
+                            },
+                        });
+                    } else if (loginType === "email") {
+                        user = await prisma.users.findFirst({
+                            where: { email: identifier },
                             select: {
                                 user_id: true, username: true, password_hash: true,
                                 role: true, status: true, last_login_at: true,
