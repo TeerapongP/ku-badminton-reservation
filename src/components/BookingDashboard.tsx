@@ -18,6 +18,7 @@ interface SystemStatus {
 const BookingDashboard = () => {
   const { data: session, status } = useSession();
   const [bookings, setBookings] = useState<DashboardBooking[]>([]);
+  const [courts, setCourts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -81,6 +82,27 @@ const BookingDashboard = () => {
     }
   };
 
+  // Fetch courts data
+  const fetchCourts = async () => {
+    try {
+      const [res1, res2] = await Promise.all([
+        fetch('/api/courts?facilityId=1'),
+        fetch('/api/courts?facilityId=2')
+      ]);
+
+      const data1 = await res1.json();
+      const data2 = await res2.json();
+
+      let allCourts: any[] = [];
+      if (data1.success) allCourts = [...allCourts, ...data1.data];
+      if (data2.success) allCourts = [...allCourts, ...data2.data];
+
+      setCourts(allCourts);
+    } catch (err) {
+      console.error('Failed to fetch courts:', err);
+    }
+  };
+
   // Initialize dates after component mounts to avoid hydration issues
   useEffect(() => {
     const now = new Date();
@@ -98,6 +120,7 @@ const BookingDashboard = () => {
 
     // Initial load
     fetchSystemStatus();
+    fetchCourts();
     fetchBookings();
 
     // Setup auto-refresh every 60 seconds (1 minute) เฉพาะเมื่อ authenticated
@@ -144,7 +167,7 @@ const BookingDashboard = () => {
   return (
     <div className="tw-min-h-screen tw-bg-gradient-to-br tw-from-slate-50 tw-to-slate-100 tw-p-4 sm:tw-p-6 lg:tw-p-8">
       <div className="tw-w-full">
-        {/* Header Section */}
+
         <div className="tw-bg-gradient-to-r tw-from-blue-600 tw-to-blue-700 tw-rounded-2xl tw-p-6 sm:tw-p-8 tw-shadow-xl tw-mb-6">
           <div className="tw-flex tw-flex-col lg:tw-flex-row tw-justify-between tw-items-start lg:tw-items-center tw-gap-4">
             <div>
@@ -199,7 +222,6 @@ const BookingDashboard = () => {
           </div>
         )}
 
-        {/* System Status Check */}
         {systemLoading ? (
           <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-8 tw-text-center">
             <div className="tw-animate-spin tw-rounded-full tw-h-8 tw-w-8 tw-border-b-2 tw-border-blue-600 tw-mx-auto tw-mb-4"></div>
@@ -233,6 +255,7 @@ const BookingDashboard = () => {
         ) : (
           <BookingTable
             bookings={bookings}
+            courts={courts}
             loading={loading}
           />
         )}

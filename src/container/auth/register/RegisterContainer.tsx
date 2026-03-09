@@ -356,7 +356,7 @@ export default function RegisterContainner() {
                 </div>
 
 
-                {userType === "staff" && (
+                {/* {userType === "staff" && (
                     <>
                         <div className="tw-col-span-4 md:tw-col-span-4 lg:tw-col-span-12">
                             <DropdownField
@@ -379,7 +379,7 @@ export default function RegisterContainner() {
                             />
                         </div>
                     </>
-                )}
+                )} */}
 
             </div>
             <div className="tw-flex tw-justify-center tw-mt-4 tw-mx-4">

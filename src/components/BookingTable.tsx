@@ -10,7 +10,14 @@ const timeSlots: string[] = Array.from({ length: 11 }, (_, i) =>
     `${(9 + i).toString().padStart(2, '0')}:00`
 ); // 09:00 - 19:00
 
-const courts = Array.from({ length: 18 }, (_, i) => i + 1);
+// ฟังก์ชั่นสำหรับแปลง court_code เป็นตัวเลข (ใช้เหมือนกันในฝั่ง backend)
+function parseCourtNumber(courtCode: string | undefined, fallback: number): number {
+    if (!courtCode) return fallback;
+    const digits = courtCode.replace(/\D/g, '');
+    if (!digits) return fallback;
+    const n = Number.parseInt(digits, 10);
+    return Number.isFinite(n) ? n : fallback;
+}
 
 const getStatusDisplay = (status: string) => {
     switch (status) {
@@ -79,25 +86,31 @@ const getBookingStatus = (
 
 /** ====== Mobile Card (แสดงเมื่อ < md) ====== */
 const MobileCourtCard = ({
-    courtNumber,
+    courtObj,
+    index,
     bookings,
     onAvailableClick,
 }: {
-    courtNumber: number;
+    courtObj: any;
+    index: number;
     bookings: any[];
     onAvailableClick: (courtNumber: number, timeSlot: string) => void;
 }) => {
+    const courtNumber = typeof courtObj === 'number' ? courtObj : parseCourtNumber(courtObj?.court_code, index + 1);
+    const courtName = typeof courtObj === 'number' ? `สนามที่ ${courtObj}` : (courtObj?.name || `สนามที่ ${courtNumber}`);
+    const courtDisplayNum = typeof courtObj === 'number' ? courtObj : (courtObj?.court_code ? courtObj.court_code.split('-').pop()?.replace('C', '') : courtNumber);
+
     return (
-        <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white tw-p-4 tw-shadow-sm">
-            <div className="tw-flex tw-items-center tw-gap-3 tw-mb-3">
-                <div className="tw-w-9 tw-h-9 tw-bg-gradient-to-br tw-from-blue-500 tw-to-blue-600 tw-rounded-lg tw-flex tw-items-center tw-justify-center tw-text-white tw-font-bold tw-text-sm tw-shadow-sm">
-                    {courtNumber}
-                </div>
-                <div>
-                    <div className="tw-text-sm tw-font-semibold tw-text-slate-800">
-                        สนามที่ {courtNumber}
+        <div className="tw-bg-white tw-rounded-2xl tw-shadow-sm tw-p-4 tw-border tw-border-slate-200">
+            <div className="tw-flex tw-items-center tw-justify-between tw-mb-4 tw-pb-3 tw-border-b tw-border-slate-100">
+                <div className="tw-flex tw-items-center tw-gap-3">
+                    <div className="tw-w-10 tw-h-10 tw-bg-gradient-to-br tw-from-blue-50 tw-to-slate-50 tw-text-blue-600 tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-font-bold tw-text-lg tw-shadow-sm tw-border tw-border-blue-100">
+                        {courtDisplayNum}
                     </div>
-                    <div className="tw-text-[11px] tw-text-slate-500">Badminton Court</div>
+                    <div>
+                        <div className="tw-font-bold tw-text-slate-800 tw-text-base">{courtName}</div>
+                        <div className="tw-text-xs tw-text-slate-500 tw-font-medium">Badminton Court</div>
+                    </div>
                 </div>
             </div>
 
@@ -129,12 +142,14 @@ const MobileCourtCard = ({
 /** ====== Desktop Table (แสดงเมื่อ >= md) ====== */
 const DesktopTable = ({
     bookings,
+    courts,
     loading,
     onAvailableClick,
     hoveredCell,
     setHoveredCell,
 }: {
     bookings: any[];
+    courts: any[];
     loading: boolean;
     onAvailableClick: (courtNumber: number, timeSlot: string) => void;
     hoveredCell: string | null;
@@ -181,62 +196,68 @@ const DesktopTable = ({
                     </thead>
 
                     <tbody className="tw-divide-y tw-divide-slate-200">
-                        {courts.map((courtNumber) => (
-                            <tr
-                                key={courtNumber}
-                                className="hover:tw-bg-slate-50/50 tw-transition-colors tw-duration-150"
-                            >
-                                <td className="tw-px-4 tw-py-3 tw-whitespace-nowrap tw-border-r tw-border-slate-200 tw-sticky tw-left-0 tw-bg-white hover:tw-bg-slate-50/50 tw-z-10">
-                                    <div className="tw-flex tw-items-center tw-gap-3">
-                                        <div className="tw-w-8 tw-h-8 tw-bg-gradient-to-br tw-from-blue-500 tw-to-blue-600 tw-rounded-lg tw-flex tw-items-center tw-justify-center tw-text-white tw-font-bold tw-text-sm tw-shadow-sm">
-                                            {courtNumber}
-                                        </div>
-                                        <div>
-                                            <div className="tw-text-sm tw-font-semibold tw-text-slate-800">
-                                                สนามที่ {courtNumber}
-                                            </div>
-                                            <div className="tw-text-xs tw-text-slate-500">
-                                                Badminton Court
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
+                        {courts.map((courtObj, index) => {
+                            const courtNumber = typeof courtObj === 'number' ? courtObj : parseCourtNumber(courtObj?.court_code, index + 1);
+                            const courtName = typeof courtObj === 'number' ? `สนามที่ ${courtObj}` : (courtObj?.name || `สนามที่ ${courtNumber}`);
+                            const courtDisplayNum = typeof courtObj === 'number' ? courtObj : (courtObj?.court_code ? courtObj.court_code.split('-').pop()?.replace('C', '') : courtNumber);
 
-                                {timeSlots.map((t) => {
-                                    const { status } = getBookingStatus(bookings, courtNumber, t);
-                                    const map = getStatusDisplay(status);
-                                    const cellKey = `${courtNumber}-${t}`;
-                                    const isHovered = hoveredCell === cellKey;
-                                    const clickable = status === 'available';
+                            return (
+                                <tr
+                                    key={`court-${courtNumber}-${index}`}
+                                    className="hover:tw-bg-slate-50/50 tw-transition-colors tw-duration-150"
+                                >
+                                    <td className="tw-px-4 tw-py-3 tw-whitespace-nowrap tw-border-r tw-border-slate-200 tw-sticky tw-left-0 tw-bg-white hover:tw-bg-slate-50/50 tw-z-10">
+                                        <div className="tw-flex tw-items-center tw-gap-3">
+                                            <div className="tw-w-8 tw-h-8 tw-bg-gradient-to-br tw-from-blue-500 tw-to-blue-600 tw-rounded-lg tw-flex tw-items-center tw-justify-center tw-text-white tw-font-bold tw-text-sm tw-shadow-sm">
+                                                {courtDisplayNum}
+                                            </div>
+                                            <div>
+                                                <div className="tw-text-sm tw-font-semibold tw-text-slate-800">
+                                                    {courtName}
+                                                </div>
+                                                <div className="tw-text-xs tw-text-slate-500">
+                                                    Badminton Court
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
 
-                                    return (
-                                        <td
-                                            key={cellKey}
-                                            className="tw-px-2 tw-py-2 tw-text-center tw-border-r tw-border-slate-200"
-                                            onMouseEnter={() => setHoveredCell(cellKey)}
-                                            onMouseLeave={() => setHoveredCell(null)}
-                                        >
-                                            <div
-                                                className={`
+                                    {timeSlots.map((t) => {
+                                        const { status } = getBookingStatus(bookings, courtNumber, t);
+                                        const map = getStatusDisplay(status);
+                                        const cellKey = `${courtNumber}-${t}`;
+                                        const isHovered = hoveredCell === cellKey;
+                                        const clickable = status === 'available';
+
+                                        return (
+                                            <td
+                                                key={cellKey}
+                                                className="tw-px-2 tw-py-2 tw-text-center tw-border-r tw-border-slate-200"
+                                                onMouseEnter={() => setHoveredCell(cellKey)}
+                                                onMouseLeave={() => setHoveredCell(null)}
+                                            >
+                                                <div
+                                                    className={`
                           tw-px-3 tw-py-2.5 tw-rounded-xl tw-text-xs tw-font-semibold 
                           tw-min-h-full tw-flex tw-flex-col tw-items-center tw-justify-center tw-gap-1
                           tw-transition-all tw-duration-200 ${clickable ? 'tw-cursor-pointer hover:tw-scale-105' : 'tw-cursor-default'
-                                                    }
+                                                        }
                           ${map.color}
                           ${isHovered ? 'tw-scale-105 tw-shadow-lg tw-z-20' : ''}
                         `}
-                                                onClick={() => clickable && onAvailableClick(courtNumber, t)}
-                                            >
-                                                <div className="tw-flex tw-items-center tw-gap-1">
-                                                    <span className="tw-text-base">{map.icon}</span>
-                                                    <span className="tw-text-md tw-leading-tight">{map.text}</span>
+                                                    onClick={() => clickable && onAvailableClick(courtNumber, t)}
+                                                >
+                                                    <div className="tw-flex tw-items-center tw-gap-1">
+                                                        <span className="tw-text-base">{map.icon}</span>
+                                                        <span className="tw-text-md tw-leading-tight">{map.text}</span>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                    );
-                                })}
-                            </tr>
-                        ))}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            )
+                        })}
                     </tbody>
                 </table>
             </div>
@@ -245,7 +266,7 @@ const DesktopTable = ({
 };
 
 /** ====== Main Component (เลือก layout อัตโนมัติด้วยคลาส tailwind) ====== */
-const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => {
+const BookingTable = ({ bookings = [], courts = [], loading = false }: BookingTableProps) => {
     const [hoveredCell, setHoveredCell] = useState<string | null>(null);
     const router = useRouter();
 
@@ -254,6 +275,9 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
     };
 
     const getSummary = () => {
+        if (!courts || courts.length === 0) {
+            return { total: 'ไม่มีค่า', confirmed: 'ไม่มีค่า', pending: 'ไม่มีค่า', available: 'ไม่มีค่า' };
+        }
         const total = courts.length * timeSlots.length;
         const confirmed = bookings.filter((b) => b.status === 'confirmed').length;
         const pending = bookings.filter((b) => b.status === 'pending').length;
@@ -331,27 +355,43 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
             </div>
 
             {/* Desktop Table */}
-            <div className="tw-hidden md:tw-block">
-                <DesktopTable
-                    bookings={bookings}
-                    loading={loading}
-                    onAvailableClick={handleAvailableSlotClick}
-                    hoveredCell={hoveredCell}
-                    setHoveredCell={setHoveredCell}
-                />
-            </div>
+            {courts && courts.length > 0 && (
+                <div className="tw-hidden md:tw-block">
+                    <DesktopTable
+                        bookings={bookings}
+                        courts={courts}
+                        loading={loading}
+                        onAvailableClick={handleAvailableSlotClick}
+                        hoveredCell={hoveredCell}
+                        setHoveredCell={setHoveredCell}
+                    />
+                </div>
+            )}
 
             {/* Mobile Cards */}
-            <div className="tw-grid tw-grid-cols-1 tw-gap-3 md:tw-hidden">
-                {courts.map((c) => (
-                    <MobileCourtCard
-                        key={c}
-                        courtNumber={c}
-                        bookings={bookings}
-                        onAvailableClick={handleAvailableSlotClick}
-                    />
-                ))}
-            </div>
+            {courts && courts.length > 0 && (
+                <div className="tw-grid tw-grid-cols-1 tw-gap-3 md:tw-hidden">
+                    {courts.map((c, index) => (
+                        <MobileCourtCard
+                            key={`mobile-court-${index}`}
+                            courtObj={c}
+                            index={index}
+                            bookings={bookings}
+                            onAvailableClick={handleAvailableSlotClick}
+                        />
+                    ))}
+                </div>
+            )}
+
+            {(!courts || courts.length === 0) && !loading && (
+                <div className="tw-text-center tw-py-16 tw-bg-white tw-rounded-2xl tw-shadow-lg tw-border tw-border-slate-200">
+                    <div className="tw-text-6xl tw-mb-4">📅</div>
+                    <div className="tw-text-lg tw-font-semibold tw-text-slate-700 tw-mb-2">
+                        ไม่มีข้อมูลสนาม
+                    </div>
+                    <div className="tw-text-sm tw-text-slate-500">ยังไม่มีข้อมูลสนามในวันนี้</div>
+                </div>
+            )}
 
             {/* Legend */}
             <div className="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-p-6 tw-border tw-border-slate-200">
@@ -408,15 +448,7 @@ const BookingTable = ({ bookings = [], loading = false }: BookingTableProps) => 
                 </div>
             </div>
 
-            {bookings.length === 0 && !loading && (
-                <div className="tw-text-center tw-py-16 tw-bg-white tw-rounded-2xl tw-shadow-lg tw-border tw-border-slate-200">
-                    <div className="tw-text-6xl tw-mb-4">📅</div>
-                    <div className="tw-text-lg tw-font-semibold tw-text-slate-700 tw-mb-2">
-                        ไม่มีข้อมูลการจอง
-                    </div>
-                    <div className="tw-text-sm tw-text-slate-500">ยังไม่มีการจองสนามในวันนี้</div>
-                </div>
-            )}
+
         </div>
     );
 };

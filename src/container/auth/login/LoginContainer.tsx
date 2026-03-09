@@ -131,7 +131,6 @@ export default function LoginContainner() {
         const newFailedAttempts = failedAttempts + 1;
         setFailedAttempts(newFailedAttempts);
 
-        // ตรวจสอบว่าต้องแสดง RECAPTCHA หรือไม่ (หลัง 5 ครั้ง)
         if (newFailedAttempts >= 5) {
           setRequireCaptcha(true);
           toast.showError(
@@ -139,10 +138,13 @@ export default function LoginContainner() {
             "คุณพยายามเข้าสู่ระบบผิดหลายครั้ง กรุณายืนยัน CAPTCHA"
           );
         } else {
-          const remainingAttempts = 3 - newFailedAttempts;
+          const remainingAttempts = 5 - newFailedAttempts;
+          const errorMessage = result.error === "CredentialsSignin" || !result.error
+            ? "รหัสนิสิต/บัตรประชาชน หรือรหัสผ่านไม่ถูกต้อง"
+            : result.error;
           toast.showError(
             "Access denied (เข้าสู่ระบบไม่สำเร็จ)",
-            `${result.error ?? "รหัสนิสิต/บัตรประชาชน หรือรหัสผ่านไม่ถูกต้อง"} (เหลือ ${remainingAttempts} ครั้ง)`
+            `${errorMessage} (เหลือ ${remainingAttempts} ครั้ง)`
           );
         }
       }

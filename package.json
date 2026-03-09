@@ -66,6 +66,7 @@
     "postcss": "^8.5.6",
     "prisma": "6.18.0",
     "tailwindcss": "3.4.17",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "pnpm": {
@@ -78,5 +79,8 @@
       "lodash": ">=4.17.23",
       "ajv": ">=8.18.0"
     }
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

@@ -30,7 +30,7 @@ async function courtsHandler(req: NextRequest) {
             HTTP_STATUS.BAD_REQUEST
         );
     }
-    
+
     const courts = await prisma.courts.findMany({
         where: { facility_id: facilityId },
         select: {
@@ -42,7 +42,7 @@ async function courtsHandler(req: NextRequest) {
             blackouts: {
                 where: {
                     active: true,
-                    end_datetime: { gte: new Date() } // แสดง blackout ที่ยังไม่หมดอายุ
+                    end_datetime: { gte: new Date() }
                 },
                 select: {
                     blackout_id: true,
@@ -57,7 +57,7 @@ async function courtsHandler(req: NextRequest) {
 
     // เช็คสถานะการจอง
     let bookingStatus: Record<string, boolean> = {};
-    
+
     if (checkDate && startTime && endTime) {
         // ถ้ามีการระบุวันที่และเวลา ให้เช็คสถานะการจองในช่วงเวลาที่ระบุ
         const bookingDate = new Date(checkDate);
@@ -99,7 +99,7 @@ async function courtsHandler(req: NextRequest) {
     } else {
         // ถ้าไม่ระบุวันที่และเวลา ให้เช็คว่ามีการจองทั้งหมด (ไม่จำกัดวันที่)
         console.log('Checking all bookings for courts:', courts.map(c => c.court_id.toString()));
-        
+
         const allBookings = await prisma.reservation_items.findMany({
             where: {
                 court_id: { in: courts.map(c => c.court_id) },
@@ -124,14 +124,14 @@ async function courtsHandler(req: NextRequest) {
         allBookings.forEach(booking => {
             bookingStatus[booking.court_id.toString()] = true;
         });
-        
+
         console.log('Booking status map:', bookingStatus);
     }
 
     const data = courts.map((c) => {
         const courtId = typeof c.court_id === 'bigint' ? c.court_id.toString() : c.court_id;
         const isBooked = bookingStatus[courtId] || false;
-        
+
         return {
             court_id: courtId,
             court_code: c.court_code,
