@@ -43,9 +43,12 @@ const BookingDashboard = () => {
 
       if (data.success) {
         setSystemStatus(data.data);
+        return data.data.effectiveStatus;
       }
+      return false;
     } catch (error) {
       console.error('Fetch system status error:', error);
+      return false;
     } finally {
       setSystemLoading(false);
     }
@@ -119,15 +122,23 @@ const BookingDashboard = () => {
     if (status === 'loading') return; // รอให้ session โหลดเสร็จ
 
     // Initial load
-    fetchSystemStatus();
-    fetchCourts();
-    fetchBookings();
+    const initData = async () => {
+      const isEffective = await fetchSystemStatus();
+      if (isEffective) {
+        fetchCourts();
+        fetchBookings();
+      }
+    };
+    initData();
 
     // Setup auto-refresh every 60 seconds (1 minute) เฉพาะเมื่อ authenticated
     if (status === 'authenticated') {
-      refreshInterval.current = setInterval(() => {
-        fetchSystemStatus();
-        fetchBookings();
+      refreshInterval.current = setInterval(async () => {
+        const isEffective = await fetchSystemStatus();
+        if (isEffective) {
+          fetchCourts();
+          fetchBookings();
+        }
         setCountdown(60);
       }, 60000);
     }
