@@ -5,18 +5,35 @@ import { withMiddleware } from '@/lib/api-middleware';
 import { authOptions } from '@/lib/Auth';
 import { CustomApiError, ERROR_CODES, HTTP_STATUS, successResponse, withErrorHandler } from '@/lib/error-handler';
 import { decode } from '@/lib/Cryto';
+import { PricingService } from '@/lib/PricingService';
 
 
 const prisma = new PrismaClient();
 
 async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
     if (!encrypted) return null;
-    try {
-        return await decode(encrypted);
-    } catch {
-        console.error('[admin/multi-booking] Failed to decode role');
-        return null;
+    if (encrypted.includes(':')) {
+        try {
+            return await decode(encrypted);
+        } catch {
+            console.error('[admin/multi-booking] Failed to decode role');
+            return null;
+        }
     }
+    return encrypted;
+}
+
+async function getRawUserId(id: string): Promise<bigint> {
+    if (id.includes(':')) {
+        try {
+            const decoded = await decode(id);
+            return BigInt(decoded);
+        } catch (error) {
+            console.error('[admin/multi-booking] Failed to decode user ID:', error);
+            throw new Error('เซสชันไม่ถูกต้อง');
+        }
+    }
+    return BigInt(id);
 }
 
 // POST - สร้างการจองหลายสนาม
@@ -110,6 +127,23 @@ async function createMultiBookingHandler(req: NextRequest) {
         );
     }
 
+    // หา user ที่จะทำการจอง
+    const adminId = await getRawUserId(session.user.id);
+    const targetUserId = user_id ? BigInt(user_id) : adminId;
+
+    const user = await prisma.users.findUnique({
+        where: { user_id: targetUserId },
+        select: { role: true, membership: true }
+    });
+
+    if (!user) {
+        throw new CustomApiError(
+            ERROR_CODES.NOT_FOUND,
+            'ไม่พบข้อมูลผู้ใช้งาน',
+            HTTP_STATUS.NOT_FOUND
+        );
+    }
+
     // หา time slots ที่ทับซ้อนกับช่วงเวลาที่ระบุ
     const weekday = bookingDateObj.getDay(); // 0 = Sunday, 1 = Monday, ...
     const timeSlots = await prisma.time_slots.findMany({
@@ -188,42 +222,21 @@ async function createMultiBookingHandler(req: NextRequest) {
         );
     }
 
-    // คำนวณราคา (ใช้ราคาเริ่มต้นจากสนามแรก)
-    const pricingRule = await prisma.pricing_rules.findFirst({
-        where: {
-            active: true,
-            effective_from: { lte: bookingDateObj },
-            AND: [
-                {
-                    OR: [
-                        { effective_to: null },
-                        { effective_to: { gte: bookingDateObj } }
-                    ]
-                },
-                {
-                    OR: [
-                        { court_id: BigInt(court_ids[0]) },
-                        { court_id: null, facility_id: BigInt(facility_id) }
-                    ]
-                }
-            ]
-        },
-        orderBy: [
-            { court_id: { sort: 'desc', nulls: 'last' } },
-            { effective_from: 'desc' }
-        ]
+    // คำนวณราคาด้วย PricingService
+    const pricePerSlot = await PricingService.getBookingPrice({
+        facilityId: BigInt(facility_id),
+        courtId:    BigInt(court_ids[0]),
+        role:       user.role,
+        membership: user.membership
     });
 
-    const pricePerSlot = pricingRule?.price_cents || 0;
     const totalSlots = timeSlots.length * court_ids.length;
     const totalPrice = pricePerSlot * totalSlots;
-
-    const bookingUserId = user_id ? BigInt(user_id) : BigInt(session.user.id);
 
     // สร้างการจอง
     const reservation = await prisma.reservations.create({
         data: {
-            user_id: bookingUserId,
+            user_id: targetUserId,
             facility_id: BigInt(facility_id),
             status: 'confirmed', // Admin booking จะ confirmed ทันที
             payment_status: 'paid', // Admin booking จะ paid ทันที
@@ -273,6 +286,7 @@ async function createMultiBookingHandler(req: NextRequest) {
 
     return successResponse(data, 'จองสนามหลายสนามสำเร็จ');
 }
+
 
 export const POST = withMiddleware(
     withErrorHandler(createMultiBookingHandler),

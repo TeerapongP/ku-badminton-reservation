@@ -1,11 +1,15 @@
 // src/app/api/court-details/route.ts
 import { NextRequest } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 import { withMiddleware } from "@/lib/api-middleware";
 import { CustomApiError, ERROR_CODES, HTTP_STATUS, successResponse, withErrorHandler } from "@/lib/error-handler";
+import { PricingService } from "@/lib/PricingService";
+import { decode } from "@/lib/Cryto";
 
 // แปลง BigInt / Prisma.Decimal / object ซ้อน ๆ ให้ serialize เป็น JSON ได้
-function normalizeForJson<T = any>(data: T): T {
+function normalizeForJson(data: any): any {
     const isPlainObj = (v: any) =>
         v !== null && typeof v === "object" && (v.constructor === Object || Object.getPrototypeOf(v) === Object.prototype);
 
@@ -26,6 +30,22 @@ function normalizeForJson<T = any>(data: T): T {
     };
 
     return norm(data);
+}
+
+/**
+ * Helper to get raw user ID from session (decrypt if needed)
+ */
+async function getRawUserId(id: string): Promise<bigint> {
+    if (id.includes(':')) {
+        try {
+            const decoded = await decode(id);
+            return BigInt(decoded);
+        } catch (error) {
+            console.error('[court-details] Failed to decode user ID:', error);
+            throw new Error('เซสชันไม่ถูกต้อง');
+        }
+    }
+    return BigInt(id);
 }
 
 async function courtDetailsHandler(req: NextRequest) {
@@ -51,7 +71,26 @@ async function courtDetailsHandler(req: NextRequest) {
         );
     }
 
-    //  ใช้ Prisma ORM แทน $queryRaw เพื่อความปลอดภัยและ maintainability
+    const session = await getServerSession(authOptions);
+    let userRole: any = 'guest';
+    let userMembership: any = 'non_member';
+
+    if (session?.user?.id) {
+        try {
+            const userId = await getRawUserId(session.user.id);
+            const user = await prisma.users.findUnique({
+                where: { user_id: userId },
+                select: { role: true, membership: true }
+            });
+            if (user) {
+                userRole = user.role;
+                userMembership = user.membership;
+            }
+        } catch (error) {
+            console.error('[court-details] Error fetching user for pricing:', error);
+        }
+    }
+
     const court = await prisma.courts.findUnique({
         where: { court_id: BigInt(courtId) },
         select: {
@@ -67,21 +106,6 @@ async function courtDetailsHandler(req: NextRequest) {
                     name_en:     true,
                 }
             },
-            pricing_rules: {
-                where: {
-                    active:         true,
-                    effective_from: { lte: new Date() },
-                    OR: [
-                        { effective_to: null },
-                        { effective_to: { gte: new Date() } },
-                    ],
-                },
-                orderBy: [
-                    { effective_from: 'desc' },
-                ],
-                take:   1,
-                select: { price_cents: true },
-            },
         },
     });
 
@@ -94,12 +118,15 @@ async function courtDetailsHandler(req: NextRequest) {
         );
     }
 
-    //  normalize ก่อนคำนวณ เพื่อให้ Decimal ถูกแปลงเป็น number แล้วค่อยหาร 100
-    const rawPriceCents = court.pricing_rules[0]?.price_cents ?? null;
-    const normalizedPriceCents = normalizeForJson(rawPriceCents);
-    const pricePerHour = typeof normalizedPriceCents === "number"
-        ? normalizedPriceCents / 100
-        : null;
+    // Get pricing from PricingService
+    const priceCents = await PricingService.getBookingPrice({
+        facilityId: court.facilities.facility_id,
+        courtId:    BigInt(courtId),
+        role:       userRole,
+        membership: userMembership
+    });
+
+    const pricePerHour = priceCents / 100;
 
     const data = {
         court_id:       court.court_id,

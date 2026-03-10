@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
 import { checkBookingSystemStatus } from '@/middleware/bookingSystemCheck';
 import { prisma } from '@/lib/prisma';
+import { PricingService } from '@/lib/PricingService';
+import { decode } from '@/lib/Cryto';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -68,9 +70,26 @@ function validateSlipUrl(url: unknown): string | null {
     return url;
 }
 
+/**
+ * Helper to get raw user ID from session (decrypt if needed)
+ */
+async function getRawUserId(id: string): Promise<bigint> {
+    if (id.includes(':')) {
+        try {
+            const decoded = await decode(id);
+            return BigInt(decoded);
+        } catch (error) {
+            console.error('[reservations] Failed to decode user ID:', error);
+            throw new Error('เซสชันไม่ถูกต้อง');
+        }
+    }
+    return BigInt(id);
+}
+
 // ── POST — สร้างการจอง ───────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+    let userId: bigint | null = null;
     try {
         // A01 — ตรวจสอบ auth ก่อนเสมอ ก่อน business logic อื่นๆ
         const session = await getServerSession(authOptions);
@@ -80,6 +99,9 @@ export async function POST(request: NextRequest) {
                 { status: 401 }
             );
         }
+
+        // Decrypt userId if it's encrypted in the session
+        userId = await getRawUserId(session.user.id);
 
         // A01 — ตรวจสอบสถานะระบบหลังจาก auth ผ่านแล้ว
         const isSystemOpen = await checkBookingSystemStatus();
@@ -141,6 +163,19 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // ดึงข้อมูล user เพื่อดู role และ membership ล่าสุด
+        const user = await prisma.users.findUnique({
+            where: { user_id: userId },
+            select: { role: true, membership: true }
+        });
+
+        if (!user) {
+            return NextResponse.json(
+                { success: false, error: 'ไม่พบข้อมูลผู้ใช้งาน' },
+                { status: 404 }
+            );
+        }
+
         // ดึงข้อมูล time slot
         const timeSlot = await prisma.time_slots.findUnique({
             where: { slot_id: slotBigId },
@@ -164,7 +199,7 @@ export async function POST(request: NextRequest) {
             if (policy) {
                 const userBookingsToday = await tx.reservation_items.count({
                     where: {
-                        reservations: { user_id: BigInt(session.user.id) },
+                        reservations: { user_id: userId as bigint },
                         play_date: parsedDate,
                         status: 'reserved'
                     }
@@ -175,14 +210,14 @@ export async function POST(request: NextRequest) {
                 }
             }
 
-            // 2. ดึงราคาจาก Pricing Rules
-            const pricing = await tx.pricing_rules.findFirst({
-                where: {
-                    facility_id: court.facility_id,
-                    active: true,
-                }
+            // 2. ดึงราคาจาก Pricing Rules (ผ่าน PricingService)
+            const priceCents = await PricingService.getBookingPrice({
+                facilityId: court.facilities.facility_id,
+                courtId:    courtBigId,
+                slotId:     slotBigId,
+                role:       user.role,
+                membership: user.membership
             });
-            const priceCents = pricing?.price_cents ?? 10000; // Default 100 THB
 
             // 3. ป้องกัน Race Condition
             const existingReservation = await tx.reservation_items.findFirst({
@@ -201,7 +236,7 @@ export async function POST(request: NextRequest) {
             // 4. สร้างการจอง
             const reservation = await tx.reservations.create({
                 data: {
-                    user_id:        BigInt(session.user.id),
+                    user_id:        userId as bigint,
                     facility_id:    court.facilities.facility_id,
                     status:         'pending',
                     payment_status: 'unpaid',
@@ -241,7 +276,7 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
         // A09 — Sanitized Logging ป้องกัน Log Injection
         const sanitizedMsg = error.message.replace(/[\n\r]/g, "").substring(0, 200);
-        console.error(`[POST /reservations][${new Date().toISOString()}] User:${session?.user?.id} Error:${sanitizedMsg}`);
+        console.error(`[POST /reservations][${new Date().toISOString()}] User:${userId} Error:${sanitizedMsg}`);
 
         if (error.message.startsWith('POLICY:') || error.message.startsWith('CONFLICT:')) {
             return NextResponse.json(
@@ -251,10 +286,11 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json(
-            { success: false, error: 'เกิดข้อผิดพลาดในการสร้างการจอง' },
+            { success: false, error: error.message || 'เกิดข้อผิดพลาดในการสร้างการจอง' },
             { status: 500 }
         );
     }
 }
+
 
         
