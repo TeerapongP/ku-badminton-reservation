@@ -146,6 +146,7 @@ model departments {
   updated_at         DateTime          @default(now()) @db.DateTime(0)
   faculties          faculties         @relation(fields: [faculty_id], references: [id], map: "fk_dept_faculty")
   student_profile    student_profile[]
+  demonstration_student demonstration_student[]
 
   @@unique([faculty_id, department_name_th], map: "uq_dept_fac_name_th")
   @@index([faculty_id], map: "idx_dept_faculty")
@@ -220,6 +221,7 @@ model faculties {
   updated_at      DateTime          @default(now()) @db.DateTime(0)
   departments     departments[]
   student_profile student_profile[]
+  demonstration_student demonstration_student[]
 }
 
 model payments {
@@ -419,7 +421,7 @@ model users {
   title_en          String?           @db.VarChar(50)
   first_name        String            @db.VarChar(100)
   last_name         String            @db.VarChar(100)
-  student_id        String?           @unique(map: "student_id") @db.VarChar(10)
+  student_id        String?           @unique(map: "student_id") @db.VarChar(20)
   staff_id          String?           @unique(map: "staff_id") @db.VarChar(50)
   national_id       String?           @db.VarChar(255)
   profile_photo_url String?           @db.VarChar(255)
@@ -437,6 +439,7 @@ model users {
   reservations      reservations[]
   staff_profile     staff_profile?
   student_profile   student_profile?
+  demonstration_student demonstration_student?
   facility_admins   facility_admins[]
 
   @@index([role], map: "idx_users_role")
@@ -668,3 +671,38 @@ enum users_role {
   guest
   super_admin           @map("super-admin")
 }
+model demonstration_student {
+  user_id        BigInt                            @id @db.UnsignedBigInt
+  student_id     String                            @unique(map: "uq_demo_student_id") @db.VarChar(20)
+  national_id    String?                           @db.VarChar(64)
+  faculty_id     BigInt                            @db.UnsignedBigInt
+  department_id  BigInt                            @db.UnsignedBigInt
+  level_of_study demonstration_student_level_of_study
+  student_status demonstration_student_student_status @default(enrolled)
+  updated_at     DateTime                          @default(now()) @db.DateTime(0)
+  created_at     DateTime                          @default(now()) @db.DateTime(0)
+  departments    departments                       @relation(fields: [department_id], references: [id], map: "fk_demo_student_department")
+  faculties      faculties                         @relation(fields: [faculty_id], references: [id], map: "fk_demo_student_faculty")
+  users          users                             @relation(fields: [user_id], references: [user_id], onDelete: Cascade, map: "fk_demo_student_user")
+
+  @@index([department_id], map: "idx_demo_student_department")
+  @@index([faculty_id], map: "idx_demo_student_faculty")
+  @@index([created_at], map: "idx_demo_sp_created")
+  @@index([faculty_id, department_id, level_of_study], map: "idx_demo_sp_fac_dept_level")
+  @@index([faculty_id, student_status], map: "idx_demo_sp_faculty_status")
+  @@index([student_status], map: "idx_demo_sp_status")
+  @@index([updated_at], map: "idx_demo_sp_updated")
+}
+
+enum demonstration_student_level_of_study {
+  UG
+  PG
+  PhD
+}
+
+enum demonstration_student_student_status {
+  enrolled
+  leave
+  graduated
+}
+

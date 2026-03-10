@@ -96,9 +96,9 @@ const MobileCourtCard = ({
     bookings: any[];
     onAvailableClick: (courtNumber: number, timeSlot: string) => void;
 }) => {
-    const courtNumber = typeof courtObj === 'number' ? courtObj : parseCourtNumber(courtObj?.court_code, index + 1);
-    const courtName = typeof courtObj === 'number' ? `สนามที่ ${courtObj}` : (courtObj?.name || `สนามที่ ${courtNumber}`);
-    const courtDisplayNum = typeof courtObj === 'number' ? courtObj : (courtObj?.court_code ? courtObj.court_code.split('-').pop()?.replace('C', '') : courtNumber);
+    const courtNumber = typeof courtObj === 'number' ? courtObj : Number(courtObj?.court_id || parseCourtNumber(courtObj?.court_code, index + 1));
+    const courtName = typeof courtObj === 'number' ? `สนามที่ ${courtObj}` : (courtObj?.name || `สนามที่ ${parseCourtNumber(courtObj?.court_code, index + 1)}`);
+    const courtDisplayNum = typeof courtObj === 'number' ? courtObj : (courtObj?.court_code ? courtObj.court_code.split('-').pop()?.replace('C', '') : parseCourtNumber(courtObj?.court_code, index + 1));
 
     return (
         <div className="tw-bg-white tw-rounded-2xl tw-shadow-sm tw-p-4 tw-border tw-border-slate-200">
@@ -197,9 +197,9 @@ const DesktopTable = ({
 
                     <tbody className="tw-divide-y tw-divide-slate-200">
                         {courts.map((courtObj, index) => {
-                            const courtNumber = typeof courtObj === 'number' ? courtObj : parseCourtNumber(courtObj?.court_code, index + 1);
-                            const courtName = typeof courtObj === 'number' ? `สนามที่ ${courtObj}` : (courtObj?.name || `สนามที่ ${courtNumber}`);
-                            const courtDisplayNum = typeof courtObj === 'number' ? courtObj : (courtObj?.court_code ? courtObj.court_code.split('-').pop()?.replace('C', '') : courtNumber);
+                            const courtNumber = typeof courtObj === 'number' ? courtObj : Number(courtObj?.court_id || parseCourtNumber(courtObj?.court_code, index + 1));
+                            const courtName = typeof courtObj === 'number' ? `สนามที่ ${courtObj}` : (courtObj?.name || `สนามที่ ${parseCourtNumber(courtObj?.court_code, index + 1)}`);
+                            const courtDisplayNum = typeof courtObj === 'number' ? courtObj : (courtObj?.court_code ? courtObj.court_code.split('-').pop()?.replace('C', '') : parseCourtNumber(courtObj?.court_code, index + 1));
 
                             return (
                                 <tr

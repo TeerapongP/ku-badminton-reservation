@@ -36,7 +36,7 @@ export default function LoginContainner() {
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
 
     // อนุญาตให้ใช้ได้ทั้ง student_id, national_id, username, และ email
-    if (!isStudentId && !isNationalId && !isUsername && !isEmail) {
+    if (!isStudentId && !isNationalId && !isUsername) {
       return "รูปแบบไม่ถูกต้อง: รหัสนิสิต (8-10 หลัก), เลขบัตรประชาชน (13 หลัก), Username (3-20 ตัวอักษร) หรือ Email";
     }
 
@@ -96,7 +96,7 @@ export default function LoginContainner() {
         let decodedRole = '';
         try {
           const rawRole = result.user?.role || '';
-          if (rawRole && !['student', 'admin', 'super_admin', 'staff', 'guest'].includes(rawRole)) {
+          if (rawRole && !['student', 'demonstration_student', 'admin', 'super_admin', 'staff', 'guest'].includes(rawRole)) {
             const roleResponse = await fetch('/api/auth/role');
             if (roleResponse.ok) {
               const roleData = await roleResponse.json();
@@ -113,9 +113,9 @@ export default function LoginContainner() {
           console.error("Failed to fetch role in login:", e);
         }
 
-        const isStudent = decodedRole === 'student';
+        const isStudent = decodedRole === 'student' || decodedRole === 'demonstration_student';
         const isFirstLogin = result.user?.isFirstLogin === true;
-        console.log("isFirstLogin : ", isFirstLogin)
+        console.log("Role:", decodedRole, "isFirstLogin:", isFirstLogin)
         if (isStudent && isFirstLogin) {
           toast.showSuccess("เข้าสู่ระบบสำเร็จ", "กรุณาเปลี่ยนรหัสผ่านของคุณ");
           setIsRedirecting(true);
@@ -189,7 +189,7 @@ export default function LoginContainner() {
         <div>
           <InputField
             type="text"
-            placeholder="รหัสนิสิต / เลขบัตรประชาชน / Username"
+            placeholder="รหัสนิสิต / เลขบัตรประชาชน"
             value={identifier}
             maxLength={20}
             onChange={(val) => setIdentifier(val as string)}

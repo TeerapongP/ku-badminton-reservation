@@ -4,7 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { encryptData, decryptData } from "./encryption";
-import { encode } from "./Cryto"; //  async
+import { encode } from "./Cryto"; // async
 
 const SESSION_MAX_AGE_SECONDS = 30 * 60;
 const SESSION_UPDATE_AGE_SECONDS = 5 * 60;
@@ -14,7 +14,7 @@ const USER_AGENT_MAX_LENGTH = 512;
 const VALID_LOGIN_TYPES = ["student_id", "national_id", "username", "email"] as const;
 type LoginType = (typeof VALID_LOGIN_TYPES)[number];
 
-const isSecure = false; // Will be changed to true when SSL is enabled
+const isSecure = false;
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -38,6 +38,10 @@ export const authOptions: NextAuthOptions = {
                 const userAgent = (req?.headers?.["user-agent"] ?? "unknown")
                     .substring(0, USER_AGENT_MAX_LENGTH);
 
+                console.log("[auth DEBUG] raw credentials.type:", credentials?.type);
+                console.log("[auth DEBUG] raw password from credentials (encrypted):", credentials?.password);
+                console.log("[auth DEBUG] raw identifier from credentials (encrypted):", credentials?.identifier);
+
                 let identifier = credentials?.identifier;
                 let password = credentials?.password;
                 let originalIdentifier = credentials?.originalIdentifier;
@@ -46,11 +50,23 @@ export const authOptions: NextAuthOptions = {
                     if (identifier) identifier = decryptData(identifier);
                     if (password) password = decryptData(password);
                     if (originalIdentifier) originalIdentifier = decryptData(originalIdentifier);
-                } catch {
+                } catch (e) {
+                    console.error("[auth] decryptData failed:", (e as Error).message);
                     return null;
                 }
 
-                if (!identifier || !password) return null;
+                console.log("[auth DEBUG] loginType received:", credentials?.type);
+                console.log("[auth DEBUG] identifier after decrypt:", identifier);
+                console.log("[auth DEBUG] identifier length:", identifier?.length);
+                console.log("[auth DEBUG] password after decrypt length:", password?.length);
+                // ⚠️ SECURITY: Remove this line after debugging
+                console.log("[auth DEBUG] password actual value:", password);
+                console.log("[auth DEBUG] originalIdentifier after decrypt:", originalIdentifier);
+
+                if (!identifier || !password) {
+                    console.error("[auth] identifier or password is empty after decrypt");
+                    return null;
+                }
 
                 const encryptedIdentifierForLog = encryptData(identifier);
 
@@ -65,27 +81,55 @@ export const authOptions: NextAuthOptions = {
 
                     if (loginType === "student_id") {
                         user = await prisma.users.findFirst({
-                            where: { student_id: identifier },
+                            where: {
+                                OR: [
+                                    { student_id: identifier },
+                                    { student_profile: { student_id: identifier } },
+                                    { demonstration_student: { student_id: identifier } }
+                                ]
+                            },
                             select: {
                                 user_id: true, username: true, password_hash: true,
                                 role: true, status: true, last_login_at: true,
                             },
                         });
                     } else if (loginType === "national_id") {
-                        if (!originalIdentifier) return null;
+                        const rawNationalId = originalIdentifier ?? identifier;
 
+                        if (!rawNationalId) {
+                            console.error("[auth] rawNationalId is empty");
+                            return null;
+                        }
+
+                        // ค้นหาจาก users.national_id ก่อน
                         user = await prisma.users.findFirst({
-                            where: { national_id: originalIdentifier },
+                            where: { national_id: rawNationalId },
                             select: {
                                 user_id: true, username: true, password_hash: true,
                                 role: true, status: true, last_login_at: true,
                             },
                         });
+
+                        // ถ้าไม่เจอ ให้ค้นหาผ่าน profile ต่างๆ
+                        if (!user) {
+                            user = await prisma.users.findFirst({
+                                where: {
+                                    OR: [
+                                        { staff_profile: { national_id: rawNationalId } },
+                                        { student_profile: { national_id: rawNationalId } },
+                                        { demonstration_student: { national_id: rawNationalId } }
+                                    ]
+                                },
+                                select: {
+                                    user_id: true, username: true, password_hash: true,
+                                    role: true, status: true, last_login_at: true,
+                                },
+                            });
+                        }
                     } else if (loginType === "username") {
                         user = await prisma.users.findFirst({
                             where: {
                                 username: identifier,
-                                OR: [{ role: "admin" }, { role: "super_admin" }],
                             },
                             select: {
                                 user_id: true, username: true, password_hash: true,
@@ -102,11 +146,26 @@ export const authOptions: NextAuthOptions = {
                         });
                     }
 
-                    if (!user || user.status !== "active") return null;
+                    if (!user) {
+                        console.error("[auth] User not found for loginType:", loginType);
+                        return null;
+                    }
+
+                    if (user.status !== "active") {
+                        console.error("[auth] User status is not active:", user.status);
+                        return null;
+                    }
+
+                    console.log("[auth DEBUG] password length before bcrypt.compare:", password?.length);
+                    console.log("[auth DEBUG] password_hash from DB:", user.password_hash);
 
                     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
+                    console.log("[auth DEBUG] isPasswordValid:", isPasswordValid);
+
                     if (!isPasswordValid) {
+                        console.error("[auth] Password invalid for user_id:", user.user_id.toString());
+
                         await prisma.auth_log.create({
                             data: {
                                 user_id: user.user_id,
@@ -121,9 +180,12 @@ export const authOptions: NextAuthOptions = {
                     }
 
                     const isFirstLogin = !user.last_login_at;
+                    
+                    // Auto update last_login_at for specific roles even on first login
+                    const shouldUpdateImmediately = ["staff", "demonstration_student", "guest"].includes(user.role);
 
                     await Promise.all([
-                        isFirstLogin
+                        (isFirstLogin && !shouldUpdateImmediately)
                             ? Promise.resolve()
                             : prisma.users.update({
                                 where: { user_id: user.user_id },
@@ -148,7 +210,9 @@ export const authOptions: NextAuthOptions = {
                         isFirstLogin,
                         mustChangePassword: isFirstLogin,
                     };
-                } catch {
+
+                } catch (e) {
+                    console.error("[auth] authorize error:", (e as Error).message);
                     return null;
                 }
             },
@@ -172,7 +236,7 @@ export const authOptions: NextAuthOptions = {
                 sameSite: "lax",
                 path: "/",
                 secure: isSecure,
-                domain: undefined // Let browser set domain automatically
+                domain: undefined,
             },
         },
         callbackUrl: {
@@ -182,7 +246,7 @@ export const authOptions: NextAuthOptions = {
                 sameSite: "lax",
                 path: "/",
                 secure: isSecure,
-                domain: undefined
+                domain: undefined,
             },
         },
         csrfToken: {
@@ -192,12 +256,12 @@ export const authOptions: NextAuthOptions = {
                 sameSite: "lax",
                 path: "/",
                 secure: isSecure,
-                domain: undefined
+                domain: undefined,
             },
         },
     },
 
-    debug: true, // Enable debug logging to troubleshoot issues
+    debug: true,
 
     callbacks: {
         async jwt({ token, user, trigger }) {
@@ -233,7 +297,6 @@ export const authOptions: NextAuthOptions = {
             }
 
             try {
-                //  await เพราะ encode() เป็น async (AES-256-GCM)
                 const encryptedRole = await encode(token.role as string);
                 const encryptId = await encode(token.id as string);
 
@@ -246,10 +309,7 @@ export const authOptions: NextAuthOptions = {
 
                 return session;
             } catch (error) {
-                // A09: Log error without exposing sensitive data
                 console.error("[auth] Session callback encryption failed:", (error as Error).message);
-                // Return session with unencrypted data as fallback
-                // This allows login to work even if encryption fails
                 session.user = {
                     id: token.id as string,
                     username: token.username,

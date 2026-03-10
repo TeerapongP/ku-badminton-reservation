@@ -6,6 +6,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { decode } from '@/lib/Cryto';
 import { withMiddleware } from '@/lib/api-middleware';
 import {
     CustomApiError,
@@ -33,9 +34,9 @@ const FILE_SIGNATURES: Record<string, { magic: Buffer; offset: number }[]> = {
     ],
 };
 
-const ALLOWED_MIME_TYPES  = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-const ALLOWED_EXTENSIONS  = ['jpg', 'jpeg', 'png', 'webp'];
-const MAX_FILE_SIZE       = 10 * 1024 * 1024; // 10MB
+const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 /**
  * A08 — ตรวจสอบ magic bytes ของไฟล์จริงๆ
@@ -62,6 +63,19 @@ function validateWebP(buffer: Buffer): boolean {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
+async function getRawUserId(id: string): Promise<bigint> {
+    if (id.includes(':')) {
+        try {
+            const decoded = await decode(id);
+            return BigInt(decoded);
+        } catch (error) {
+            console.error('[upload-slip] Failed to decode user ID:', error);
+            throw new Error('เซสชันไม่ถูกต้อง');
+        }
+    }
+    return BigInt(id);
+}
+
 async function uploadPaymentSlipHandler(request: NextRequest) {
     const session = await getServerSession(authOptions);
 
@@ -74,7 +88,7 @@ async function uploadPaymentSlipHandler(request: NextRequest) {
     }
 
     const formData = await request.formData();
-    const file     = formData.get('file') as File;
+    const file = formData.get('file') as File;
     const bookingId = formData.get('bookingId') as string | null;
 
     if (!file) {
@@ -104,7 +118,7 @@ async function uploadPaymentSlipHandler(request: NextRequest) {
         const reservation = await prisma.reservations.findFirst({
             where: {
                 reservation_id: bookingBigId,
-                user_id:        BigInt(session.user.id), // ownership check
+                user_id: await getRawUserId(session.user.id), // decrypt + ownership check
             },
             select: { reservation_id: true },
         });
@@ -148,8 +162,8 @@ async function uploadPaymentSlipHandler(request: NextRequest) {
     // A08 — ดึง extension จาก MIME type แทนชื่อไฟล์ ป้องกัน path traversal
     const mimeToExt: Record<string, string> = {
         'image/jpeg': 'jpg',
-        'image/jpg':  'jpg',
-        'image/png':  'png',
+        'image/jpg': 'jpg',
+        'image/png': 'png',
         'image/webp': 'webp',
     };
     const fileExtension = mimeToExt[file.type];
@@ -186,20 +200,22 @@ async function uploadPaymentSlipHandler(request: NextRequest) {
         );
     }
 
-    // สร้าง uploads directory
+    // สร้างย่อหน้า uploads directory ยึดตามวันที่อัปโหลด (Timezone ไทย)
+    const thDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
     const baseUploadPath = process.env.IMAGE_PATH
         ? '/app/uploads'
         : join(process.cwd(), 'public', 'uploads');
-    const uploadsDir = join(baseUploadPath, 'payment-slips');
+
+    // แบ่ง Folder ตามวัน เช่น /uploads/payment-slips/2026-03-10
+    const uploadsDir = join(baseUploadPath, 'payment-slips', thDateStr);
 
     try {
         if (!existsSync(uploadsDir)) {
             await mkdir(uploadsDir, { recursive: true });
         }
     } catch (error) {
-        // A09 — log เฉพาะ message
         const message = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[POST /upload-slip][${new Date().toISOString()}] mkdir failed:`, message);
+        console.error(`[POST /upload-slip][${new Date().toISOString()}] mkdir failed for ${uploadsDir}:`, message);
         throw new CustomApiError(
             ERROR_CODES.INTERNAL_SERVER_ERROR,
             'ไม่สามารถสร้างโฟลเดอร์สำหรับเก็บไฟล์ได้',
@@ -208,10 +224,10 @@ async function uploadPaymentSlipHandler(request: NextRequest) {
     }
 
     // Generate unique filename — ไม่ใช้ชื่อไฟล์จาก user เลย
-    const timestamp     = Date.now();
-    const randomString  = crypto.randomBytes(8).toString('hex');
-    const hashedUserId  = crypto.createHash('sha256').update(session.user.id).digest('hex').substring(0, 8);
-    const filename      = `slip_${hashedUserId}_${timestamp}_${randomString}.${fileExtension}`;
+    const timestamp = Date.now();
+    const randomString = crypto.randomBytes(8).toString('hex');
+    const hashedUserId = crypto.createHash('sha256').update(String(session.user.id)).digest('hex').substring(0, 8);
+    const filename = `slip_${hashedUserId}_${timestamp}_${randomString}.${fileExtension}`;
 
     // เขียนไฟล์
     const filePath = join(uploadsDir, filename);
@@ -229,17 +245,17 @@ async function uploadPaymentSlipHandler(request: NextRequest) {
     }
 
     // A05 — ไม่เรียก prisma.$disconnect() บน singleton
-    const publicPath = `/api/images/payment-slips/${filename}`;
+    const publicPath = `/api/images/payment-slips/${thDateStr}/${filename}`;
 
     return successResponse(
         {
             filename,
-            filePath:     publicPath,
+            filePath: publicPath,
             originalName: file.name.substring(0, 255), // จำกัดความยาวก่อน return
-            size:         file.size,
-            type:         file.type,
-            bookingId:    bookingId ?? null,
-            uploadedAt:   new Date().toISOString(),
+            size: file.size,
+            type: file.type,
+            bookingId: bookingId ?? null,
+            uploadedAt: new Date().toISOString(),
             // A01 — ไม่ return uploadedBy (user id) ออกไป
         },
         'อัปโหลดสลิปการชำระเงินสำเร็จ'
@@ -249,8 +265,8 @@ async function uploadPaymentSlipHandler(request: NextRequest) {
 export const POST = withMiddleware(
     withErrorHandler(uploadPaymentSlipHandler),
     {
-        methods:     ['POST'],
-        rateLimit:   'upload',
+        methods: ['POST'],
+        rateLimit: 'upload',
         maxBodySize: 12 * 1024 * 1024,
     }
 );

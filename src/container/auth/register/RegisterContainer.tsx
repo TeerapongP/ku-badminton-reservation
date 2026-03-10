@@ -23,7 +23,7 @@ export default function RegisterContainner() {
     // User type options (staff, guest, student, admin, super_admin)
     const userTypeOptions = [
         { label: "บุคลากร", value: "staff" },
-        { label: "นักเรียนสาธิต", value: "student" },
+        { label: "นักเรียนสาธิต", value: "demonstration_student" },
         { label: "บุคคลทั่วไป", value: "guest" },
     ];
 
@@ -65,19 +65,6 @@ export default function RegisterContainner() {
     //     }
     // }
 
-    async function fetchSubUnits(
-        unitId: string,
-    ): Promise<DropdownOption[]> {
-        const res = await fetch(
-            `/api/sub-units?unitId=${encodeURIComponent(unitId)}`
-        );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        return (json?.data ?? []).map((x: any) => ({
-            label: x.label ?? x.name_th,
-            value: x.value ?? String(x.id),
-        }));
-    }
 
     // state/ref ที่ใช้
     const loadedInitRef = useRef(false);
@@ -112,32 +99,6 @@ export default function RegisterContainner() {
     }, []);
 
 
-
-    // 2) office -> subUnits
-    // useEffect(() => {
-    //     const controller = new AbortController();
-    //     let alive = true;
-    //     const rid = ++reqIdRef.current;
-
-    //     (async () => {
-    //         setSubUnitOptions([]);
-
-    //         if (!office) return;
-
-    //         try {
-    //             const subs = await fetchSubUnits(office);
-    //             if (!alive || rid !== reqIdRef.current) return;
-    //             setSubUnitOptions(subs ?? []);
-    //         } catch {
-    //             if (alive && rid === reqIdRef.current) setSubUnitOptions([]);
-    //         }
-    //     })();
-
-    //     return () => {
-    //         alive = false;
-    //         controller.abort();
-    //     };
-    // }, [office]);
 
 
 
@@ -210,8 +171,8 @@ export default function RegisterContainner() {
                 // Student specific (นักเรียนสาธิต)
                 ...(userType === "demonstration_student" && {
                     student_id: `STU_${Date.now()}`, // generate student_id
-                    faculty_id: 1, // default faculty
-                    department_id: 1, // default department
+                    faculty_id: "1", // default faculty
+                    department_id: "1", // default department
                     level_of_study: "UG", // default level
                 }),
             };

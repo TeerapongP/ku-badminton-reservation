@@ -153,36 +153,36 @@ export async function GET() {
             const court = item.courts;
             const timeSlot = item.time_slots;
 
-            //  ใช้ index+1 เป็น fallback แทน hardcode 1
-            const courtNumber = parsCourtNumber(court.court_code, index + 1);
+            // ใช้ court_id โดยตรง ตามที่ UI ต้องการ
+            const courtIdNumber = Number(court.court_id);
             const timeSlotString = minutesToTime(timeSlot.start_minute);
 
             allBookings.push({
                 id: item.item_id.toString(),
-                court_number: courtNumber,
-                court_name: court.name || `สนามแบดมินตัน ${courtNumber}`,
+                court_number: courtIdNumber,
+                court_name: court.name || `สนามแบดมินตัน ${courtIdNumber}`,
                 date: item.play_date.toISOString().split('T')[0],
                 time_slot: timeSlotString,
-                user_name: `${user.first_name} ${user.last_name}`,
+                user_name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'ไม่ระบุ',
                 status: mapReservationStatus(item.reservations.status, item.status),
                 created_at: item.created_at.toISOString(),
             });
 
-            occupiedSlots.add(`${courtNumber}-${timeSlotString}`);
+            occupiedSlots.add(`${courtIdNumber}-${timeSlotString}`);
         });
 
         courts.forEach((court, index) => {
-            const courtNumber = parsCourtNumber(court.court_code, index + 1);
-            const courtName = court.name || `สนามแบดมินตัน ${courtNumber}`;
+            const courtIdNumber = Number(court.court_id);
+            const courtName = court.name || `สนามแบดมินตัน ${courtIdNumber}`;
 
             timeSlots.forEach(slot => {
                 const timeSlotString = minutesToTime(slot.start_minute);
-                const key = `${courtNumber}-${timeSlotString}`;
+                const key = `${courtIdNumber}-${timeSlotString}`;
 
                 if (!occupiedSlots.has(key)) {
                     allBookings.push({
                         id: `available-${court.court_id}-${slot.slot_id}`,
-                        court_number: courtNumber,
+                        court_number: courtIdNumber,
                         court_name: courtName,
                         date: todayString,
                         time_slot: timeSlotString,

@@ -56,7 +56,7 @@ export default function CourtBookingContainer() {
 
     // Fetch court availability for selected date
     const fetchCourtAvailability = async (date: Date) => {
-        if (!courtId) return;
+        if (!courtId || status !== "authenticated") return;
 
         setSlotsLoading(true);
         try {
@@ -131,15 +131,16 @@ export default function CourtBookingContainer() {
     // เปลี่ยนวันแล้วให้ยกเลิกการเลือกช่วงเวลาและโหลดข้อมูลใหม่
     useEffect(() => {
         setSelectedSlot(null);
-        if (selectedDate && courtId) {
+        if (selectedDate && courtId && status === "authenticated") {
             fetchCourtAvailability(selectedDate);
         } else {
             setSlots([]);
         }
-    }, [selectedDate, courtId]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [selectedDate, courtId, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Auto-select time slot จาก URL parameter
     useEffect(() => {
+        if (status !== "authenticated") return;
         if (!timeSlotParam || slots.length === 0) return;
 
         // หา slot ที่ตรงกับ time parameter
@@ -189,7 +190,6 @@ export default function CourtBookingContainer() {
 
         if (status === "unauthenticated" && !hasShownAuthError.current) {
             hasShownAuthError.current = true;
-            toast?.showError("กรุณาเข้าสู่ระบบ", "คุณต้องเข้าสู่ระบบก่อนจองสนาม");
             router.push("/login");
         }
     }, [status]);

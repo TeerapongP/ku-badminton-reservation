@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/Auth';
 import { prisma } from '@/lib/prisma';
+import { decode } from '@/lib/Cryto';
 import {
     CustomApiError,
     ERROR_CODES,
@@ -34,6 +35,19 @@ function parseBigIntId(value: unknown, fieldName: string): bigint {
 
 const ALLOWED_SLIP_HOSTS = (process.env.ALLOWED_SLIP_HOSTS ?? '').split(',').map(h => h.trim()).filter(Boolean);
 
+async function getRawUserId(id: string): Promise<bigint> {
+    if (id.includes(':')) {
+        try {
+            const decoded = await decode(id);
+            return BigInt(decoded);
+        } catch (error) {
+            console.error('[payments] Failed to decode user ID:', error);
+            throw new CustomApiError(ERROR_CODES.UNAUTHORIZED, 'เซสชันไม่ถูกต้อง', HTTP_STATUS.UNAUTHORIZED);
+        }
+    }
+    return BigInt(id);
+}
+
 function validateSlipUrl(url: unknown): string {
     if (typeof url !== 'string' || !url) {
         throw new CustomApiError(
@@ -42,6 +56,12 @@ function validateSlipUrl(url: unknown): string {
             HTTP_STATUS.BAD_REQUEST
         );
     }
+
+    // อนุญาต relative path ที่เริ่มด้วย /api/images/ (เก็บไฟล์ในเครื่อง)
+    if (url.startsWith('/api/images/')) {
+        return url;
+    }
+
     let parsed: URL;
     try {
         parsed = new URL(url);
@@ -120,16 +140,18 @@ async function createPaymentHandler(request: NextRequest) {
             );
         }
 
+        const rawUserId = await getRawUserId(session.user.id);
+
         const reservationBigId = parseBigIntId(reservationId, 'reservationId');
-        const validatedAmount  = validateAmount(amount);
+        const validatedAmount = validateAmount(amount);
         const validatedSlipUrl = validateSlipUrl(slipUrl);
-        const safeFilename     = typeof filename === 'string' ? filename.slice(0, 255) : undefined;
+        const safeFilename = typeof filename === 'string' ? filename.slice(0, 255) : undefined;
 
         // A01 — ตรวจสอบ ownership ของ reservation
         const reservation = await prisma.reservations.findFirst({
             where: {
                 reservation_id: reservationBigId,
-                user_id: BigInt(session.user.id),
+                user_id: rawUserId,
             },
         });
 
@@ -146,16 +168,16 @@ async function createPaymentHandler(request: NextRequest) {
             where: {
                 reservation_id: reservationBigId,
                 reservations: {
-                    user_id: BigInt(session.user.id),
+                    user_id: rawUserId,
                 },
             },
         });
 
         const metaJson = {
-            slip_url:    validatedSlipUrl,
-            filename:    safeFilename,
+            slip_url: validatedSlipUrl,
+            filename: safeFilename,
             uploaded_at: new Date().toISOString(),
-            user_id:     session.user.id,
+            user_id: session.user.id,
         };
 
         // A04 — ใช้ transaction กัน data inconsistency
@@ -166,8 +188,8 @@ async function createPaymentHandler(request: NextRequest) {
                 p = await tx.payments.update({
                     where: { payment_id: existingPayment.payment_id },
                     data: {
-                        status:     'pending',
-                        meta_json:  metaJson,
+                        status: 'pending',
+                        meta_json: metaJson,
                         updated_at: new Date(),
                     },
                 });
@@ -175,11 +197,11 @@ async function createPaymentHandler(request: NextRequest) {
                 p = await tx.payments.create({
                     data: {
                         reservation_id: reservationBigId,
-                        amount_cents:   Math.round(validatedAmount * 100),
-                        currency:       'THB',
-                        method:         'bank_transfer',
-                        status:         'pending',
-                        meta_json:      metaJson,
+                        amount_cents: Math.round(validatedAmount * 100),
+                        currency: 'THB',
+                        method: 'bank_transfer',
+                        status: 'pending',
+                        meta_json: metaJson,
                     },
                 });
             }
@@ -188,11 +210,11 @@ async function createPaymentHandler(request: NextRequest) {
             await tx.reservations.update({
                 where: {
                     reservation_id: reservationBigId,
-                    user_id:        BigInt(session.user.id), // ownership check
+                    user_id: rawUserId, // ownership check
                 },
                 data: {
                     payment_status: 'partial',
-                    updated_at:     new Date(),
+                    updated_at: new Date(),
                 },
             });
 
@@ -201,10 +223,10 @@ async function createPaymentHandler(request: NextRequest) {
 
         return successResponse(
             {
-                payment_id:   payment.payment_id.toString(),
-                status:       payment.status,
+                payment_id: payment.payment_id.toString(),
+                status: payment.status,
                 amount_cents: payment.amount_cents,
-                created_at:   payment.created_at.toISOString(),
+                created_at: payment.created_at.toISOString(),
             },
             'บันทึกข้อมูลการชำระเงินสำเร็จ'
         );
@@ -241,10 +263,12 @@ async function getPaymentsHandler(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const reservationIdParam = searchParams.get('reservationId');
 
+        const rawUserId = await getRawUserId(session.user.id);
+
         // A01 — user_id filter เสมอ ป้องกัน IDOR
         const whereCondition: Prisma.paymentsFindManyArgs['where'] = {
             reservations: {
-                user_id: BigInt(session.user.id),
+                user_id: rawUserId,
             },
         };
 
@@ -271,8 +295,8 @@ async function getPaymentsHandler(request: NextRequest) {
                                 time_slots: {
                                     select: {
                                         start_minute: true,
-                                        end_minute:   true,
-                                        label:        true,
+                                        end_minute: true,
+                                        label: true,
                                     },
                                 },
                             },
@@ -284,20 +308,20 @@ async function getPaymentsHandler(request: NextRequest) {
         });
 
         const formattedPayments = payments.map((payment) => ({
-            payment_id:     payment.payment_id.toString(),
+            payment_id: payment.payment_id.toString(),
             reservation_id: payment.reservation_id.toString(),
-            amount_cents:   payment.amount_cents,
-            currency:       payment.currency,
-            status:         payment.status,
-            method:         payment.method,
-            slip_url:       payment.meta_json ? (payment.meta_json as Record<string, unknown>)?.slip_url as string ?? null : null,
-            created_at:     payment.created_at.toISOString(),
-            updated_at:     payment.updated_at.toISOString(),
+            amount_cents: payment.amount_cents,
+            currency: payment.currency,
+            status: payment.status,
+            method: payment.method,
+            slip_url: payment.meta_json ? (payment.meta_json as Record<string, unknown>)?.slip_url as string ?? null : null,
+            created_at: payment.created_at.toISOString(),
+            updated_at: payment.updated_at.toISOString(),
             reservation: {
-                status:         payment.reservations?.status,
+                status: payment.reservations?.status,
                 payment_status: payment.reservations?.payment_status,
-                reserved_date:  payment.reservations?.reserved_date?.toISOString().split('T')[0],
-                total_cents:    payment.reservations?.total_cents,
+                reserved_date: payment.reservations?.reserved_date?.toISOString().split('T')[0],
+                total_cents: payment.reservations?.total_cents,
             },
         }));
 
@@ -319,4 +343,4 @@ async function getPaymentsHandler(request: NextRequest) {
 }
 
 export const POST = withErrorHandler(createPaymentHandler);
-export const GET  = withErrorHandler(getPaymentsHandler);
+export const GET = withErrorHandler(getPaymentsHandler);

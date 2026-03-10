@@ -40,7 +40,7 @@ async function main() {
     // ============================================================
     const courts1 = ['BD1-C1', 'BD1-C2', 'BD1-C3', 'BD1-C4']
     const courts2 = ['BD2-C1', 'BD2-C2', 'BD2-C3', 'BD2-C4']
-    const extraCourts = ['BD2-C5', 'BD2-C6', 'BD2-C7', 'BD2-C8', 'BD2-C9', 'BD2-C10']
+    const extraCourts = ['BD2-C5', 'BD2-C6', 'BD2-C7', 'BD2-C8', 'BD2-C9', 'BD2-C10', 'BD2-C11', 'BD2-C12', 'BD2-C13', 'BD2-C14', 'BD2-C15', 'BD2-C16', 'BD2-C17', 'BD2-C18', 'BD2-C19', 'BD2-C20', 'BD2-C21', 'BD2-C22']
 
     for (let i = 0; i < courts1.length; i++) {
         await prisma.courts.upsert({

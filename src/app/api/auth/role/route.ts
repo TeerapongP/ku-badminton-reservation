@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/Auth';
 import { decode } from '@/lib/Cryto';
 
-const ALLOWED_ROLES = new Set(['admin', 'super_admin', 'student', 'staff', 'guest']);
+const ALLOWED_ROLES = new Set(['admin', 'super_admin', 'student', 'demonstration_student', 'staff', 'guest']);
 
 export async function GET() {
     try {

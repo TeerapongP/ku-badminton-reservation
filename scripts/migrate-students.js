@@ -103,7 +103,7 @@ async function readExcelFile(filePath) {
 
         console.log(` พบ columns ที่ตรง: ${foundColumns.length}/${Object.keys(requiredColumns).length}`);
         if (missingColumns.length > 0) {
-            console.log(`⚠️  ไม่พบ columns: ${missingColumns.slice(0, 5).join(', ')}${missingColumns.length > 5 ? '...' : ''}`);
+            console.log(`runพ  ไม่พบ columns: ${missingColumns.slice(0, 5).join(', ')}${missingColumns.length > 5 ? '...' : ''}`);
         }
 
         // แปลงข้อมูล - ข้ามแถวที่ไม่มีข้อมูลสำคัญ
@@ -182,125 +182,140 @@ async function readExcelFile(filePath) {
 
 async function batchMigrateStudents(students, batchSize = 100, updateExisting = false) {
     try {
-        // ดึงรายการนิสิตที่มีอยู่แล้ว
-        const existingStudentIds = await prisma.users.findMany({
-            where: {
-                student_id: {
-                    in: students.map(s => s.studentId)
-                }
-            },
-            select: {
-                student_id: true
-            }
-        });
-
-        const existingIds = new Set(existingStudentIds.map(u => u.student_id));
-        
-        // แยกนิสิตใหม่และนิสิตเดิม
-        const newStudents = students.filter(s => !existingIds.has(s.studentId));
-        const existingStudents = students.filter(s => existingIds.has(s.studentId));
-        
-        console.log(`📊 พบนิสิตใหม่: ${newStudents.length} คน`);
-        console.log(`⚠️  พบนิสิตที่มีอยู่แล้ว: ${existingStudents.length} คน`);
-
+        let totalCreated = 0;
         let totalUpdated = 0;
+        let totalSkipped = 0;
 
-        // อัปเดตข้อมูลเดิม (ถ้าเปิดใช้งาน)
-        if (updateExisting && existingStudents.length > 0) {
-            console.log('🔄 กำลังอัปเดตข้อมูลนิสิตเดิม...');
+        // Cache for faculties and departments to avoid repeated lookups
+        const facultyCache = new Map();
+        const departmentCache = new Map();
+
+        console.log(`📊 กำลังประมวลผลนิสิต ${students.length} คน...`);
+
+        for (let i = 0; i < students.length; i++) {
+            const student = students[i];
             
-            for (const student of existingStudents) {
-                try {
-                    // ตรวจสอบว่าเบอร์โทรซ้ำหรือไม่
-                    const phoneExists = student.phone ? await prisma.users.findFirst({
-                        where: {
-                            phone: student.phone,
-                            student_id: { not: student.studentId }
-                        }
-                    }) : null;
+            try {
+                // Check if user already exists
+                const existingUser = await prisma.users.findUnique({
+                    where: { username: student.studentId },
+                    include: { student_profile: true }
+                });
 
-                    // อัปเดตข้อมูล (ข้ามเบอร์โทรถ้าซ้ำ)
-                    await prisma.users.update({
-                        where: { student_id: student.studentId },
+                if (existingUser) {
+                    if (updateExisting) {
+                        // Update existing user
+                        await prisma.users.update({
+                            where: { user_id: existingUser.user_id },
+                            data: {
+                                title_th: student.titleTh || null,
+                                first_name: student.firstName,
+                                last_name: student.lastName,
+                                phone: student.phone || existingUser.phone,
+                                email: student.email || existingUser.email,
+                                updated_at: new Date(),
+                            }
+                        });
+                        totalUpdated++;
+                    } else {
+                        totalSkipped++;
+                    }
+                    continue;
+                }
+
+                // New User Migration with Transaction
+                await prisma.$transaction(async (tx) => {
+                    // 1. Handle Faculty
+                    let facultyId;
+                    if (student.faculty) {
+                        if (facultyCache.has(student.faculty)) {
+                            facultyId = facultyCache.get(student.faculty);
+                        } else {
+                            const faculty = await tx.faculties.upsert({
+                                where: { faculty_name_th: student.faculty },
+                                update: {},
+                                create: {
+                                    faculty_name_th: student.faculty,
+                                    status: 'active'
+                                }
+                            });
+                            facultyId = faculty.id;
+                            facultyCache.set(student.faculty, facultyId);
+                        }
+                    }
+
+                    // 2. Handle Department
+                    let departmentId;
+                    if (student.department && facultyId) {
+                        const deptKey = `${facultyId}-${student.department}`;
+                        if (departmentCache.has(deptKey)) {
+                            departmentId = departmentCache.get(deptKey);
+                        } else {
+                            const department = await tx.departments.upsert({
+                                where: {
+                                    faculty_id_department_name_th: {
+                                        faculty_id: facultyId,
+                                        department_name_th: student.department
+                                    }
+                                },
+                                update: {},
+                                create: {
+                                    faculty_id: facultyId,
+                                    department_name_th: student.department
+                                }
+                            });
+                            departmentId = department.id;
+                            departmentCache.set(deptKey, departmentId);
+                        }
+                    }
+
+                    // 3. Create User
+                    const hashedPassword = await bcrypt.hash(student.studentId, 10);
+                    const newUser = await tx.users.create({
                         data: {
+                            username: student.studentId,
+                            password_hash: hashedPassword,
+                            role: 'student',
+                            student_id: student.studentId,
                             title_th: student.titleTh || null,
                             first_name: student.firstName,
                             last_name: student.lastName,
-                            ...(student.phone && !phoneExists ? { phone: student.phone } : {}),
-                            updated_at: new Date(),
+                            phone: student.phone || null,
+                            email: student.email || `${student.studentId}@ku.th`,
+                            email_lc: (student.email || `${student.studentId}@ku.th`).toLowerCase(),
+                            status: 'active',
+                            membership: 'member',
+                            registered_at: new Date(),
                         }
                     });
-                    totalUpdated++;
-                    
-                    if (phoneExists && student.phone) {
-                        console.log(`⚠️  ข้ามการอัปเดตเบอร์ ${student.phone} (ซ้ำ) สำหรับนิสิต ${student.studentId}`);
+
+                    // 4. Create Student Profile
+                    if (facultyId && departmentId) {
+                        await tx.student_profile.create({
+                            data: {
+                                user_id: newUser.user_id,
+                                student_id: student.studentId,
+                                faculty_id: facultyId,
+                                department_id: departmentId,
+                                level_of_study: 'UG', // Default to Undergraduate
+                                student_status: 'enrolled'
+                            }
+                        });
                     }
-                } catch (error) {
-                    console.error(`❌ ไม่สามารถอัปเดตนิสิต ${student.studentId}:`, error.message);
-                }
-            }
-            console.log(` อัปเดตข้อมูล: ${totalUpdated} คน`);
-        }
-
-        if (newStudents.length === 0) {
-            return { created: 0, updated: totalUpdated, skipped: existingStudents.length - totalUpdated };
-        }
-
-        // เตรียมข้อมูลสำหรับ batch insert
-        console.log(`🔐 กำลังเข้ารหัสรหัสผ่าน ${newStudents.length} รายการ...`);
-        
-        const usersData = [];
-        const chunkSize = 100;
-        
-        for (let i = 0; i < newStudents.length; i += chunkSize) {
-            const chunk = newStudents.slice(i, i + chunkSize);
-            
-            const chunkData = await Promise.all(
-                chunk.map(async (student) => {
-                    const hashedPassword = await bcrypt.hash(student.studentId, 10); // ลด rounds จาก 12 เป็น 10
-                    return {
-                        username: student.studentId,
-                        password_hash: hashedPassword,
-                        role: 'student',
-                        student_id: student.studentId,
-                        title_th: student.titleTh || null,
-                        first_name: student.firstName,
-                        last_name: student.lastName,
-                        phone: student.phone || null,
-                        email: student.email || `${student.studentId}@ku.th`,
-                        email_lc: (student.email || `${student.studentId}@ku.th`).toLowerCase(),
-                        status: 'active',
-                        membership: 'member',
-                        registered_at: new Date(),
-                    };
-                })
-            );
-            
-            usersData.push(...chunkData);
-            console.log(`   ⏳ เข้ารหัสแล้ว ${Math.min(i + chunkSize, newStudents.length)}/${newStudents.length} รายการ`);
-        }
-        
-        console.log(' เข้ารหัสรหัสผ่านเสร็จสิ้น');
-
-        // Insert แบบ batch
-        let totalCreated = 0;
-        for (let i = 0; i < usersData.length; i += batchSize) {
-            const batch = usersData.slice(i, i + batchSize);
-            
-            try {
-                await prisma.users.createMany({
-                    data: batch,
-                    skipDuplicates: true
                 });
-                
-                totalCreated += batch.length;
-                console.log(` Insert batch ${Math.floor(i / batchSize) + 1}: ${batch.length} รายการ (รวม ${totalCreated}/${usersData.length})`);
+
+                totalCreated++;
+                if (totalCreated % 10 === 0) {
+                    process.stdout.write(`\r   ⏳ สร้างแล้ว ${totalCreated}/${students.length} รายการ`);
+                }
+
             } catch (error) {
-                console.error(`❌ เกิดข้อผิดพลาดใน batch ${Math.floor(i / batchSize) + 1}:`, error.message);
+                console.error(`\n❌ เกิดข้อผิดพลาดกับนิสิต ${student.studentId}:`, error.message);
             }
         }
 
-        return { created: totalCreated, updated: totalUpdated, skipped: existingStudents.length - totalUpdated };
+        console.log(`\n การประมวลผลเสร็จสิ้น: สร้างใหม่ ${totalCreated}, อัปเดต ${totalUpdated}, ข้าม ${totalSkipped}`);
+        return { created: totalCreated, updated: totalUpdated, skipped: totalSkipped };
     } catch (error) {
         console.error('❌ เกิดข้อผิดพลาดในการ migrate:', error.message);
         throw error;

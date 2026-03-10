@@ -31,13 +31,60 @@ export function BookingConfirmationModal({
     const firstFocusableRef = useRef<HTMLButtonElement | null>(null);
 
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [fetchedUser, setFetchedUser] = useState<any>(null);
+    const [decryptedRole, setDecryptedRole] = useState<string>("guest");
 
-    // ดึงข้อมูล user จาก session หรือใช้ข้อมูลที่ส่งมา
+    // ดึงข้อมูล profile ถ้าใช้ session data
+    useEffect(() => {
+        if (visible && useSessionData && session?.user?.id && !fetchedUser) {
+            fetch(`/api/profile/${encodeURIComponent(session.user.id)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data?.user) {
+                        setFetchedUser(data.user);
+                    }
+                })
+                .catch(err => console.error("Failed to fetch user profile:", err));
+        }
+    }, [visible, useSessionData, session?.user?.id, fetchedUser]);
+
+    // ถอดรหัส role จาก session
+    useEffect(() => {
+        const role = session?.user?.role;
+        if (!role) return;
+
+        // ถ้า role ไม่ได้ถูกเข้ารหัส (เป็น plain text)
+        if (['admin', 'super_admin', 'student', 'staff', 'guest'].includes(role)) {
+            setDecryptedRole(role);
+            return;
+        }
+
+        // ขอถอดรหัสจาก backend
+        fetch('/api/decrypt/data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ encryptedData: role }),
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data?.success && data?.decryptedData) {
+                    setDecryptedRole(data.decryptedData);
+                } else {
+                    setDecryptedRole("guest");
+                }
+            })
+            .catch(err => {
+                console.error("Failed to decrypt role:", err);
+                setDecryptedRole("guest");
+            });
+    }, [session?.user?.role]);
+
+    // ดึงข้อมูล user จาก session หรือใช้ข้อมูลที่ดึงมา
     const userData = useSessionData && session?.user ? {
-        name: `${session.user.first_name || ''} ${session.user.last_name || ''}`.trim() || session.user.username || 'ไม่ระบุ',
-        phone: session.user.phone || 'ไม่ระบุ',
-        email: session.user.email || 'ไม่ระบุ',
-        role: session.user.role || 'guest'
+        name: fetchedUser ? `${fetchedUser.first_name || ''} ${fetchedUser.last_name || ''}`.trim() || session.user.username || 'ไม่ระบุ' : session.user.username || 'กำลังโหลด...',
+        phone: fetchedUser?.phone || 'ไม่ระบุ',
+        email: fetchedUser?.email || 'ไม่ระบุ',
+        role: decryptedRole || 'guest'
     } : null;
 
     // ปิดด้วย ESC
@@ -237,19 +284,6 @@ export function BookingConfirmationModal({
                                 <div className="tw-pb-4 tw-border-b tw-border-gray-200">
                                     <div className="tw-text-sm tw-text-gray-500 tw-mb-1">อีเมล :</div>
                                     <div className="tw-text-base tw-text-gray-800 tw-font-medium">{userData.email}</div>
-                                </div>
-
-                                <div className="tw-pb-4 tw-border-b tw-border-gray-200">
-                                    <div className="tw-text-sm tw-text-gray-500 tw-mb-1">สถานะ :</div>
-                                    <div className="tw-text-base tw-text-gray-800 tw-font-medium">
-                                        <span className={`tw-px-2 tw-py-1 tw-rounded-full tw-text-xs tw-font-semibold ${userData.role === 'admin' ? 'tw-bg-purple-100 tw-text-purple-800' :
-                                            userData.role === 'staff' ? 'tw-bg-blue-100 tw-text-blue-800' :
-                                                userData.role === 'student' ? 'tw-bg-green-100 tw-text-green-800' :
-                                                    'tw-bg-gray-100 tw-text-gray-800'
-                                            }`}>
-                                            {userData.role.toUpperCase()}
-                                        </span>
-                                    </div>
                                 </div>
                             </>
                         )}

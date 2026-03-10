@@ -2,23 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
 
 // ===== Performance Constants =====
 const BCRYPT_SALT_ROUNDS = 10;
 const HASH_CONCURRENCY = 50;
-const UPSERT_BATCH_SIZE = 500;
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyRow = any;
 
 /**
- * Hash passwords แบบ parallel batches
- * ทำพร้อมกันครั้งละ HASH_CONCURRENCY ตัว เพื่อไม่ให้ block event loop
+ * Hash passwords ในรูปแบบ parallel batches
  */
 async function hashPasswordsBatch(passwords: string[]): Promise<string[]> {
     const results: string[] = new Array(passwords.length);
-
     for (let i = 0; i < passwords.length; i += HASH_CONCURRENCY) {
         const chunk = passwords.slice(i, i + HASH_CONCURRENCY);
         const hashed = await Promise.all(
@@ -28,12 +21,10 @@ async function hashPasswordsBatch(passwords: string[]): Promise<string[]> {
             results[i + j] = hashed[j];
         }
     }
-
     return results;
 }
 
 /** Helper: safely convert ExcelJS cell value to string */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function cellValueToString(value: any): string {
     if (value === null || value === undefined) return '';
     if (typeof value === 'string') return value;
@@ -55,135 +46,37 @@ interface StudentRow {
     department: string;
 }
 
-/**
- * Bulk upsert ด้วย raw SQL: INSERT ... ON DUPLICATE KEY UPDATE
- * เร็วกว่า Prisma createMany + update loop มาก เพราะเป็น SQL statement เดียว
- * 
- * - ถ้า student_id ยังไม่มี → INSERT record ใหม่
- * - ถ้า student_id มีแล้ว + updateExisting=true → UPDATE fields ที่ระบุ
- * - ถ้า student_id มีแล้ว + updateExisting=false → ข้ามไป (ไม่ทำอะไร)
- */
-async function bulkUpsertStudents(
-    students: StudentRow[],
-    hashedPasswords: string[],
-    updateExisting: boolean
-): Promise<{ totalAffected: number; errors: string[] }> {
-    const errors: string[] = [];
-    let totalAffected = 0;
-
-    for (let i = 0; i < students.length; i += UPSERT_BATCH_SIZE) {
-        const chunk = students.slice(i, i + UPSERT_BATCH_SIZE);
-        const chunkPasswords = hashedPasswords.slice(i, i + UPSERT_BATCH_SIZE);
-
-        // สร้าง VALUES list
-        const values: AnyRow[] = [];
-        const placeholders: string[] = [];
-
-        for (let j = 0; j < chunk.length; j++) {
-            const s = chunk[j];
-            const emailVal = s.email || `${s.studentId}@ku.th`;
-            const emailLc = emailVal.toLowerCase();
-            const now = new Date();
-
-            placeholders.push('(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-            values.push(
-                s.studentId,            // username
-                chunkPasswords[j],      // password_hash
-                'student',              // role
-                s.studentId,            // student_id
-                s.titleTh || null,      // title_th
-                s.firstName,            // first_name
-                s.lastName,             // last_name
-                s.phone || null,        // phone
-                emailVal,               // email
-                emailLc,                // email_lc
-                'active',               // status
-                now,                    // registered_at
-            );
-        }
-
-        // ON DUPLICATE KEY UPDATE:
-        // - ถ้า updateExisting=true → อัปเดต title, ชื่อ, นามสกุล
-        //   phone ใช้ IFNULL(VALUES(phone), phone) เพื่อไม่ให้เขียนทับ phone ที่มีอยู่แล้วด้วย null
-        // - ถ้า updateExisting=false → อัปเดตแค่ username=username (no-op) เพื่อข้ามไป
-        let onDuplicateClause: string;
-        if (updateExisting) {
-            onDuplicateClause = `
-                title_th = VALUES(title_th),
-                first_name = VALUES(first_name),
-                last_name = VALUES(last_name),
-                phone = COALESCE(VALUES(phone), phone),
-                updated_at = NOW()
-            `;
-        } else {
-            // No-op: ไม่อัปเดตอะไรเลย ใช้ trick ให้ student_id = student_id
-            onDuplicateClause = `student_id = student_id`;
-        }
-
-        const sql = `
-            INSERT INTO users (
-                username, password_hash, role, student_id,
-                title_th, first_name, last_name, phone,
-                email, email_lc, status, registered_at
-            )
-            VALUES ${placeholders.join(', ')}
-            ON DUPLICATE KEY UPDATE ${onDuplicateClause}
-        `;
-
-        try {
-            const result = await prisma.$executeRawUnsafe(sql, ...values);
-            totalAffected += result;
-        } catch (error: AnyRow) {
-            errors.push(`Batch ${Math.floor(i / UPSERT_BATCH_SIZE) + 1}: ${error.message}`);
-        }
-    }
-
-    return { totalAffected, errors };
-}
-
 export async function POST(request: NextRequest) {
     try {
-        // รับไฟล์จาก FormData
         const formData = await request.formData();
         const file = formData.get('file') as File;
         const updateExisting = formData.get('updateExisting') === 'true';
 
         if (!file) {
-            return NextResponse.json(
-                { success: false, error: 'ไม่พบไฟล์' },
-                { status: 400 }
-            );
+            return NextResponse.json({ success: false, error: 'ไม่พบไฟล์' }, { status: 400 });
         }
 
-        // อ่านไฟล์ Excel
         const bytes = await file.arrayBuffer();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const buffer = Buffer.from(bytes) as any;
+        // Fix: Use Uint8Array to create Buffer and cast to any to resolve type mismatch in newer Node versions
+        const buffer = Buffer.from(new Uint8Array(bytes)) as any;
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(buffer);
         const worksheet = workbook.worksheets[0];
 
         if (!worksheet) {
-            return NextResponse.json(
-                { success: false, error: 'ไม่พบ worksheet ในไฟล์' },
-                { status: 400 }
-            );
+            return NextResponse.json({ success: false, error: 'ไม่พบ worksheet ในไฟล์' }, { status: 400 });
         }
 
-        // แปลง worksheet เป็น array of objects
-        const data: AnyRow[] = [];
+        const data: any[] = [];
         const headers: string[] = [];
 
-        // อ่าน header row (row 1)
         worksheet.getRow(1).eachCell((cell, colNumber) => {
             headers[colNumber] = cellValueToString(cell.value);
         });
 
-        // อ่านข้อมูล rows (เริ่มจาก row 2)
         worksheet.eachRow((row, rowNumber) => {
             if (rowNumber === 1) return;
-
-            const rowData: AnyRow = {};
+            const rowData: any = {};
             row.eachCell((cell, colNumber) => {
                 const header = headers[colNumber];
                 if (header) {
@@ -194,13 +87,9 @@ export async function POST(request: NextRequest) {
         });
 
         if (data.length === 0) {
-            return NextResponse.json(
-                { success: false, error: 'ไฟล์ว่างเปล่า' },
-                { status: 400 }
-            );
+            return NextResponse.json({ success: false, error: 'ไฟล์ว่างเปล่า' }, { status: 400 });
         }
 
-        // กำหนด column names
         const requiredColumns = {
             studentId: 'รหัสนิสิต',
             titleTh: 'คำนำหน้าชื่อ(ไทย)',
@@ -212,29 +101,20 @@ export async function POST(request: NextRequest) {
             department: 'ชื่อภาควิชา',
         };
 
-        // แปลงข้อมูล
-        const students: StudentRow[] = data.map((row: AnyRow) => {
+        const students: StudentRow[] = data.map((row: any) => {
             const studentId = String(row[requiredColumns.studentId] || '').trim();
-            const titleTh = String(row[requiredColumns.titleTh] || '').trim();
-            const firstNameTh = String(row[requiredColumns.firstNameTh] || '').trim();
-            const lastNameTh = String(row[requiredColumns.lastNameTh] || '').trim();
-
             let email = String(row[requiredColumns.email] || '').trim();
             if (!email || !email.includes('@')) {
                 email = studentId ? `${studentId}@ku.th` : '';
             }
-
-            let phone = String(row[requiredColumns.phone] || '').trim();
-            phone = phone.replace(/[\s-]/g, '');
-            if (!/^0\d{9}$/.test(phone)) {
-                phone = '';
-            }
+            let phone = String(row[requiredColumns.phone] || '').trim().replace(/[\s-]/g, '');
+            if (!/^0\d{9}$/.test(phone)) phone = '';
 
             return {
                 studentId,
-                titleTh,
-                firstName: firstNameTh,
-                lastName: lastNameTh,
+                titleTh: String(row[requiredColumns.titleTh] || '').trim(),
+                firstName: String(row[requiredColumns.firstNameTh] || '').trim(),
+                lastName: String(row[requiredColumns.lastNameTh] || '').trim(),
                 email,
                 phone,
                 faculty: String(row[requiredColumns.faculty] || '').trim(),
@@ -242,7 +122,6 @@ export async function POST(request: NextRequest) {
             };
         });
 
-        // กรองข้อมูลที่ถูกต้อง
         const validStudents = students.filter((s) => {
             const isValidId = /^\d{8,10}$/.test(s.studentId);
             const hasName = s.firstName && s.lastName;
@@ -250,51 +129,147 @@ export async function POST(request: NextRequest) {
         });
 
         if (validStudents.length === 0) {
-            return NextResponse.json(
-                { success: false, error: 'ไม่พบข้อมูลที่ถูกต้อง' },
-                { status: 400 }
-            );
+            return NextResponse.json({ success: false, error: 'ไม่พบข้อมูลที่ถูกต้อง' }, { status: 400 });
         }
 
-        // ===== Hash รหัสผ่านทั้งหมดแบบ parallel =====
-        const passwords = validStudents.map((s) => s.studentId);
-        const hashedPasswords = await hashPasswordsBatch(passwords);
+        // Hash passwords
+        const hashedPasswords = await hashPasswordsBatch(validStudents.map(s => s.studentId));
 
-        // ===== นับจำนวนที่มีอยู่แล้ว (สำหรับ response statistics) =====
-        const existingCount = await prisma.users.count({
-            where: {
-                student_id: { in: validStudents.map((s) => s.studentId) }
+        let createdCount = 0;
+        let updatedCount = 0;
+        let skippedCount = 0;
+        const errors: string[] = [];
+
+        // Caches for optimization
+        const facultyCache = new Map<string, bigint>();
+        const departmentCache = new Map<string, bigint>();
+
+        for (let i = 0; i < validStudents.length; i++) {
+            const s = validStudents[i];
+            const hashedPassword = hashedPasswords[i];
+
+            try {
+                const existingUser = await prisma.users.findUnique({
+                    where: { username: s.studentId },
+                    include: { student_profile: true }
+                });
+
+                if (existingUser && !updateExisting) {
+                    skippedCount++;
+                    continue;
+                }
+
+                await prisma.$transaction(async (tx) => {
+                    // 1. Resolve Faculty
+                    let facultyId: bigint | undefined;
+                    if (s.faculty) {
+                        if (facultyCache.has(s.faculty)) {
+                            facultyId = facultyCache.get(s.faculty)!;
+                        } else {
+                            const faculty = await tx.faculties.upsert({
+                                where: { faculty_name_th: s.faculty },
+                                update: {},
+                                create: { faculty_name_th: s.faculty, status: 'active' }
+                            });
+                            facultyId = faculty.id;
+                            facultyCache.set(s.faculty, facultyId);
+                        }
+                    }
+
+                    // 2. Resolve Department
+                    let departmentId: bigint | undefined;
+                    if (s.department && facultyId) {
+                        const deptKey = `${facultyId}-${s.department}`;
+                        if (departmentCache.has(deptKey)) {
+                            departmentId = departmentCache.get(deptKey)!;
+                        } else {
+                            const department = await tx.departments.upsert({
+                                where: {
+                                    faculty_id_department_name_th: {
+                                        faculty_id: facultyId,
+                                        department_name_th: s.department
+                                    }
+                                },
+                                update: {},
+                                create: { faculty_id: facultyId, department_name_th: s.department }
+                            });
+                            departmentId = department.id;
+                            departmentCache.set(deptKey, departmentId);
+                        }
+                    }
+
+                    // 3. Upsert User
+                    const userData = {
+                        username: s.studentId,
+                        password_hash: hashedPassword,
+                        role: 'student' as any,
+                        student_id: s.studentId,
+                        title_th: s.titleTh || null,
+                        first_name: s.firstName,
+                        last_name: s.lastName,
+                        phone: s.phone || null,
+                        email: s.email,
+                        email_lc: s.email.toLowerCase(),
+                        status: 'active' as any,
+                        membership: 'member' as any,
+                    };
+
+                    const user = await tx.users.upsert({
+                        where: { username: s.studentId },
+                        update: updateExisting ? {
+                            title_th: userData.title_th,
+                            first_name: userData.first_name,
+                            last_name: userData.last_name,
+                            phone: userData.phone,
+                            email: userData.email,
+                            email_lc: userData.email_lc,
+                            updated_at: new Date()
+                        } : {},
+                        create: {
+                            ...userData,
+                            registered_at: new Date()
+                        }
+                    });
+
+                    // 4. Upsert Student Profile
+                    if (facultyId && departmentId) {
+                        await tx.student_profile.upsert({
+                            where: { user_id: user.user_id },
+                            update: updateExisting ? {
+                                student_id: s.studentId,
+                                faculty_id: facultyId,
+                                department_id: departmentId,
+                                updated_at: new Date()
+                            } : {},
+                            create: {
+                                user_id: user.user_id,
+                                student_id: s.studentId,
+                                faculty_id: facultyId,
+                                department_id: departmentId,
+                                level_of_study: 'UG',
+                                student_status: 'enrolled'
+                            }
+                        });
+                    }
+                });
+
+                if (existingUser) updatedCount++;
+                else createdCount++;
+
+            } catch (err: any) {
+                errors.push(`Student ${s.studentId}: ${err.message}`);
             }
-        });
-
-        const newCount = validStudents.length - existingCount;
-
-        // ===== Bulk UPSERT ด้วย INSERT ... ON DUPLICATE KEY UPDATE =====
-        // ทำทั้ง insert + update ใน SQL เดียว ไม่ต้องแยก logic
-        const { totalAffected, errors } = await bulkUpsertStudents(
-            validStudents,
-            hashedPasswords,
-            updateExisting
-        );
-
-        // MySQL ON DUPLICATE KEY UPDATE:
-        //   - INSERT ใหม่ = affected 1
-        //   - UPDATE (เปลี่ยนค่าจริง) = affected 2
-        //   - UPDATE (ค่าเหมือนเดิม) = affected 0
-        // ดังนั้นเราใช้ count ที่นับก่อนแทน
-        const totalCreated = newCount;
-        const totalUpdated = updateExisting ? existingCount : 0;
-        const totalSkipped = updateExisting ? 0 : existingCount;
+        }
 
         return NextResponse.json({
             success: true,
-            created: totalCreated,
-            updated: totalUpdated,
-            skipped: totalSkipped,
+            created: createdCount,
+            updated: updatedCount,
+            skipped: skippedCount,
             errors: errors.length > 0 ? errors : undefined
         });
 
-    } catch (error: AnyRow) {
+    } catch (error: any) {
         console.error('Upload error:', error);
         return NextResponse.json(
             { success: false, error: error.message || 'เกิดข้อผิดพลาดในการอัพโหลด' },

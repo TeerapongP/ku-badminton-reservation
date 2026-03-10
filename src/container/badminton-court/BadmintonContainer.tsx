@@ -36,7 +36,6 @@ export default function BadmintonContainer() {
 
     if (status === "unauthenticated" && !hasShownAuthError.current) {
       hasShownAuthError.current = true;
-      toast?.showError("กรุณาเข้าสู่ระบบ", "คุณต้องเข้าสู่ระบบก่อนเข้าใช้งาน");
       router.push("/login");
     }
   }, [status, router, toast]);

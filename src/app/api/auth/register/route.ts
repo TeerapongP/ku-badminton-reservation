@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { withMiddleware } from "@/lib/api-middleware";
 import { decryptData } from "@/lib/encryption";
-import { users_role, users_status, auth_log_action } from "@prisma/client";
+import { users_role, users_status, auth_log_action, student_profile_level_of_study, staff_profile_staff_type } from "@prisma/client";
 import {
     CustomApiError,
     ERROR_CODES,
@@ -17,7 +17,7 @@ import {
 } from "@/lib/error-handler";
 
 //  Whitelist roles ที่สมัครได้จาก public
-const ALLOWED_REGISTRATION_ROLES = ['student', 'staff', 'guest'] as const;
+const ALLOWED_REGISTRATION_ROLES = ['student', 'demonstration_student', 'staff', 'guest'] as const;
 type AllowedRole = typeof ALLOWED_REGISTRATION_ROLES[number];
 
 async function registerHandler(req: NextRequest) {
@@ -67,7 +67,7 @@ async function registerHandler(req: NextRequest) {
     validateEmail(email);
 
     if (postal_code) validatePostalCode(postal_code);
-    if (phone)        validatePhone(phone);
+    if (phone) validatePhone(phone);
 
     // ---- Decrypt role ----
     let role: string;
@@ -93,7 +93,7 @@ async function registerHandler(req: NextRequest) {
     }
 
     // ---- Validate required fields ตาม role ----
-    if (role === "student") {
+    if (role === "student" || role === "demonstration_student") {
         validateRequired(body, ['student_id', 'faculty_id', 'department_id', 'level_of_study', 'national_id']);
     }
 
@@ -141,13 +141,13 @@ async function registerHandler(req: NextRequest) {
     }
 
     // ---- ตรวจซ้ำ ----
+    // ---- ตรวจซ้ำ basic fields ----
     const existingUser = await prisma.users.findFirst({
         where: {
             OR: [
                 { username },
                 { email },
                 ...(phone ? [{ phone }] : []),
-                ...(student_id ? [{ student_profile: { student_id } }] : []),
                 ...(decryptedNationalId ? [{ national_id: decryptedNationalId }] : []),
             ],
         },
@@ -156,17 +156,23 @@ async function registerHandler(req: NextRequest) {
             email: true,
             phone: true,
             national_id: true,
-            student_profile: { select: { student_id: true } },
         },
     });
 
-    if (existingUser) {
+    // ---- ตรวจ student_id ซ้ำแยกต่างหาก ----
+    // Note: ใช้ (prisma as any) เพราะไทป์อาจจะยังไม่อัพเดท
+    const existingStudentId = student_id
+        ? await prisma.student_profile.findUnique({ where: { student_id }, select: { student_id: true } })
+        ?? await (prisma as any).demonstration_student.findUnique({ where: { student_id }, select: { student_id: true } })
+        : null;
+
+    if (existingUser || existingStudentId) {
         let duplicateField = "";
-        if (existingUser.username === username) duplicateField = "ชื่อผู้ใช้";
-        else if (existingUser.email.toLowerCase() === email.toLowerCase()) duplicateField = "อีเมล";
-        else if (existingUser.phone && existingUser.phone === phone) duplicateField = "เบอร์โทรศัพท์";
-        else if (existingUser.national_id && existingUser.national_id === decryptedNationalId) duplicateField = "เลขบัตรประชาชน";
-        else if (existingUser.student_profile?.student_id === student_id) duplicateField = "รหัสนิสิต";
+        if (existingUser?.username === username) duplicateField = "ชื่อผู้ใช้";
+        else if (existingUser && existingUser.email.toLowerCase() === email.toLowerCase()) duplicateField = "อีเมล";
+        else if (existingUser?.phone && existingUser.phone === phone) duplicateField = "เบอร์โทรศัพท์";
+        else if (existingUser?.national_id && existingUser.national_id === decryptedNationalId) duplicateField = "เลขบัตรประชาชน";
+        else if (existingStudentId) duplicateField = "รหัสนิสิต";
 
         throw new CustomApiError(
             ERROR_CODES.DUPLICATE_ENTRY,
@@ -176,8 +182,8 @@ async function registerHandler(req: NextRequest) {
         );
     }
 
-    //  Hash password ฝั่ง server เสมอ
-    const password_hash = await bcrypt.hash(password, 14);
+    // Use the password directly because the client (RegisterContainer) already hashes it
+    const password_hash = password;
 
     // ---- Transaction ----
     const { newUser } = await prisma.$transaction(async (tx) => {
@@ -192,16 +198,17 @@ async function registerHandler(req: NextRequest) {
                 first_name,
                 last_name,
                 role: role as users_role,
+                student_id: (role === "student" || role === "demonstration_student") ? student_id : null,
                 staff_id: role === "staff" ? `STAFF_${Date.now()}` : null,
                 national_id: decryptedNationalId,
                 status: "active" as users_status,
             },
             select: {
-                user_id:    true,
-                username:   true,
-                email:      true,
+                user_id: true,
+                username: true,
+                email: true,
                 first_name: true,
-                last_name:  true,
+                last_name: true,
             },
         });
 
@@ -209,12 +216,24 @@ async function registerHandler(req: NextRequest) {
         if (role === "student") {
             await tx.student_profile.create({
                 data: {
-                    user_id:        newUser.user_id,
+                    user_id: newUser.user_id,
                     student_id,
-                    national_id:    decryptedNationalId,
-                    faculty_id:     BigInt(faculty_id),
-                    department_id:  BigInt(department_id),
-                    level_of_study,
+                    national_id: decryptedNationalId,
+                    faculty_id: BigInt(faculty_id),
+                    department_id: BigInt(department_id),
+                    level_of_study: level_of_study as student_profile_level_of_study,
+                },
+            });
+        } else if (role === "demonstration_student") {
+            // @ts-ignore - Bypass stale types until prisma generate succeeds
+            await (tx as any).demonstration_student.create({
+                data: {
+                    user_id: newUser.user_id,
+                    student_id,
+                    national_id: decryptedNationalId,
+                    faculty_id: BigInt(faculty_id),
+                    department_id: BigInt(department_id),
+                    level_of_study: level_of_study as any,
                 },
             });
         } else if (role === "staff") {
@@ -229,22 +248,22 @@ async function registerHandler(req: NextRequest) {
 
             await tx.staff_profile.create({
                 data: {
-                    user_id:           newUser.user_id,
-                    national_id:       decryptedNationalId.substring(0, 20),
+                    user_id: newUser.user_id,
+                    national_id: decryptedNationalId.substring(0, 20),
                     office_department: office_department || null,
-                    position:          position          || null,
-                    staff_type,
-                    unit_id:           unit_id ? BigInt(unit_id) : null,
+                    position: position || null,
+                    staff_type: staff_type as staff_profile_staff_type,
+                    unit_id: unit_id ? BigInt(unit_id) : null,
                 },
             });
         }
 
-        //  auth_log ใช้ action ที่มีใน Enum (Prisma schema)
+        // บันทึก auth_log หลังจากสมัครสมาชิกสำเร็จ (ใช้ login_success เพราะ enum ไม่มี register)
         await tx.auth_log.create({
             data: {
                 user_id: newUser.user_id,
                 username_input: newUser.username,
-                action: "login_success" as auth_log_action,
+                action: auth_log_action.login_success,
                 ip: "registration",
                 user_agent: req.headers.get('user-agent') || "unknown",
             },
@@ -262,9 +281,9 @@ async function registerHandler(req: NextRequest) {
 export const POST = withMiddleware(
     withErrorHandler(registerHandler),
     {
-        methods:            ['POST'],
-        rateLimit:          'auth',
+        methods: ['POST'],
+        rateLimit: 'auth',
         requireContentType: 'application/json',
-        maxBodySize:        10 * 1024, // 10KB
+        maxBodySize: 10 * 1024, // 10KB
     }
 );

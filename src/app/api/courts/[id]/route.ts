@@ -1,4 +1,4 @@
-// src/app/api/court-details/route.ts
+// src/app/api/courts/[id]/route.ts
 import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/Auth";
@@ -7,6 +7,22 @@ import { withMiddleware } from "@/lib/api-middleware";
 import { CustomApiError, ERROR_CODES, HTTP_STATUS, successResponse, withErrorHandler } from "@/lib/error-handler";
 import { PricingService } from "@/lib/PricingService";
 import { decode } from "@/lib/Cryto";
+
+/**
+ * Helper to get raw user ID from session (decrypt if needed)
+ */
+async function getRawUserId(id: string): Promise<bigint> {
+    if (id.includes(':')) {
+        try {
+            const decoded = await decode(id);
+            return BigInt(decoded);
+        } catch (error) {
+            console.error('[courts-id] Failed to decode user ID:', error);
+            throw new Error('เซสชันไม่ถูกต้อง');
+        }
+    }
+    return BigInt(id);
+}
 
 // แปลง BigInt / Prisma.Decimal / object ซ้อน ๆ ให้ serialize เป็น JSON ได้
 function normalizeForJson(data: any): any {
@@ -32,30 +48,16 @@ function normalizeForJson(data: any): any {
     return norm(data);
 }
 
-/**
- * Helper to get raw user ID from session (decrypt if needed)
- */
-async function getRawUserId(id: string): Promise<bigint> {
-    if (id.includes(':')) {
-        try {
-            const decoded = await decode(id);
-            return BigInt(decoded);
-        } catch (error) {
-            console.error('[court-details] Failed to decode user ID:', error);
-            throw new Error('เซสชันไม่ถูกต้อง');
-        }
-    }
-    return BigInt(id);
-}
-
-async function courtDetailsHandler(req: NextRequest) {
-    const { searchParams } = new URL(req.url);
-    const courtIdStr = searchParams.get("courtId");
+async function courtDetailHandler(
+    req: NextRequest,
+    context: { params: Promise<{ id: string }> }
+) {
+    const { id: courtIdStr } = await context.params;
 
     if (!courtIdStr) {
         throw new CustomApiError(
             ERROR_CODES.MISSING_REQUIRED_FIELDS,
-            "กรุณาระบุรหัสสนาม (courtId)",
+            "กรุณาระบุรหัสสนาม",
             HTTP_STATUS.BAD_REQUEST
         );
     }
@@ -66,8 +68,7 @@ async function courtDetailsHandler(req: NextRequest) {
         throw new CustomApiError(
             ERROR_CODES.INVALID_PARAMETERS,
             "รหัสสนามต้องเป็นตัวเลขบวก",
-            HTTP_STATUS.BAD_REQUEST,
-            { providedCourtId: courtIdStr }
+            HTTP_STATUS.BAD_REQUEST
         );
     }
 
@@ -87,24 +88,24 @@ async function courtDetailsHandler(req: NextRequest) {
                 userMembership = user.membership;
             }
         } catch (error) {
-            console.error('[court-details] Error fetching user for pricing:', error);
+            console.error('[courts-id] Error fetching user for pricing:', error);
         }
     }
 
     const court = await prisma.courts.findUnique({
         where: { court_id: BigInt(courtId) },
         select: {
-            court_id:   true,
+            court_id: true,
             court_code: true,
-            name:       true,
-            surface:    true,
-            is_active:  true,
-            notes:      true,
+            name: true,
+            surface: true,
+            is_active: true,
+            notes: true,
             facilities: {
                 select: {
                     facility_id: true,
-                    name_th:     true,
-                    name_en:     true,
+                    name_th: true,
+                    name_en: true,
                 }
             },
         },
@@ -122,25 +123,25 @@ async function courtDetailsHandler(req: NextRequest) {
     // Get pricing from PricingService
     const priceCents = await PricingService.getBookingPrice({
         facilityId: court.facilities.facility_id,
-        courtId:    BigInt(courtId),
-        role:       userRole,
+        courtId: BigInt(courtId),
+        role: userRole,
         membership: userMembership
     });
 
     const pricePerHour = priceCents / 100;
 
     const data = {
-        id:             court.court_id,
-        court_id:       court.court_id,
-        court_code:     court.court_code,
-        court_name:     court.name ?? `Court ${court.court_code}`,
-        name:           court.name ?? `Court ${court.court_code}`,
-        location:       court.facilities.name_th,
-        description:    court.notes || court.surface || "",
-        availability:   court.is_active === true || (court.is_active as any) === 1,
-        active:         court.is_active === true || (court.is_active as any) === 1,
-        facility_id:    court.facilities.facility_id,
-        building:       court.facilities.name_th,
+        id: court.court_id,
+        court_id: court.court_id,
+        court_code: court.court_code,
+        court_name: court.name ?? `Court ${court.court_code}`,
+        name: court.name ?? `Court ${court.court_code}`,
+        location: court.facilities.name_th,
+        description: court.notes || court.surface || "",
+        availability: court.is_active === true || (court.is_active as any) === 1,
+        active: court.is_active === true || (court.is_active as any) === 1,
+        facility_id: court.facilities.facility_id,
+        building: court.facilities.name_th,
         facilityNameTh: court.facilities.name_th,
         facilityNameEn: court.facilities.name_en,
         pricePerHour,
@@ -150,9 +151,9 @@ async function courtDetailsHandler(req: NextRequest) {
 }
 
 export const GET = withMiddleware(
-    withErrorHandler(courtDetailsHandler),
+    withErrorHandler(courtDetailHandler),
     {
-        methods:   ['GET'],
+        methods: ['GET'],
         rateLimit: 'default',
     }
 );
