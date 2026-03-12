@@ -16,7 +16,7 @@ async function resolveRole(encrypted: string | undefined | null): Promise<string
     }
 }
 
-async function bookingActionHandler(request: NextRequest, { params }: { params: { id: string } }) {
+async function bookingActionHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await getServerSession(authOptions);
 
@@ -31,7 +31,7 @@ async function bookingActionHandler(request: NextRequest, { params }: { params: 
             );
         }
 
-        const reservationId = params.id;
+        const { id: reservationId } = await params;
         const body = await request.json();
         const { action, notes } = body;
 
@@ -107,6 +107,17 @@ async function bookingActionHandler(request: NextRequest, { params }: { params: 
                         status: 'cancelled',
                         cancelled_at: new Date(),
                         note: notes || reservation.note,
+                        updated_at: new Date()
+                    }
+                });
+
+                // อัปเดตสถานะ reservation_items เป็น cancelled ด้วย
+                await tx.reservation_items.updateMany({
+                    where: {
+                        reservation_id: BigInt(reservationId)
+                    },
+                    data: {
+                        status: 'cancelled',
                         updated_at: new Date()
                     }
                 });

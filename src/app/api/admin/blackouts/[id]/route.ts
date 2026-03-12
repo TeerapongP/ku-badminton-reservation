@@ -19,7 +19,7 @@ async function resolveRole(encrypted: string | undefined | null): Promise<string
 }
 
 // PUT - แก้ไข blackout
-async function updateBlackoutHandler(req: NextRequest, { params }: { params: { id: string } }) {
+async function updateBlackoutHandler(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const session = await getServerSession(authOptions);
     
     const ADMIN_ROLES = new Set(['admin', 'super_admin']);
@@ -32,7 +32,7 @@ async function updateBlackoutHandler(req: NextRequest, { params }: { params: { i
         );
     }
 
-    const blackoutId = params.id;
+    const { id: blackoutId } = await params;
     const body = await req.json();
     const { start_datetime, end_datetime, reason, active } = body;
 
@@ -117,7 +117,7 @@ async function updateBlackoutHandler(req: NextRequest, { params }: { params: { i
 }
 
 // DELETE - ลบ blackout
-async function deleteBlackoutHandler(req: NextRequest, { params }: { params: { id: string } }) {
+async function deleteBlackoutHandler(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const session = await getServerSession(authOptions);
     
     const ADMIN_ROLES = new Set(['admin', 'super_admin']);
@@ -130,7 +130,7 @@ async function deleteBlackoutHandler(req: NextRequest, { params }: { params: { i
         );
     }
 
-    const blackoutId = params.id;
+    const { id: blackoutId } = await params;
 
     // ตรวจสอบว่า blackout มีอยู่จริง
     const existingBlackout = await prisma.blackouts.findUnique({

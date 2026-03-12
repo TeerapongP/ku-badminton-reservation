@@ -66,11 +66,33 @@ export default function AdminReportsContainer() {
 
     const [reportData, setReportData] = useState<ReportData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [facilities, setFacilities] = useState<{ label: string; value: string }[]>([]);
+    const [selectedFacilityId, setSelectedFacilityId] = useState<string>("all");
     const [dateRange, setDateRange] = useState({
         startDate: "",
         endDate: "",
         days: 30
     });
+
+    // Fetch facilities for dropdown
+    const fetchFacilities = async () => {
+        try {
+            const response = await fetch('/api/facilities');
+            const data = await response.json();
+            if (data.success) {
+                const options = [
+                    { label: 'ทั้งหมด', value: 'all' },
+                    ...data.data.map((f: any) => ({
+                        label: f.name_th,
+                        value: f.facility_id.toString()
+                    }))
+                ];
+                setFacilities(options);
+            }
+        } catch (error) {
+            console.error('Fetch facilities error:', error);
+        }
+    };
 
     // Check authentication and role
     useEffect(() => {
@@ -82,6 +104,7 @@ export default function AdminReportsContainer() {
             return;
         }
 
+        fetchFacilities();
         fetchReportData();
     }, [session, status, isAdmin, roleLoading, router, toast]);
 
@@ -90,6 +113,7 @@ export default function AdminReportsContainer() {
             setLoading(true);
 
             const params = new URLSearchParams();
+            params.append('facilityId', selectedFacilityId);
 
             if (dateRange.startDate && dateRange.endDate) {
                 params.append('startDate', dateRange.startDate);
@@ -113,6 +137,13 @@ export default function AdminReportsContainer() {
             setLoading(false);
         }
     };
+
+    // Re-fetch when facility changes
+    useEffect(() => {
+        if (session && isAdmin) {
+            fetchReportData();
+        }
+    }, [selectedFacilityId]);
 
     const handleExportReport = async () => {
         try {
@@ -290,47 +321,14 @@ export default function AdminReportsContainer() {
                         </Button>
                     </div>
                 </div>
-
-                {/* <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-4">
+                <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4">
                     <DropdownField
-                        label="ช่วงเวลา"
-                        value={dateRange.days.toString()}
-                        onChange={(value) => setDateRange(prev => ({ ...prev, days: parseInt(value as string), startDate: "", endDate: "" }))}
-                        options={[
-                            { label: '7 วันที่ผ่านมา', value: '7' },
-                            { label: '30 วันที่ผ่านมา', value: '30' },
-                            { label: '90 วันที่ผ่านมา', value: '90' },
-                            { label: 'กำหนดเอง', value: '0' }
-                        ]}
-                        placeholder="เลือกช่วงเวลา"
+                        label="สถานที่"
+                        value={selectedFacilityId}
+                        onChange={(value) => setSelectedFacilityId(value as string)}
+                        options={facilities}
+                        placeholder="เลือกสถานที่"
                     />
-
-                    {dateRange.days === 0 && (
-                        <>
-                            <DateField
-                                label="วันที่เริ่มต้น"
-                                value={dateRange.startDate ? new Date(dateRange.startDate) : null}
-                                onChange={(value) => setDateRange(prev => ({
-                                    ...prev,
-                                    startDate: value ? formatDateToLocal(value) : ''
-                                }))}
-                                placeholder="เลือกวันที่เริ่มต้น"
-                            />
-
-                            <DateField
-                                label="วันที่สิ้นสุด"
-                                value={dateRange.endDate ? new Date(dateRange.endDate) : null}
-                                onChange={(value) => setDateRange(prev => ({
-                                    ...prev,
-                                    endDate: value ? formatDateToLocal(value) : ''
-                                }))}
-                                placeholder="เลือกวันที่สิ้นสุด"
-                            />
-                        </>
-                    )}
-                </div> */}
-
-                <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-4">
                     <DropdownField
                         label="ช่วงเวลา"
                         value={dateRange.days.toString()}
@@ -344,7 +342,7 @@ export default function AdminReportsContainer() {
                         placeholder="เลือกช่วงเวลา"
                     />
                     {dateRange.days === 0 && (
-                        <>
+                        <div className="tw-col-span-1 md:tw-col-span-3 tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4">
                             <div >
                                 <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
                                     เลือกวันที่เริ่มต้น
@@ -359,7 +357,7 @@ export default function AdminReportsContainer() {
                                 />
                             </div>
                             <div>
-                                 <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
+                                <label className="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
                                     เลือกวันที่สิ้นสุด
                                 </label>
                                 <DateField
@@ -371,8 +369,7 @@ export default function AdminReportsContainer() {
                                     placeholder="เลือกวันที่สิ้นสุด"
                                 />
                             </div>
-                        </>
-
+                        </div>
                     )}
                 </div>
 
@@ -380,7 +377,7 @@ export default function AdminReportsContainer() {
                     <div className="tw-mt-4">
                         <Button
                             onClick={fetchReportData}
-                           className="tw-px-4 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-blue-600 tw-text-white tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-blue-700 active:tw-bg-blue-800 focus:tw-ring-0 focus:tw-outline-none"
+                            className="tw-px-4 tw-py-2 tw-font-medium tw-rounded-xl tw-transition-all tw-duration-200 tw-bg-blue-600 tw-text-white tw-border tw-border-transparent tw-flex tw-items-center tw-justify-center hover:tw-bg-blue-700 active:tw-bg-blue-800 focus:tw-ring-0 focus:tw-outline-none"
                         >
                             อัปเดตรายงาน
                         </Button>

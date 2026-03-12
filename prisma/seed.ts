@@ -36,16 +36,15 @@ async function main() {
     console.log('✅ Facilities created:', badminton1.facility_code, badminton2.facility_code)
 
     // ============================================================
-    // 2. COURTS  — แก้ where ให้ใช้ compound key ที่ถูกต้อง
+    // 2. COURTS
     // ============================================================
-    const courts1 = ['BD1-C1', 'BD1-C2', 'BD1-C3', 'BD1-C4']
-    const courts2 = ['BD2-C1', 'BD2-C2', 'BD2-C3', 'BD2-C4']
-    const extraCourts = ['BD2-C5', 'BD2-C6', 'BD2-C7', 'BD2-C8', 'BD2-C9', 'BD2-C10', 'BD2-C11', 'BD2-C12', 'BD2-C13', 'BD2-C14', 'BD2-C15', 'BD2-C16', 'BD2-C17', 'BD2-C18', 'BD2-C19', 'BD2-C20', 'BD2-C21', 'BD2-C22']
+    const courts1 = Array.from({ length: 7 }, (_, i) => `BD1-C${i + 1}`)
+    const courts2 = Array.from({ length: 10 }, (_, i) => `BD2-C${i + 1}`)
 
     for (let i = 0; i < courts1.length; i++) {
         await prisma.courts.upsert({
             where: {
-                facility_id_court_code: {          // ← ชื่อนี้ตาม error message
+                facility_id_court_code: {
                     facility_id: badminton1.facility_id,
                     court_code: courts1[i],
                 },
@@ -64,7 +63,7 @@ async function main() {
     for (let i = 0; i < courts2.length; i++) {
         await prisma.courts.upsert({
             where: {
-                facility_id_court_code: {          // ← ชื่อนี้ตาม error message
+                facility_id_court_code: {
                     facility_id: badminton2.facility_id,
                     court_code: courts2[i],
                 },
@@ -79,92 +78,7 @@ async function main() {
             },
         })
     }
-    for (let i = 0; i < extraCourts.length; i++) {
-        await prisma.courts.upsert({
-            where: {
-                facility_id_court_code: {
-                    facility_id: badminton2.facility_id,
-                    court_code: extraCourts[i],
-                },
-            },
-            update: {},
-            create: {
-                facility_id: badminton2.facility_id,
-                court_code: extraCourts[i],
-                name: `คอร์ท ${4 + i + 1}`,  // คอร์ท 5 - 10
-                surface: 'synthetic',
-                is_active: true,
-            },
-        })
-    }
-    console.log('✅ Courts created: 4 courts each facility')
-
-    // ============================================================
-    // 3. PRICING RULES
-    // สนามแบดมินตัน 1 (ไม่มีแอร์)
-    // ============================================================
-    const pricingBD1 = [
-        // student
-        { user_role: 'student' as const, membership: 'member' as const, price_cents: 4000 },
-        { user_role: 'student' as const, membership: 'non_member' as const, price_cents: 6000 },
-        // staff
-        { user_role: 'staff' as const, membership: 'member' as const, price_cents: 4000 },
-        { user_role: 'staff' as const, membership: 'non_member' as const, price_cents: 6000 },
-        // public
-        { user_role: 'public' as const, membership: 'member' as const, price_cents: 6000 },
-        { user_role: 'public' as const, membership: 'non_member' as const, price_cents: 8000 },
-    ]
-
-    for (const rule of pricingBD1) {
-        await prisma.pricing_rules.create({
-            data: {
-                facility_id: badminton1.facility_id,
-                user_role: rule.user_role,
-                membership: rule.membership,
-                price_cents: rule.price_cents,
-                currency: 'THB',
-                active: true,
-            },
-        })
-    }
-
-    console.log('✅ Pricing rules created for BADMINTON-1')
-
-    // ============================================================
-    // 4. PRICING RULES
-    // สนามแบดมินตัน 2 (แยกเปิด/ไม่เปิดแอร์ — เก็บใน notes)
-    // ใช้ 2 ชุด: weekday = null หมายถึงทุกวัน
-    // เนื่องจาก schema ไม่มี field AC ให้ใช้ pricing_rules 2 ชุด
-    // แยกด้วย weekday placeholder หรือ court_id ก็ได้
-    // แต่ที่สะอาดสุดคือแยก facility เป็น sub-facility หรือรอ schema เพิ่ม
-    // → ตอนนี้ seed ราคา "ไม่เปิดแอร์" เป็น default ก่อน
-    // ============================================================
-    const pricingBD2 = [
-        // student
-        { user_role: 'student' as const, membership: 'member' as const, price_cents: 5000 },
-        { user_role: 'student' as const, membership: 'non_member' as const, price_cents: 8000 },
-        // staff
-        { user_role: 'staff' as const, membership: 'member' as const, price_cents: 5000 },
-        { user_role: 'staff' as const, membership: 'non_member' as const, price_cents: 8000 },
-        // public
-        { user_role: 'public' as const, membership: 'member' as const, price_cents: 8000 },
-        { user_role: 'public' as const, membership: 'non_member' as const, price_cents: 12000 },
-    ]
-
-    for (const rule of pricingBD2) {
-        await prisma.pricing_rules.create({
-            data: {
-                facility_id: badminton2.facility_id,
-                user_role: rule.user_role,
-                membership: rule.membership,
-                price_cents: rule.price_cents,
-                currency: 'THB',
-                active: true,
-            },
-        })
-    }
-
-    // เพิ่มใน prisma/seed.ts หรือรันแยก
+    console.log(`✅ Courts created: ${courts1.length} courts for ${badminton1.facility_code}, ${courts2.length} courts for ${badminton2.facility_code}`)
 
     const timeSlotData = [
         { start_minute: 540, end_minute: 600, label: '09:00-10:00', is_break: false },

@@ -31,7 +31,9 @@ export function PaymentModal({
     const [isUploading, setIsUploading] = useState(false);
 
     // QR Code path (served via API route)
-    const qrCodeUrl = "/api/images/payments/IMG_2178.JPG";
+    const qrCodeUrl = paymentData.facilityId?.toString() === "2" 
+        ? "/api/images/payments/BADMINTON-2.jpg" 
+        : "/api/images/payments/BADMINTON-1.jpg";
 
     // Handle file selection
     const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {

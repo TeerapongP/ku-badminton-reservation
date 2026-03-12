@@ -66,7 +66,15 @@ const BookingDashboard = () => {
       const response = await fetch('/api/bookings/dashboard');
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.message) errorMessage = errorData.message;
+        } catch (e) {
+          // Fallback if not JSON
+          errorMessage = `${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const result: DashboardBookingResponse = await response.json();
@@ -79,7 +87,7 @@ const BookingDashboard = () => {
       }
     } catch (err) {
       console.error('Failed to fetch bookings:', err);
-      setError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
     } finally {
       setLoading(false);
     }

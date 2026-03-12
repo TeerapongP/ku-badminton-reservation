@@ -12,9 +12,17 @@ export const THAILAND_UTC_OFFSET = 7; // hours
 export function getThailandDate(date?: Date | string | number): Date {
   const inputDate = date ? new Date(date) : new Date();
   
-  // Convert to Thailand time by adding UTC offset
+  // How much is the server's local offset from UTC (in minutes)?
+  // getTimezoneOffset() returns positive for West of UTC (UTC-5 -> 300) and negative for East (UTC+7 -> -420)
+  const serverOffsetMinutes = inputDate.getTimezoneOffset();
+  const serverOffsetHours = -serverOffsetMinutes / 60;
+  
+  // How much MORE do we need to shift to get to Thailand (UTC+7)?
+  const additionalShiftHours = THAILAND_UTC_OFFSET - serverOffsetHours;
+  
+  // Convert to Thailand time by adding the necessary offset
   const utcTime = inputDate.getTime();
-  const thailandTime = new Date(utcTime + (THAILAND_UTC_OFFSET * 60 * 60 * 1000));
+  const thailandTime = new Date(utcTime + (additionalShiftHours * 60 * 60 * 1000));
   
   return thailandTime;
 }

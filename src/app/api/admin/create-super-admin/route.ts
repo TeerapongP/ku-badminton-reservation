@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/Auth';
 import bcrypt from 'bcryptjs';
 import { decode } from '@/lib/Cryto';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
     if (!encrypted) return null;
@@ -92,8 +90,6 @@ export async function POST(req: NextRequest) {
             { success: false, error: "เกิดข้อผิดพลาดในการสร้าง Super Admin" },
             { status: 500 }
         );
-    } finally {
-        await prisma.$disconnect();
     }
 }
 
@@ -122,7 +118,5 @@ export async function GET() {
             { success: false, error: "เกิดข้อผิดพลาดในการตรวจสอบ" },
             { status: 500 }
         );
-    } finally {
-        await prisma.$disconnect();
     }
 }

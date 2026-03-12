@@ -16,7 +16,7 @@ async function resolveRole(encrypted: string | undefined | null): Promise<string
 }
 
 // GET - ดึงข้อมูลการชำระเงินรายการเดียว
-async function getPaymentHandler(request: NextRequest, { params }: { params: { id: string } }) {
+async function getPaymentHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await getServerSession(authOptions);
 
@@ -31,7 +31,7 @@ async function getPaymentHandler(request: NextRequest, { params }: { params: { i
             );
         }
 
-        const paymentId = params.id;
+        const { id: paymentId } = await params;
 
         // ดึงข้อมูล payment พร้อม relations
         const payment = await prisma.payments.findUnique({
@@ -174,7 +174,7 @@ async function getPaymentHandler(request: NextRequest, { params }: { params: { i
 }
 
 // PUT - อัปเดตสถานะการชำระเงิน
-async function updatePaymentHandler(request: NextRequest, { params }: { params: { id: string } }) {
+async function updatePaymentHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await getServerSession(authOptions);
 
@@ -189,7 +189,7 @@ async function updatePaymentHandler(request: NextRequest, { params }: { params: 
             );
         }
 
-        const paymentId = params.id;
+        const { id: paymentId } = await params;
         const body = await request.json();
         const { status, note } = body;
 

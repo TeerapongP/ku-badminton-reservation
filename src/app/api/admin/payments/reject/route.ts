@@ -124,6 +124,17 @@ async function rejectPaymentHandler(request: NextRequest) {
                     }
                 });
 
+                // อัปเดตสถานะ reservation_items เป็น cancelled ด้วย
+                await tx.reservation_items.updateMany({
+                    where: {
+                        reservation_id: payment.reservations.reservation_id
+                    },
+                    data: {
+                        status: 'cancelled',
+                        updated_at: new Date()
+                    }
+                });
+
                 // TODO: ส่งการแจ้งเตือนให้ผู้ใช้ (เมื่อมี notification system)
                 console.log(`Payment ${payment_id} rejected for user ${payment.reservations?.users?.user_id}, reason: ${reason}`);
             }

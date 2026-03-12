@@ -370,6 +370,7 @@ export function BookingConfirmationModal({
                 onHide={() => setShowPaymentModal(false)}
                 paymentData={{
                     reservationId: reservationId || undefined,
+                    facilityId: bookingData.facilityId,
                     amount: bookingData.price,
                     courtName: bookingData.courtName,
                     facilityName: bookingData.facilityName,

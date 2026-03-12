@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/Auth';
 import { prisma } from '@/lib/prisma';
 import { CustomApiError, ERROR_CODES, HTTP_STATUS, successResponse, withErrorHandler } from '@/lib/error-handler';
 import { decode } from '@/lib/Cryto';
+import { Prisma } from '@prisma/client';
 
 async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
     if (!encrypted) return null;
@@ -34,6 +35,7 @@ async function reportsHandler(request: NextRequest) {
         const days = parseInt(searchParams.get('days') || '30', 10); // [SONAR FIX: S109] added radix
         const startDate = searchParams.get('startDate');
         const endDate = searchParams.get('endDate');
+        const facilityId = searchParams.get('facilityId');
 
         // Calculate date range
         let dateFilter: any = {};
@@ -51,18 +53,23 @@ async function reportsHandler(request: NextRequest) {
             };
         }
 
+        // Base where clause for facility filtering
+        const whereClause: any = {
+            created_at: dateFilter
+        };
+        
+        if (facilityId && facilityId !== 'all') {
+            whereClause.facility_id = BigInt(facilityId);
+        }
+
         // 1. Booking Statistics
         const totalBookings = await prisma.reservations.count({
-            where: {
-                created_at: dateFilter
-            }
+            where: whereClause
         });
 
         const bookingsByStatus = await prisma.reservations.groupBy({
             by: ['status'],
-            where: {
-                created_at: dateFilter
-            },
+            where: whereClause,
             _count: {
                 status: true
             }
@@ -70,9 +77,7 @@ async function reportsHandler(request: NextRequest) {
 
         const bookingsByPaymentStatus = await prisma.reservations.groupBy({
             by: ['payment_status'],
-            where: {
-                created_at: dateFilter
-            },
+            where: whereClause,
             _count: {
                 payment_status: true
             }
@@ -81,7 +86,7 @@ async function reportsHandler(request: NextRequest) {
         // 2. Revenue Statistics
         const revenueStats = await prisma.reservations.aggregate({
             where: {
-                created_at: dateFilter,
+                ...whereClause,
                 payment_status: 'paid'
             },
             _sum: {
@@ -96,28 +101,28 @@ async function reportsHandler(request: NextRequest) {
         });
 
         // 3. Daily Booking Trends
-        const dailyBookings = await prisma.$queryRaw`
+        const dailyBookings = await prisma.$queryRaw<Array<{
+            date: Date;
+            bookings: bigint;
+            revenue_cents: bigint;
+        }>>`
       SELECT 
         DATE(created_at) as date,
         COUNT(*) as bookings,
         SUM(CASE WHEN payment_status = 'paid' THEN total_cents ELSE 0 END) as revenue_cents
       FROM reservations 
-      WHERE created_at >= ${dateFilter.gte} AND created_at <= ${dateFilter.lte}
+      WHERE created_at >= ${dateFilter.gte} 
+        AND created_at <= ${dateFilter.lte}
+        ${facilityId && facilityId !== 'all' ? Prisma.sql` AND facility_id = ${BigInt(facilityId)}` : Prisma.empty}
       GROUP BY DATE(created_at)
       ORDER BY date DESC
       LIMIT 30
-    ` as Array<{
-            date: Date;
-            bookings: bigint;
-            revenue_cents: bigint;
-        }>;
+    `;
 
         // 4. Popular Facilities
         const facilityStats = await prisma.reservations.groupBy({
             by: ['facility_id'],
-            where: {
-                created_at: dateFilter
-            },
+            where: whereClause,
             _count: {
                 facility_id: true
             },
@@ -167,9 +172,7 @@ async function reportsHandler(request: NextRequest) {
         // 6. Top Users by Bookings
         const topUsers = await prisma.reservations.groupBy({
             by: ['user_id'],
-            where: {
-                created_at: dateFilter
-            },
+            where: whereClause,
             _count: {
                 user_id: true
             },
@@ -202,19 +205,21 @@ async function reportsHandler(request: NextRequest) {
         });
 
         // 7. Peak Hours Analysis
-        const peakHours = await prisma.$queryRaw`
+        const peakHours = await prisma.$queryRaw<Array<{
+            hour: number;
+            bookings: bigint;
+        }>>`
       SELECT 
         HOUR(ri.created_at) as hour,
         COUNT(*) as bookings
       FROM reservation_items ri
       JOIN reservations r ON ri.reservation_id = r.reservation_id
-      WHERE r.created_at >= ${dateFilter.gte} AND r.created_at <= ${dateFilter.lte}
+      WHERE r.created_at >= ${dateFilter.gte} 
+        AND r.created_at <= ${dateFilter.lte}
+        ${facilityId && facilityId !== 'all' ? Prisma.sql` AND r.facility_id = ${BigInt(facilityId)}` : Prisma.empty}
       GROUP BY HOUR(ri.created_at)
       ORDER BY bookings DESC
-    ` as Array<{
-            hour: number;
-            bookings: bigint;
-        }>;
+    `;
 
         // Format response
         const formattedFacilityStats = facilityStats.map(stat => {
@@ -297,8 +302,6 @@ async function reportsHandler(request: NextRequest) {
             'เกิดข้อผิดพลาดในการดึงข้อมูลรายงาน',
             HTTP_STATUS.INTERNAL_SERVER_ERROR
         );
-    } finally {
-        await prisma.$disconnect(); // [SONAR FIX: Resource Leak] ensure disconnect
     }
 }
 

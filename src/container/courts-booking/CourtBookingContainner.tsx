@@ -43,6 +43,7 @@ export default function CourtBookingContainer() {
     function mapServerToView(s: any): CourtView {
         // รองรับทั้ง snake_case และ camelCase
         const courtId = s.courtId ?? s.court_id ?? s.id ?? "-";
+        const facilityId = s.facilityId ?? s.facility_id ?? null;
         const name =
             s.courtName ??
             s.name ??
@@ -51,7 +52,7 @@ export default function CourtBookingContainer() {
         const pricePerHour =
             typeof s.pricePerHour === "number" ? s.pricePerHour : null;
 
-        return { courtId, name, building, pricePerHour, active: s.active };
+        return { courtId, facilityId, name, building, pricePerHour, active: s.active };
     }
 
     // Fetch court availability for selected date
@@ -60,7 +61,13 @@ export default function CourtBookingContainer() {
 
         setSlotsLoading(true);
         try {
-            const dateString = date.toISOString().split('T')[0];
+            // ใช้ Intl.DateTimeFormat เพื่อดึงวันที่ใน timezone ท้องถิ่น (en-CA ให้ YYYY-MM-DD)
+            const dateString = new Intl.DateTimeFormat('en-CA', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(date);
+            
             const res = await fetch(`/api/courts/${courtId}/availability?date=${dateString}`, {
                 cache: "no-store",
             });
@@ -105,14 +112,10 @@ export default function CourtBookingContainer() {
     // Initialize dates after component mounts to avoid hydration issues
     useEffect(() => {
         const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        setToday(now);
-
-        // ถ้ามี time_slot parameter ให้ตั้งวันที่เป็นวันนี้โดยอัตโนมัติ
-        if (timeSlotParam) {
-            setSelectedDate(new Date());
-        }
-    }, [timeSlotParam]);
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        setToday(startOfToday);
+        setSelectedDate(startOfToday); // ตั้งค่าเริ่มต้นเป็นวันนี้
+    }, []);
 
     useEffect(() => {
         if (!courtId) {
@@ -290,8 +293,7 @@ export default function CourtBookingContainer() {
         focus-within:tw-ring-4 focus-within:tw-ring-indigo-50
     ">
                             <DateField
-                                value={today}
-                                disabled
+                                value={selectedDate}
                                 onChange={setSelectedDate}
                                 showIcon={true}
                                 minDate={today || undefined}
@@ -424,11 +426,16 @@ export default function CourtBookingContainer() {
                 visible={visible}
                 onHide={() => setVisible(false)}
                 bookingData={{
-                    date: selectedDate?.toISOString().split('T')[0] ?? "-", // ใช้ ISO format สำหรับ API
+                    date: selectedDate ? new Intl.DateTimeFormat('en-CA', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    }).format(selectedDate) : "-", // ใช้ ISO format สำหรับ API ในเวลาท้องถิ่น
                     time: slots.find(s => s.id === selectedSlot)?.label ?? "-",
                     price: court?.pricePerHour?.toString() ?? "100",
                     courtName: court?.name ?? "-",
                     facilityName: court?.building ?? "-",
+                    facilityId: court?.facilityId ?? undefined,
                     courtId: courtId,
                     slotId: selectedSlot || undefined,
                 }}

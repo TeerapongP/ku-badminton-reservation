@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import { withMiddleware } from "@/lib/api-middleware"; // [OWASP FIX: A01] added middleware
 import { withErrorHandler } from "@/lib/error-handler"; // [OWASP FIX: A05] added error handler
 import { authOptions } from "../auth/[...nextauth]/route";
 import { getServerSession } from 'next-auth';
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 function normalizeForJson<T = any>(data: T): T {
     const isPlainObj = (v: any) => v && typeof v === "object" && (v.constructor === Object || Object.getPrototypeOf(v) === Object.prototype);
@@ -79,8 +78,6 @@ async function courtAvailabilityHandler(req: NextRequest) { // [SONAR FIX: S1172
     } catch (err) {
         console.error("court-availability error:", err);
         return NextResponse.json({ success: false, error: "Failed to fetch availability" }, { status: 500 });
-    } finally {
-        await prisma.$disconnect();
     }
 }
 

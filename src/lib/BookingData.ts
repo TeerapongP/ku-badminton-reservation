@@ -4,6 +4,7 @@ type BookingData = {
     price: string | number;
     courtName?: string;
     facilityName?: string;
+    facilityId?: string | number;
     courtId?: string | number;
     slotId?: string | number;
 };

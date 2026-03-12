@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { PrismaClient } from "@prisma/client";
 import { authOptions } from "@/lib/Auth";
 import { decode } from "@/lib/Cryto";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 async function resolveRole(encrypted: string | undefined | null): Promise<string | null> {
     if (!encrypted) return null;
@@ -75,7 +73,5 @@ export async function POST(request: NextRequest) {
             },
             { status: 500 }
         );
-    } finally {
-        await prisma.$disconnect();
     }
 }

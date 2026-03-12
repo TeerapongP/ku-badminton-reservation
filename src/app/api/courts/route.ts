@@ -84,7 +84,10 @@ async function courtsHandler(req: NextRequest) {
                     court_id: { in: courts.map(c => c.court_id) },
                     play_date: bookingDate,
                     slot_id: { in: timeSlots.map(slot => slot.slot_id) },
-                    status: { not: 'cancelled' }
+                    status: { not: 'cancelled' },
+                    reservations: {
+                        status: { not: 'cancelled' }
+                    }
                 },
                 select: {
                     court_id: true
@@ -104,6 +107,9 @@ async function courtsHandler(req: NextRequest) {
             where: {
                 court_id: { in: courts.map(c => c.court_id) },
                 status: { not: 'cancelled' },
+                reservations: {
+                    status: { not: 'cancelled' }
+                },
                 play_date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } // จากวันนี้เป็นต้นไป
             },
             select: {
