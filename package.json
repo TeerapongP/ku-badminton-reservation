@@ -12,7 +12,7 @@
     "build:prod": "next build --no-turbopack",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate --schema=src/db/prisma/schema.prisma",
     "create-super_admin": "node scripts/create-super_admin.js",
     "cleanup-logs": "node scripts/cleanup-logs.js",
     "migrate-students": "node scripts/migrate-students.js",
@@ -81,6 +81,6 @@
     }
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx src/db/prisma/seed.ts"
   }
 }
